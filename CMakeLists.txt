@@ -1384,7 +1384,6 @@ if (NOT EVENT__DISABLE_TESTS)
                   test-eof
                   test-closed
                   test-fdleak
-                  test-kq-collision
                   test-init
                   test-time
                   test-weof)
@@ -1397,6 +1396,9 @@ if (NOT EVENT__DISABLE_TESTS)
     else()
         add_test_prog(test-ratelim)
     endif()
+		if (EVENT__HAVE_WORKING_KQUEUE)
+				add_test_prog(test-kq-collision)
+		endif()
 
     set(ALL_TESTPROGS
         ${TESTPROGS}

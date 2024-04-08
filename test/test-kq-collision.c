@@ -23,11 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#if defined(EVENT__HAVE_WORKING_KQUEUE)
+
 #include "../util-internal.h"
 #include "event2/event-config.h"
 #include "event2/thread.h"
-
-#if defined(EVENT__HAVE_WORKING_KQUEUE)
 
 #include <assert.h>
 #include <unistd.h>
@@ -195,4 +196,14 @@ main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
-#endif /* EVENT__HAVE_WORKING_KQUEUE */
+#else /* !EVENT__HAVE_WORKING_KQUEUE */
+
+#include <stdlib.h>
+
+// Skip the test if kqueue is not supported.
+int
+main(void) {
+   return EXIT_SUCCESS;
+}
+
+#endif
