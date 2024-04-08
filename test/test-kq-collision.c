@@ -24,10 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(EVENT__HAVE_WORKING_KQUEUE)
-
 #include "../util-internal.h"
-#include "event2/event-config.h"
+
+#ifdef EVENT__HAVE_WORKING_KQUEUE
+
 #include "event2/thread.h"
 
 #include <assert.h>
