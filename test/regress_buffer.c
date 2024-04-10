@@ -1308,7 +1308,9 @@ test_evbuffer_add_file(void *ptr)
 	    addfile_test_writecb, src);
 	rev = event_new(base, pair[1], EV_READ|EV_PERSIST,
 	    addfile_test_readcb, dest);
-
+	tt_assert(wev);
+	tt_assert(rev);
+	
 	event_add(wev, NULL);
 	event_add(rev, NULL);
 	event_base_dispatch(base);
