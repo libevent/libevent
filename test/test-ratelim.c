@@ -195,10 +195,12 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 	struct bufferevent *bev;
 
 	bev = bufferevent_socket_new(base, newsock, flags);
+	assert(bev);
 	bufferevent_setcb(bev, echo_readcb, echo_writecb, echo_eventcb, NULL);
 	if (conn_bucket_cfg) {
 		struct event *check_event =
 		    event_new(base, -1, EV_PERSIST, check_bucket_levels_cb, bev);
+		assert(check_event);
 		bufferevent_set_rate_limit(bev, conn_bucket_cfg);
 
 		assert(bufferevent_get_token_bucket_cfg(bev) != NULL);
@@ -449,10 +451,12 @@ test_ratelimiting(void)
 	ms100_common = event_base_init_common_timeout(base, &tv);
 
 	periodic_level_check = event_new(base, -1, EV_PERSIST, check_group_bucket_levels_cb, NULL);
+	assert(periodic_level_check);
 	event_add(periodic_level_check, ms100_common);
 
 	if (cfg_group_drain && ratelim_group) {
 		group_drain_event = event_new(base, -1, EV_PERSIST, group_drain_cb, NULL);
+		assert(group_drain_event);
 		event_add(group_drain_event, &cfg_tick);
 	}
 
