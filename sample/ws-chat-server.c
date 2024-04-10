@@ -233,6 +233,9 @@ main(int argc, char **argv)
 	base = event_base_new();
 
 	sig_int = evsignal_new(base, SIGINT, signal_cb, base);
+	if (sig_int == NULL) {
+		return 1;
+	}
 	event_add(sig_int, NULL);
 
 	http_server = evhttp_new(base);
