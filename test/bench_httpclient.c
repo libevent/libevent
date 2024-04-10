@@ -163,7 +163,9 @@ launch_request(void)
 	evutil_gettimeofday(&ri->started, NULL);
 
 	b = bufferevent_socket_new(base, sock, BEV_OPT_CLOSE_ON_FREE);
-
+	if (b == NULL) {
+		return -1;
+	}
 	bufferevent_setcb(b, readcb, NULL, errorcb, ri);
 	bufferevent_enable(b, EV_READ|EV_WRITE);
 
