@@ -138,6 +138,8 @@ static int
 bio_bufferevent_write(BIO *b, const char *in, int inlen)
 {
 	struct bufferevent *bufev = BIO_get_data(b);
+	if (bufev == NULL)
+		return -1;
 	struct evbuffer *output;
 	size_t outlen;
 
