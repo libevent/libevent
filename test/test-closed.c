@@ -100,6 +100,9 @@ main(int argc, char **argv)
 
 	/* Dispatch */
 	ev = event_new(base, pair[1], EV_CLOSED | EV_TIMEOUT, closed_cb, event_self_cbarg());
+	if (ev == NULL) {
+		return (1);
+	}
 	event_add(ev, &timeout);
 	event_base_dispatch(base);
 
