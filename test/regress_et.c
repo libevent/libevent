@@ -228,6 +228,8 @@ test_edge_triggered_multiple_events(void *data_)
 		read_notification_cb, NULL);
 	write_ev = event_new(base, pair[1], EV_WRITE|EV_ET|EV_PERSIST,
 		write_notification_cb, NULL);
+	tt_assert(read_ev);
+	tt_assert(write_ev);
 
 	event_add(read_ev, NULL);
 	event_add(write_ev, NULL);
