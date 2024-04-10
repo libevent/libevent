@@ -139,6 +139,10 @@ main(int argc, char **argv)
 #else
 	/* catch SIGINT so that event.fifo can be cleaned up */
 	signal_int = evsignal_new(base, SIGINT, signal_cb, base);
+	if (signal_int == NULL) {
+		perror("evsignal_new");
+		exit(1);
+	}
 	event_add(signal_int, NULL);
 
 	evfifo = event_new(base, socket, EV_READ|EV_PERSIST, fifo_read,
