@@ -433,6 +433,9 @@ test_simpleclose_rw(void *ptr)
 	TT_BLATHER(("Waiting for read on %d", (int)pair1[1]));
 	wev = event_new(base, pair2[1], EV_WRITE, record_event_cb,
 	    &got_write_on_close);
+	tt_assert(closeev);
+	tt_assert(rev);
+	tt_assert(wev);
 	TT_BLATHER(("Waiting for write on %d", (int)pair2[1]));
 	tv.tv_sec = 0;
 	tv.tv_usec = 100*1000; /* Close pair1[0] after a little while, and make
@@ -1891,6 +1894,8 @@ test_active_later(void *ptr)
 	struct timeval qsec = {0, 100000};
 	ev1 = event_new(data->base, data->pair[0], EV_READ|EV_PERSIST, read_and_drain_cb, NULL);
 	ev2 = event_new(data->base, data->pair[1], EV_WRITE|EV_PERSIST, write_a_byte_cb, NULL);
+	tt_assert(ev1);
+	tt_assert(ev2);
 	event_assign(&ev3, data->base, -1, 0, activate_other_event_cb, &ev4);
 	event_assign(&ev4, data->base, -1, 0, activate_other_event_cb, &ev3);
 	event_add(ev1, NULL);
@@ -1996,6 +2001,11 @@ test_event_remove_timeout(void *ptr)
 	ev[3] = evtimer_new(base, send_a_byte_cb, &data->pair[1]);
 	ev[4] = evtimer_new(base, send_a_byte_cb, &data->pair[1]);
 	tt_assert(base);
+	tt_assert(ev[0]);
+	tt_assert(ev[1]);
+	tt_assert(ev[2]);
+	tt_assert(ev[3]);
+	tt_assert(ev[4]);
 	event_add(ev[2], &ms25); /* remove timers */
 	event_add(ev[4], &ms40); /* write to test if timer re-activates */
 	event_add(ev[0], &ms75); /* read */
@@ -2997,6 +3007,8 @@ test_dup_fd(void *arg)
 
 	ev1 = event_new(base, fd, EV_READ|EV_PERSIST, dfd_cb, &ev1_got);
 	ev2 = event_new(base, dfd, EV_READ|EV_PERSIST, dfd_cb, &ev2_got);
+	tt_assert(ev1);
+	tt_assert(ev2);
 	ev1_got = ev2_got = 0;
 	event_add(ev1, NULL);
 	event_add(ev2, NULL);
@@ -3022,6 +3034,7 @@ test_dup_fd(void *arg)
 	tt_int_op(dup2(fd, dfd), ==, dfd);
 	event_free(ev2);
 	ev2 = event_new(base, dfd, EV_WRITE|EV_PERSIST, dfd_cb, &ev2_got);
+	tt_assert(ev2);
 	event_add(ev2, NULL);
 	ev1_got = ev2_got = 0;
 	event_base_loop(base, EVLOOP_ONCE);
@@ -3144,6 +3157,7 @@ test_many_events(void *arg)
 		called[i] = 0;
 		ev[i] = event_new(base, sock[i], EV_WRITE|evflags,
 		    many_event_cb, &called[i]);
+		tt_assert(ev[i]);
 		event_add(ev[i], NULL);
 		if (one_at_a_time)
 			event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
@@ -3257,6 +3271,7 @@ test_event_foreach(void *arg)
 		visited[i].count = 0;
 		visited[i].ev = NULL;
 		ev[i] = event_new(base, -1, 0, timeout_cb, &visited[i]);
+		tt_assert(ev[i]);
 	}
 
 	tt_int_op(-1, ==, event_base_foreach_event(NULL, foreach_count_cb, NULL));
