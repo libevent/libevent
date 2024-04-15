@@ -1262,7 +1262,11 @@ macro(add_test_prog prog)
                           event_core
                           event_extra
                           ${ARGN})
+    if(PTHREADS_AVAILABLE AND ${prog} STREQUAL "test-kq-collision")
+        target_link_libraries(${prog} event_pthreads)
+    endif()
 endmacro()
+
 if (NOT EVENT__DISABLE_TESTS)
     #
     # Generate Regress tests.
@@ -1396,7 +1400,7 @@ if (NOT EVENT__DISABLE_TESTS)
     else()
         add_test_prog(test-ratelim)
     endif()
-    if (EVENT__HAVE_WORKING_KQUEUE)
+    if (EVENT__HAVE_WORKING_KQUEUE AND EVENT__HAVE_PTHREADS)
         add_test_prog(test-kq-collision)
     endif()
 
@@ -1404,6 +1408,7 @@ if (NOT EVENT__DISABLE_TESTS)
         ${TESTPROGS}
         test-dumpevents
         test-ratelim
+        test-kq-collision
     )
 
     #

@@ -512,7 +512,7 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 }
 
 
-/* OSX 10.6, FreeBSD 8.1 and NetBSD 10.0 added support for EVFILT_USER,
+/* OSX 10.6, FreeBSD 8.1, DragonFlyBSD 4.0 and NetBSD 10.0 added support for EVFILT_USER,
  * which we can use to wake up the event loop from another thread. */
 
 /* Magic number we use for our filter ID.

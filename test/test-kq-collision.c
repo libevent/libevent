@@ -25,10 +25,9 @@
  */
 
 #include "../util-internal.h"
-
-#ifdef EVENT__HAVE_WORKING_KQUEUE
-
 #include "event2/thread.h"
+
+#if defined(EVENT__HAVE_WORKING_KQUEUE) && defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 
 #include <assert.h>
 #include <unistd.h>
@@ -196,7 +195,7 @@ main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
-#else /* !EVENT__HAVE_WORKING_KQUEUE */
+#else /* !EVENT__HAVE_WORKING_KQUEUE && !EVTHREAD_USE_PTHREADS_IMPLEMENTED */
 
 #include <stdlib.h>
 
