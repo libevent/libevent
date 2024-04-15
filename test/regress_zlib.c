@@ -307,6 +307,8 @@ test_bufferevent_zlib(void *arg)
 	    BEV_OPT_CLOSE_ON_FREE, zlib_deflate_free, z_output);
 	bev2 = bufferevent_filter_new(bev2, zlib_input_filter,
 	    NULL, BEV_OPT_CLOSE_ON_FREE, zlib_inflate_free, z_input);
+	tt_ptr_op(bev1, !=, NULL);
+	tt_ptr_op(bev2, !=, NULL);
 	bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
 	bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
 
