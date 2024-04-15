@@ -61,12 +61,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
       - name: Cache Dist Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: dist
           key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v3
@@ -127,7 +127,7 @@ jobs:
           cmake --build .
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -182,7 +182,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: dist
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
@@ -214,7 +214,7 @@ jobs:
           ../configure --enable-gcc-warnings
           make
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -259,7 +259,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
@@ -349,7 +349,7 @@ jobs:
           cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -387,7 +387,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: mingw-autotools-v5
@@ -419,7 +419,7 @@ jobs:
           D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -458,7 +458,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v4
@@ -509,7 +509,7 @@ jobs:
           cmake --build .
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -545,7 +545,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
@@ -592,7 +592,7 @@ jobs:
           cmake --build .
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -630,7 +630,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: ${{ matrix.os }}-autotools-v3
@@ -652,7 +652,7 @@ jobs:
           make
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -689,7 +689,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
@@ -735,7 +735,7 @@ jobs:
             cmake --build .
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -774,7 +774,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: freebsd-${{ matrix.release }}-autotools-v1
@@ -796,7 +796,7 @@ jobs:
             make
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -844,7 +844,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
@@ -890,7 +890,7 @@ jobs:
             cmake --build .
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
@@ -929,7 +929,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build
           key: openbsd-${{ matrix.release }}-autotools-v1
@@ -954,7 +954,7 @@ jobs:
             make V=1
 
       - name: Test
-        uses: nick-fields/retry@v2
+        uses: nick-fields/retry@v3
         with:
           max_attempts: 5
           timeout_minutes: 60
