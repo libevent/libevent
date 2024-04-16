@@ -2379,7 +2379,6 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 		if ((int)sizeof(sin6) > *outlen)
 			return -1;
 		sin6.sin6_scope_id = if_index;
-		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
 		*outlen = sizeof(sin6);
 		return 0;
@@ -2398,7 +2397,6 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 			return -1;
 		if ((int)sizeof(sin) > *outlen)
 			return -1;
-		memset(out, 0, *outlen);
 		memcpy(out, &sin, sizeof(sin));
 		*outlen = sizeof(sin);
 		return 0;

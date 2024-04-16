@@ -615,6 +615,8 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_half_writecb,
 	    http_errorcb, data->base);
 	out = bufferevent_get_output(bev);
@@ -635,6 +637,8 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 	out = bufferevent_get_output(bev);
@@ -656,6 +660,8 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -792,6 +798,8 @@ http_bad_request_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_badreq_readcb, http_writecb,
 	    http_badreq_errorcb, data->base);
 	bufferevent_enable(bev, EV_READ);
@@ -824,6 +832,8 @@ http_bad_request_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_badreq_readcb, http_writecb,
 	    http_badreq_errorcb, data->base);
 	bufferevent_enable(bev, EV_READ);
@@ -930,6 +940,8 @@ http_genmethod_test(void *arg, enum evhttp_cmd_type method, const char *name, co
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 	evb = bufferevent_get_output(bev);
@@ -1003,6 +1015,8 @@ http_custom_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -1134,6 +1148,7 @@ http_on_complete_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -1198,6 +1213,7 @@ http_allowed_methods_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev1 = bufferevent_socket_new(data->base, fd1, 0);
+	tt_assert(bev1);
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
 	bufferevent_setcb(bev1, NULL, NULL,
 	    http_allowed_methods_eventcb, &result1);
@@ -1216,6 +1232,7 @@ http_allowed_methods_test(void *arg)
 	tt_assert(fd2 != EVUTIL_INVALID_SOCKET);
 
 	bev2 = bufferevent_socket_new(data->base, fd2, 0);
+	tt_assert(bev2);
 	bufferevent_enable(bev2, EV_READ|EV_WRITE);
 	bufferevent_setcb(bev2, NULL, NULL,
 	    http_allowed_methods_eventcb, &result2);
@@ -1234,6 +1251,8 @@ http_allowed_methods_test(void *arg)
 	tt_assert(fd3 != EVUTIL_INVALID_SOCKET);
 
 	bev3 = bufferevent_socket_new(data->base, fd3, 0);
+	tt_assert(bev3);
+
 	bufferevent_enable(bev3, EV_READ|EV_WRITE);
 	bufferevent_setcb(bev3, NULL, NULL,
 	    http_allowed_methods_eventcb, &result3);
@@ -1252,6 +1271,8 @@ http_allowed_methods_test(void *arg)
 	tt_int_op(fd4, >=, 0);
 
 	bev4 = bufferevent_socket_new(data->base, fd4, 0);
+	tt_assert(bev4);
+
 	bufferevent_enable(bev4, EV_READ|EV_WRITE);
 	bufferevent_setcb(bev4, NULL, NULL,
 	    http_allowed_methods_eventcb, &result4);
@@ -1787,9 +1808,10 @@ http_cancel_test(void *arg)
 		data->base, dns_base,
 		type & BY_HOST ? "localhost" : "127.0.0.1",
 		port);
+	tt_assert(evcon);
 	if (type & INACTIVE_SERVER)
 		evhttp_connection_set_timeout(evcon, 5);
-	tt_assert(evcon);
+	
 
 	bufev = evhttp_connection_get_bufferevent(evcon);
 	/* Guarantee that we stack in connect() not after waiting EV_READ after
@@ -2077,6 +2099,8 @@ http_virtual_host_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 
@@ -2310,7 +2334,7 @@ static void http_unix_socket_test(void *arg)
 	tt_assert(uri);
 
 	evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
-
+	tt_assert(evcon);
 	/*
 	 * At this point, we want to schedule an HTTP GET request
 	 * server using our make request method.
@@ -2629,6 +2653,8 @@ http_failure_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_failure_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -3530,6 +3556,8 @@ http_base_test(void *ptr)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, base);
 	bufferevent_base_set(base, bev);
@@ -3617,6 +3645,8 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout, int ssl)
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev,
 	    http_incomplete_readcb, http_incomplete_writecb,
 	    http_incomplete_errorcb, use_timeout ? NULL : &fd);
@@ -3886,6 +3916,8 @@ http_send_chunk_test(void *arg)
 	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	bev = create_bev(data->base, fd, 0 /* ssl */, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev,
 	    http_send_chunk_test_read_cb,
 	    http_send_chunk_test_write_cb,
@@ -3969,6 +4001,8 @@ http_send_chunk_malformed_test(void *arg)
 	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	bev = create_bev(data->base, fd, 0 /* ssl */, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev,
 	    http_send_chunk_test_read_cb,
 	    http_send_chunk_malformed_test_write_cb,
@@ -4014,6 +4048,8 @@ http_chunk_out_test_impl(void *arg, int ssl)
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev,
 	    http_chunked_readcb, http_chunked_writecb,
 	    http_chunked_errorcb, data->base);
@@ -5101,6 +5137,8 @@ http_terminate_chunked_test_impl(void *arg, int oneshot)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, terminate_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -5288,6 +5326,7 @@ http_write_during_read_test_impl(void *arg, int ssl)
 	fd = http_connect("127.0.0.1", port);
 	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
 	bufferevent_setcb(bev, NULL, NULL, NULL, data->base);
 	bufferevent_disable(bev, EV_READ);
 
@@ -5360,6 +5399,8 @@ static void http_run_bev_request(struct event_base *base, int port,
 
 	/* Stupid thing to send a request */
 	bev = create_bev(base, fd, 0, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, base);
 	out = bufferevent_get_output(bev);
@@ -5786,6 +5827,8 @@ http_timeout_read_server_test(void *arg)
 
 	fd = http_connect("127.0.0.1", port);
 	bev = create_bev(data->base, fd, 0, 0);
+	tt_assert(bev);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb, http_errorcb, data->base);
 	out = bufferevent_get_output(bev);
 

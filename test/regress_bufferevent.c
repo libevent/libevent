@@ -145,6 +145,8 @@ test_bufferevent_impl(int use_pair, int flush)
 	} else {
 		bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
 		bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
+		tt_assert(bev1);
+		tt_assert(bev2);
 		tt_fd_op(bufferevent_getfd(bev1), ==, pair[0]);
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
@@ -612,6 +614,9 @@ test_bufferevent_filters_impl(int use_pair, int disable)
 
 	bev2 = bufferevent_filter_new(bev2, bufferevent_input_filter,
 				      NULL, BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
+	tt_assert(bev1);
+	tt_assert(bev2);
+
 	bufferevent_setcb(bev1, NULL, writecb, errorcb, NULL);
 	bufferevent_setcb(bev2, readcb, NULL, errorcb, NULL);
 
@@ -1420,9 +1425,10 @@ test_bufferevent_read_failed(void *arg)
 
 	bev = bufferevent_socket_new(
 		data->base, data->pair[1], BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev != NULL);
 	bufferevent_setcb(bev, read_failed_readcb, NULL, NULL, data->base);
 	bufferevent_enable(bev, EV_READ);
-	tt_assert(bev != NULL);
+	
 
 #ifdef _WIN32
 	tt_int_op(send(data->pair[0], buf, strlen(buf), 0), ==, strlen(buf));
