@@ -1392,16 +1392,13 @@ if (NOT EVENT__DISABLE_TESTS)
                   test-time
                   test-weof)
 
-    foreach (TESTPROG ${TESTPROGS} test-dumpevents)
+    foreach (TESTPROG ${TESTPROGS} test-dumpevents test-kq-collision)
         add_test_prog(${TESTPROG})
     endforeach()
     if (UNIX)
         add_test_prog(test-ratelim m)
     else()
         add_test_prog(test-ratelim)
-    endif()
-    if (EVENT__HAVE_WORKING_KQUEUE AND EVENT__HAVE_PTHREADS)
-        add_test_prog(test-kq-collision)
     endif()
 
     set(ALL_TESTPROGS
