@@ -1262,9 +1262,6 @@ macro(add_test_prog prog)
                           event_core
                           event_extra
                           ${ARGN})
-    if(PTHREADS_AVAILABLE AND ${prog} STREQUAL "test-kq-collision")
-        target_link_libraries(${prog} event_pthreads)
-    endif()
 endmacro()
 
 if (NOT EVENT__DISABLE_TESTS)
@@ -1392,9 +1389,12 @@ if (NOT EVENT__DISABLE_TESTS)
                   test-time
                   test-weof)
 
-    foreach (TESTPROG ${TESTPROGS} test-dumpevents test-kq-collision)
+    foreach (TESTPROG ${TESTPROGS} test-dumpevents)
         add_test_prog(${TESTPROG})
     endforeach()
+    if(PTHREADS_AVAILABLE)
+        add_test_prog(test-kq-collision event_pthreads)
+    endif()
     if (UNIX)
         add_test_prog(test-ratelim m)
     else()
