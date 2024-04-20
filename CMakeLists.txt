@@ -1392,11 +1392,6 @@ if (NOT EVENT__DISABLE_TESTS)
     foreach (TESTPROG ${TESTPROGS} test-dumpevents)
         add_test_prog(${TESTPROG})
     endforeach()
-    if(PTHREADS_AVAILABLE)
-        add_test_prog(test-kq-collision event_pthreads)
-    else()
-        add_test_prog(test-kq-collision)
-    endif()
     if (UNIX)
         add_test_prog(test-ratelim m)
     else()
@@ -1407,8 +1402,12 @@ if (NOT EVENT__DISABLE_TESTS)
         ${TESTPROGS}
         test-dumpevents
         test-ratelim
-        test-kq-collision
     )
+
+    if(PTHREADS_AVAILABLE)
+        add_test_prog(test-kq-collision event_pthreads)
+        list(APPEND ALL_TESTPROGS test-kq-collision)
+    endif()
 
     #
     # We run all tests with the different backends turned on one at a time.

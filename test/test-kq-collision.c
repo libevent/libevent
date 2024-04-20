@@ -24,10 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../util-internal.h"
+#include "util-internal.h"
 #include "event2/thread.h"
-
-#if defined(EVENT__HAVE_WORKING_KQUEUE) && defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 
 #include <assert.h>
 #include <unistd.h>
@@ -40,7 +38,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <pthread.h>
 
 #include <event.h>
@@ -55,6 +52,9 @@ int read_called = 0;
 static void
 read_cb(evutil_socket_t fd, short event, void *arg)
 {
+	char buf[16];
+	ev_ssize_t n;
+
 	if (EV_TIMEOUT & event) {
 		printf("%s: Timeout!\n", __func__);
 		exit(1);
@@ -65,8 +65,7 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 		exit(1);
 	}
 
-	char buf[16];
-	int n = read(fd, buf, sizeof(buf));
+	n = read(fd, buf, sizeof(buf));
 	if (n == -1) {
 		printf("%s: read error on pipe\n", __func__);
 		exit(1);
@@ -90,6 +89,7 @@ trigger_kq(void *arg)
 	 * We need to do it in a separate thread, otherwise it won't be issued.
 	 */
 	event_base_loopcontinue(base);
+	return NULL;
 }
 
 static void
@@ -194,15 +194,3 @@ main(int argc, char **argv)
 	event_base_free(base);
 	return EXIT_SUCCESS;
 }
-
-#else /* !EVENT__HAVE_WORKING_KQUEUE && !EVTHREAD_USE_PTHREADS_IMPLEMENTED */
-
-#include <stdlib.h>
-
-// Skip the test if kqueue is not supported.
-int
-main(void) {
-   return EXIT_SUCCESS;
-}
-
-#endif
