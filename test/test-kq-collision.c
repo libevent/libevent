@@ -24,9 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "util-internal.h"
-#include "event2/thread.h"
-
 #include <assert.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -40,8 +37,10 @@
 #include <string.h>
 #include <pthread.h>
 
-#include <event.h>
-#include <evutil.h>
+#include <event2/event.h>
+#include <event2/util.h>
+#include <event2/thread.h>
+#include "event-internal.h"
 
 struct timeval timeout = {3, 0};
 char data[] = "Hello, World!";
@@ -126,6 +125,8 @@ int
 main(int argc, char **argv)
 {
 	struct event_base *base;
+	struct event_config *cfg;
+	const char **methods;
 	struct event *ev_notify, *ev_read, *ev_write, *ev_exit;
 	struct timeval tv_notify, tv_write, tv_exit;
 	int pipefd[2];
@@ -160,7 +161,14 @@ main(int argc, char **argv)
 	 */
 	evthread_use_pthreads();
 
-	base = event_base_new();
+	cfg = event_config_new();
+	methods = event_get_supported_methods();
+	for (size_t i = 0; methods[i] != NULL; ++i) {
+		if (strcmp(methods[i], "kqueue"))
+			event_config_avoid_method(cfg, methods[i]);
+	}
+	base = event_base_new_with_config(cfg);
+	event_config_free(cfg);
 
 	/* Triggering a EVFILT_USER event is expected to not tamper EVFILT_READ on the same indent. */
 	ev_notify = evtimer_new(base, notify_cb, base);
