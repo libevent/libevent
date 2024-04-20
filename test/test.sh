@@ -1,7 +1,8 @@
 #!/bin/sh
 
 BACKENDS="EVPORT KQUEUE EPOLL DEVPOLL POLL SELECT WIN32 WEPOLL"
-TESTS="test-eof test-closed test-weof test-time test-changelist test-fdleak test-kq-collision"
+TESTS="test-eof test-closed test-weof test-time test-changelist test-fdleak"
+KQUEUE_TESTS="test-kq-collision"
 FAILED=no
 TEST_OUTPUT_FILE=${TEST_OUTPUT_FILE:-/dev/null}
 REGRESS_ARGS=${REGRESS_ARGS:-}
@@ -65,6 +66,9 @@ announce_n () {
 
 
 run_tests () {
+	backend="$1" && shift
+	ALL_TESTS="$TESTS"
+
 	if $TEST_DIR/test-init 2>>"$TEST_OUTPUT_FILE" ;
 	then
 		true
@@ -72,7 +76,12 @@ run_tests () {
 		announce Skipping test
 		return
 	fi
-	for i in $TESTS; do
+
+	if "$backend" -eq "KQUEUE"; then
+		ALL_TESTS="$ALL_TESTS $KQUEUE_TESTS"
+	fi
+
+	for i in $ALL_TESTS; do
 		announce_n " $i: "
 		if $TEST_DIR/$i >>"$TEST_OUTPUT_FILE" ;
 		then
@@ -146,7 +155,7 @@ do_test() {
 	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
 	fi
 
-	run_tests
+	run_tests "$1"
 }
 
 usage()
