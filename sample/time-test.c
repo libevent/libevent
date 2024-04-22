@@ -104,6 +104,14 @@ main(int argc, char **argv)
 	/* Initialize one event */
 	timeout = event_new(base, -1, flags, timeout_cb, event_self_cbarg());
 	signal_event = evsignal_new(base, SIGINT, signal_cb, (void*)base );
+	if (timeout == NULL) {
+		fprintf(stderr, "Couldn't create event");
+		goto err;
+	}
+	if (signal_event == NULL) {
+		fprintf(stderr, "Couldn't create event");
+		goto err;
+	}
 	evutil_timerclear(&tv);
 	tv.tv_sec = 2;
 	event_add(timeout, &tv);
@@ -121,5 +129,13 @@ main(int argc, char **argv)
 	event_base_free(base);
 
 	return (0);
+err:
+	if (signal_event)
+		event_free(signal_event);
+	if (timeout)
+		event_free(timeout);
+	if (base)
+		event_base_free(base);
+	return (1);
 }
 
