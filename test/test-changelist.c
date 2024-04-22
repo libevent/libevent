@@ -189,11 +189,11 @@ main(int argc, char **argv)
 	/* Initialize a timeout to terminate the test */
 	timeout = evtimer_new(base,timeout_cb,&timeout);
 	if (timeout == NULL)
-		return (1);
+		goto err;
 	/* and watch for writability on one end of the pipe */
 	ev = event_new(base,pair[1],EV_WRITE | EV_PERSIST, write_cb, &ev);
 	if (ev == NULL)
-		return (1);
+		goto err;
 	tv.tv_sec  = 1;
 	tv.tv_usec = 500*1000;
 
@@ -223,5 +223,13 @@ main(int argc, char **argv)
 	  return 1;
 
 	return 0;
+err:
+	if (ev)
+		event_free(ev);
+	if (timeout)
+		event_free(timeout);
+	if (base)
+		event_base_free(base);
+	return 1;
 }
 
