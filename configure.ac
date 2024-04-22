@@ -267,6 +267,7 @@ AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin =
 
 if test "$bwin32" = "true"; then
   AC_CHECK_LIB([ws2_32], [main])
+  AC_CHECK_LIB([iphlpapi], [GetAdaptersAddresses])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
