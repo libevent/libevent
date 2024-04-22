@@ -195,12 +195,16 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 	struct bufferevent *bev;
 
 	bev = bufferevent_socket_new(base, newsock, flags);
-	assert(bev);
+	if (bev == NULL)
+		goto err;
+
 	bufferevent_setcb(bev, echo_readcb, echo_writecb, echo_eventcb, NULL);
 	if (conn_bucket_cfg) {
 		struct event *check_event =
 		    event_new(base, -1, EV_PERSIST, check_bucket_levels_cb, bev);
 		assert(check_event);
+		if (check_event == NULL)
+			goto err;
 		bufferevent_set_rate_limit(bev, conn_bucket_cfg);
 
 		assert(bufferevent_get_token_bucket_cfg(bev) != NULL);
@@ -210,6 +214,12 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 		bufferevent_add_to_rate_limit_group(bev, ratelim_group);
 	++n_echo_conns_open;
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
+	return;
+err:
+	if (bev)
+		bufferevent_free(bev);
+	fprintf(stderr, "Couldn't create bufferevent\n");
+	return;
 }
 
 /* Called periodically to check up on how full the buckets are */
@@ -451,26 +461,24 @@ test_ratelimiting(void)
 	ms100_common = event_base_init_common_timeout(base, &tv);
 
 	periodic_level_check = event_new(base, -1, EV_PERSIST, check_group_bucket_levels_cb, NULL);
-	assert(periodic_level_check);
+	if (periodic_level_check == NULL) {
+		fprintf(stderr, "Couldn't create event");
+		goto cleanup;
+	}
 	event_add(periodic_level_check, ms100_common);
 
 	if (cfg_group_drain && ratelim_group) {
 		group_drain_event = event_new(base, -1, EV_PERSIST, group_drain_cb, NULL);
-		assert(group_drain_event);
+		if (group_drain_event == NULL) {
+			fprintf(stderr, "Couldn't create event");
+			goto cleanup;
+		}
 		event_add(group_drain_event, &cfg_tick);
 	}
 
 	event_base_dispatch(base);
 
-	ratelim_group = NULL; /* So no more responders get added */
-	event_free(periodic_level_check);
-	if (group_drain_event)
-		event_free(group_drain_event);
 
-	for (i = 0; i < cfg_n_connections; ++i) {
-		bufferevent_free(bevs[i]);
-	}
-	evconnlistener_free(listener);
 
 	/* Make sure no new echo_conns get added to the group. */
 	ratelim_group = NULL;
@@ -484,8 +492,7 @@ test_ratelimiting(void)
 		event_base_dispatch(base);
 	}
 
-	if (group)
-		bufferevent_rate_limit_group_free(group);
+	
 
 	if (total_n_bev_checks) {
 		printf("Average read bucket level: %f\n",
@@ -553,9 +560,26 @@ test_ratelimiting(void)
 		ok = 0;
 	}
 
-	event_base_free(base);
-	free(bevs);
-	free(states);
+cleanup:
+	if (periodic_level_check)
+		event_free(periodic_level_check);
+	if (group_drain_event)
+		event_free(group_drain_event);
+
+	for (i = 0; i < cfg_n_connections; ++i) {
+		bufferevent_free(bevs[i]);
+	}
+	if (group)
+		bufferevent_rate_limit_group_free(group);
+	
+	if (listener)
+		evconnlistener_free(listener);
+	if (base)
+		event_base_free(base);
+	if (bevs)
+		free(bevs);
+	if (states)
+		free(states);
 
 	return ok ? 0 : 1;
 }
