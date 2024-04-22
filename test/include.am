@@ -25,12 +25,18 @@ TESTPROGRAMS = \
 	test/test-eof				\
 	test/test-closed				\
 	test/test-fdleak				\
-	test/test-kq-collision \
 	test/test-init				\
 	test/test-ratelim				\
 	test/test-time				\
-	test/test-weof \
-	test/regress
+	test/test-weof
+
+if PTHREADS
+if KQUEUE_BACKEND
+TESTPROGRAMS += test/test-kq-collision
+endif
+endif
+
+TESTPROGRAMS += test/regress
 
 if BUILD_REGRESS
 noinst_PROGRAMS += $(TESTPROGRAMS)
