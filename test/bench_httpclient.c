@@ -164,6 +164,8 @@ launch_request(void)
 
 	b = bufferevent_socket_new(base, sock, BEV_OPT_CLOSE_ON_FREE);
 	if (b == NULL) {
+		evutil_closesocket(sock);
+		fprintf(stderr, "Couldn't create bufferevent\n");
 		return -1;
 	}
 	bufferevent_setcb(b, readcb, NULL, errorcb, ri);
