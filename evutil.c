@@ -480,13 +480,37 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 int
 evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 {
-#if defined __linux__ && defined(SO_REUSEPORT)
-	int one = 1;
-	/* REUSEPORT on Linux 3.9+ means, "Multiple servers (processes or
-	 * threads) can bind to the same port if they each set the option. */
-	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void*) &one,
-	    (ev_socklen_t)sizeof(one));
+#if __FreeBSD__ >= 12 && defined(SO_REUSEPORT_LB)
+	/* FreeBSD 12 introduced a new socket option named SO_REUSEPORT_LB
+	 * with the capability of load balancing, it's the equivalent of
+	 * the SO_REUSEPORTs on Linux and DragonFlyBSD. */
+	int enabled = 1;
+	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT_LB, (void*)&enabled,
+	    (ev_socklen_t)sizeof(enabled));
+#elif (defined __linux__ || defined __DragonFly__ || __sun) && defined(SO_REUSEPORT)
+	int enabled = 1;
+	/* SO_REUSEPORT on Linux 3.9+ means, "Multiple servers (processes or
+	 * threads) can bind to the same port if they each set the option".
+	 * In addition, the SO_REUSEPORT implementation distributes connections
+	 * or datagrams evenly across all of the threads (or processes).
+	 *
+	 * DragonFlyBSD 3.6.0 extended SO_REUSEPORT to distribute workload to
+	 * available sockets, which make it the same as Linux's SO_REUSEPORT.
+	 *
+	 * Solaris 11 supported SO_REUSEPORT, but it's implemented only for
+	 * binding to the same address and port, without load balancing.
+	 * Solaris 11.4 extended SO_REUSEPORT with the capability of load balancing.
+	 */
+	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void*)&enabled,
+	    (ev_socklen_t)sizeof(enabled));
 #else
+	/* SO_REUSEPORTs on macOS and other BSDs only enable duplicate address and
+	 * port bindings, load balancing is not included. Therefore, only the last
+	 * socket that binds to a given address and port will receive all the traffic,
+	 * which means that incoming connections/datagrams will be shifted from the
+	 * old thread (or process) to the new one. That's not what we want, so we don't
+	 * enable SO_REUSEPORT on these systems.
+	 */
 	return 0;
 #endif
 }
