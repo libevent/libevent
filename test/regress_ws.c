@@ -353,6 +353,7 @@ http_ws_test(void *arg)
 	/* Send HTTP-only request to WS endpoint */
 	fd = http_connect("127.0.0.1", port);
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
 	bufferevent_setcb(
 		bev, http_ws_readcb_bad, http_writecb, http_ws_errorcb, data->base);
 	out = bufferevent_get_output(bev);
@@ -371,6 +372,7 @@ http_ws_test(void *arg)
 	/* Check for WS handshake and Sec-WebSocket-Accept correctness */
 	fd = http_connect("127.0.0.1", port);
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
 	bufferevent_setcb(
 		bev, http_ws_readcb_hdr, http_writecb, http_ws_errorcb, data->base);
 	out = bufferevent_get_output(bev);
