@@ -234,7 +234,7 @@ main(int argc, char **argv)
 
 	sig_int = evsignal_new(base, SIGINT, signal_cb, base);
 	if (sig_int == NULL) {
-		return 1;
+		goto cleanup;
 	}
 	event_add(sig_int, NULL);
 
@@ -255,4 +255,9 @@ main(int argc, char **argv)
 	libevent_global_shutdown();
 
 	return 0;
+
+cleanup:
+	if (base)
+	event_base_free(base);
+	return 1;
 }
