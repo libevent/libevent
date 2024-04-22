@@ -141,7 +141,7 @@ main(int argc, char **argv)
 	signal_int = evsignal_new(base, SIGINT, signal_cb, base);
 	if (signal_int == NULL) {
 		perror("evsignal_new");
-		exit(1);
+		goto err;
 	}
 	event_add(signal_int, NULL);
 
@@ -151,7 +151,6 @@ main(int argc, char **argv)
 
 	/* Add it to the active events, without a timeout */
 	event_add(evfifo, NULL);
-
 	event_base_dispatch(base);
 	event_base_free(base);
 #ifdef _WIN32
@@ -162,5 +161,16 @@ main(int argc, char **argv)
 #endif
 	libevent_global_shutdown();
 	return (0);
+
+err:
+	event_base_free(base);
+#ifdef _WIN32
+	CloseHandle(socket);
+#else
+	close(socket);
+	unlink(fifo);
+#endif
+	libevent_global_shutdown();
+	return (1);
 }
 
