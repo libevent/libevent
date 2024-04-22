@@ -105,7 +105,7 @@ main(int argc, char **argv)
 	for (i = 0; i < NEVENT; i++) {
 		ev[i] = evtimer_new(base, time_cb, event_self_cbarg());
 		if (ev[i] == NULL) {
-			return EXIT_FAILURE;
+			goto err;
 		}
 		tv.tv_sec = 0;
 		tv.tv_usec = rand_int(50000);
@@ -117,10 +117,19 @@ main(int argc, char **argv)
 	printf("event_base_dispatch=%d, called=%d, EVENT=%d\n",
 		i, called, NEVENT);
 
+	
 	if (i == 1 && called >= NEVENT) {
 		return EXIT_SUCCESS;
 	} else {
 		return EXIT_FAILURE;
 	}
+err:
+	if (base)
+		event_base_free(base);
+	for (i = 0; i < NEVENT; i++) {
+		if (ev[i])
+			event_free(ev[i]);
+	}
+	return EXIT_FAILURE;
 }
 
