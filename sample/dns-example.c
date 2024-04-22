@@ -202,6 +202,7 @@ main(int c, char **v) {
 	}
 	evdns_base = evdns_base_new(event_base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 	if (evdns_base == NULL) {
+		event_base_free(event_base);
 		fprintf(stderr, "Couldn't create new evdns_base\n");
 		return 1;
 	}
