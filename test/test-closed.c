@@ -101,7 +101,7 @@ main(int argc, char **argv)
 	/* Dispatch */
 	ev = event_new(base, pair[1], EV_CLOSED | EV_TIMEOUT, closed_cb, event_self_cbarg());
 	if (ev == NULL) {
-		return (1);
+		goto err;
 	}
 	event_add(ev, &timeout);
 	event_base_dispatch(base);
@@ -110,5 +110,11 @@ main(int argc, char **argv)
 	event_free(ev);
 	event_base_free(base);
 	return 0;
+err:
+	if (ev)
+		event_free(ev);
+	if (base)
+		event_base_free(base);
+	return 1;
 }
 
