@@ -480,14 +480,14 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 int
 evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 {
-#if __FreeBSD__ >= 12 && defined(SO_REUSEPORT_LB)
+#if defined(__FreeBSD__) && __FreeBSD__ >= 12 && defined(SO_REUSEPORT_LB)
 	/* FreeBSD 12 introduced a new socket option named SO_REUSEPORT_LB
 	 * with the capability of load balancing, it's the equivalent of
 	 * the SO_REUSEPORTs on Linux and DragonFlyBSD. */
 	int enabled = 1;
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT_LB, (void*)&enabled,
 	    (ev_socklen_t)sizeof(enabled));
-#elif (defined __linux__ || defined __DragonFly__ || __sun) && defined(SO_REUSEPORT)
+#elif (defined __linux__ || defined __DragonFly__ || defined __sun) && defined(SO_REUSEPORT)
 	int enabled = 1;
 	/* SO_REUSEPORT on Linux 3.9+ means, "Multiple servers (processes or
 	 * threads) can bind to the same port if they each set the option".
