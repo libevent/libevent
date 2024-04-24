@@ -487,7 +487,7 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 	int enabled = 1;
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT_LB, (void*)&enabled,
 	    (ev_socklen_t)sizeof(enabled));
-#elif (defined __linux__ || defined __DragonFly__ || defined __sun) && defined(SO_REUSEPORT)
+#elif (defined(__linux__) || defined(__DragonFly__) || defined(__sun)) && defined(SO_REUSEPORT)
 	int enabled = 1;
 	/* SO_REUSEPORT on Linux 3.9+ means, "Multiple servers (processes or
 	 * threads) can bind to the same port if they each set the option".
