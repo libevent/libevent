@@ -187,6 +187,8 @@ main()
 		esac
 	done
 
+	set -e
+
 	announce "Running tests:"
 
 	[ $timerfd -eq 0 ] || do_test EPOLL "(timerfd)"
