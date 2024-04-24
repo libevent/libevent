@@ -271,7 +271,7 @@
 
   The event_enable_lock_debugging() function is now spelled correctly.
   You can still use the old "event_enable_lock_debuging" name, though,
-  so your old programs shouldnt' break.
+  so your old programs shouldn't break.
 
   There's also been some work done to try to make the debugging logs
   more generally useful.

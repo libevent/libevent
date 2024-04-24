@@ -218,7 +218,7 @@ int event_debug_mode_on_ = 0;
  *        to be shared across threads (if thread support is enabled).
  *
  *        When and if evthreads are initialized, this variable will be evaluated,
- *        and if set to something other than zero, this means the evthread setup 
+ *        and if set to something other than zero, this means the evthread setup
  *        functions were called out of order.
  *
  *        See: "Locks and threading" in the documentation.
@@ -2589,13 +2589,31 @@ evthread_notify_base_default(struct event_base *base)
 static int
 evthread_notify_base_eventfd(struct event_base *base)
 {
+	int efd = base->th_notify_fd[0];
 	ev_uint64_t msg = 1;
-	int r;
-	do {
-		r = write(base->th_notify_fd[0], (void*) &msg, sizeof(msg));
-	} while (r < 0 && errno == EAGAIN);
+	ev_uint64_t val;
 
-	return (r < 0) ? -1 : 0;
+	int ret;
+	for (;;) {
+		ret = eventfd_write(efd, (eventfd_t) msg);
+		if (ret < 0) {
+			// When EAGAIN occurs, the eventfd counter hits the maximum value of the unsigned 64-bit.
+			// We need to first drain the eventfd and then write again.
+			//
+			// Check out https://man7.org/linux/man-pages/man2/eventfd.2.html for details.
+			if (errno == EAGAIN) {
+				// It's ready to retry.
+				if (eventfd_read(efd, &val) == 0 || errno == EAGAIN) {
+					continue;
+				}
+			}
+			// Unknown error occurs.
+			ret = -1;
+		}
+		break;
+	}
+
+	return ret;
 }
 #endif
 
@@ -3648,14 +3666,7 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 static void
 evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 {
-	ev_uint64_t msg;
-	ev_ssize_t r;
 	struct event_base *base = arg;
-
-	r = read(fd, (void*) &msg, sizeof(msg));
-	if (r<0 && errno != EAGAIN) {
-		event_sock_warn(fd, "Error reading from eventfd");
-	}
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	base->is_notify_pending = 0;
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -3733,7 +3744,7 @@ evthread_make_base_notifiable_nolock_(struct event_base *base)
 
 	/* prepare an event that we can use for wakeup */
 	event_assign(&base->th_notify, base, base->th_notify_fd[0],
-				 EV_READ|EV_PERSIST, cb, base);
+				 EV_READ|EV_PERSIST|EV_ET, cb, base);
 
 	/* we need to mark this as internal event */
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;

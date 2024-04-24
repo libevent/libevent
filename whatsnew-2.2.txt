@@ -99,7 +99,7 @@
 
   So as you can see without openssl 16K is faster then 40K/4K, while for
   openssl 40K is still faster then 16K (I guess that this is due to with
-  openssl SSL_read() more at at time, while with plain we have some
+  openssl SSL_read() more at time, while with plain we have some
   allocations splits in evbuffer and maybe due to some buffer in openssl)
 
 1.3. New backend for windows - wepoll

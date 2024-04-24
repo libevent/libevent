@@ -222,7 +222,6 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	evutil_socket_t fd;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
 	int socktype = SOCK_STREAM | EVUTIL_SOCK_NONBLOCK;
-	int support_keepalive = 1;
 
 	if (backlog == 0)
 		return NULL;
@@ -234,14 +233,11 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	if (fd == -1)
 		return NULL;
 
-#if defined(_WIN32) && defined(EVENT__HAVE_AFUNIX_H)
-	if (family == AF_UNIX && evutil_check_working_afunix_()) {
-		/* AF_UNIX socket can't set SO_KEEPALIVE option on Win10.
-		 * Avoid 10042 error.  */
-		support_keepalive = 0;
-	}
-#endif
-	if (support_keepalive) {
+	/*
+	 * We do not bother about TCP keep-alive on Unix sockets, because the
+	 * chances of a network failure here are only of theoretical nature.
+	 */
+	if (family != AF_UNIX) {
 		/* TODO(panjf2000): make this TCP keep-alive value configurable */
 		if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 			goto err;
