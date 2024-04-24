@@ -3004,7 +3004,7 @@ evutil_make_internal_pipe_(evutil_socket_t fd[2])
 {
 	/*
 	  Making the second socket nonblocking is a bit subtle, given that we
-	  ignore any EAGAIN returns when writing to it, and you don't usally
+	  ignore any EAGAIN returns when writing to it, and you don't usually
 	  do that for a nonblocking socket. But if the kernel gives us EAGAIN,
 	  then there's no need to add any more data to the buffer, since
 	  the main thread is already either about to wake up and drain it,

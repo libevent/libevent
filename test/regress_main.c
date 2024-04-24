@@ -111,7 +111,7 @@ timeval_msec_diff(const struct timeval *start, const struct timeval *end)
 /* Code to wrap up old legacy test cases that used setup() and cleanup().
  *
  * Not all of the tests designated "legacy" are ones that used setup() and
- * cleanup(), of course.  A test is legacy it it uses setup()/cleanup(), OR
+ * cleanup(), of course.  A test is legacy if it uses setup()/cleanup(), OR
  * if it wants to find its event base/socketpair in global variables (ugh),
  * OR if it wants to communicate success/failure through test_ok.
  */
