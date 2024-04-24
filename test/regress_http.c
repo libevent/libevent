@@ -4856,6 +4856,8 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	const size_t size = (1<<20) * 3;
 	void (*cb)(struct evhttp_request *, void *);
 	struct evhttp *http = http_setup(&port, data->base, 0);
+	size_t i;
+	char header_index[NI_MAXSERV];
 
 	test_ok = 0;
 	cb = http_failed_request_done;
@@ -4883,9 +4885,8 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	tt_assert(req);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
-	char header_index[NI_MAXSERV];
-	for (int i = 0; i < size; ++i) {
-		evutil_snprintf(header_index, sizeof(header_index), "header_index_%d", i);
+	for (i = 0; i < size; ++i) {
+		evutil_snprintf(header_index, sizeof(header_index), "header_index_%zu", i);
 		evhttp_add_header(evhttp_request_get_output_headers(req), header_index, header_index);
 	}
 	TT_BLATHER(("GET /?arg=val"));
