@@ -1404,9 +1404,10 @@ if (NOT EVENT__DISABLE_TESTS)
         test-ratelim
     )
 
-    if(PTHREADS_AVAILABLE)
+    if(PTHREADS_AVAILABLE AND EVENT__HAVE_KQUEUE)
         add_test_prog(test-kq-collision event_pthreads)
         list(APPEND ALL_TESTPROGS test-kq-collision)
+        add_test(test-test-kq-collision ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-kq-collision)
     endif()
 
     #
