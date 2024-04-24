@@ -75,7 +75,7 @@ extern "C" {
 #define inline EVENT__inline
 #endif
 
-/* Define to appropriate substitute if compiler doesnt have __func__ */
+/* Define to appropriate substitute if compiler doesn't have __func__ */
 #if defined(EVENT__HAVE___func__)
 # ifndef __func__
 #  define __func__ __func__
