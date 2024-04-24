@@ -77,7 +77,7 @@ run_tests () {
 		return
 	fi
 
-	if "$backend" -eq "KQUEUE"; then
+	if [ "$backend" = "KQUEUE" ]; then
 		ALL_TESTS="$ALL_TESTS $KQUEUE_TESTS"
 	fi
 
