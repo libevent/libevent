@@ -71,9 +71,9 @@ run_tests () {
 
 	if $TEST_DIR/test-init 2>>"$TEST_OUTPUT_FILE" ;
 	then
-		true
+		announce "Running $backend $*"
 	else
-		announce Skipping test
+		announce "Skipping test $backend $*"
 		return
 	fi
 
@@ -141,21 +141,27 @@ run_tests () {
 }
 
 do_test() {
+	backend="$1" && shift
+	if [ $# -gt 1 ]; then
+		backend_conf="$2" && shift
+	else
+		backend_conf=""
+	fi
+
 	setup
-	announce "$1 $2"
-	unset EVENT_NO$1
-	if test "$2" = "(changelist)" ; then
+	unset EVENT_NO$backend
+	if test "$backend_conf" = "(changelist)" ; then
 	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
-	elif test "$2" = "(timerfd)" ; then
+	elif test "$backend_conf" = "(timerfd)" ; then
 	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
-	elif test "$2" = "(signalfd)" ; then
+	elif test "$backend_conf" = "(signalfd)" ; then
 	    EVENT_USE_SIGNALFD=1; export EVENT_USE_SIGNALFD
-	elif test "$2" = "(timerfd+changelist)" ; then
+	elif test "$backend_conf" = "(timerfd+changelist)" ; then
 	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
 	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
 	fi
 
-	run_tests "$1"
+	run_tests "$backend" "$backend_conf"
 }
 
 usage()
