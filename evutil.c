@@ -506,6 +506,12 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 	 * Solaris 11 supported SO_REUSEPORT, but it's implemented only for
 	 * binding to the same address and port, without load balancing.
 	 * Solaris 11.4 extended SO_REUSEPORT with the capability of load balancing.
+	 *
+	 * TODO(panjf2000): Since it's impossible to detect the Solaris 11.4 version
+	 * via OS macros, so we check the presence of the socket option SO_FLOW_NAME
+	 * that was first introduced to Solaris 11.4. But try to find some other ways
+	 * to detect the Solaris version at runtime instead of compile time cuz this
+	 * code could be compiled on one machine and run on another.
 	 */
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void*)&enabled,
 	    (ev_socklen_t)sizeof(enabled));
