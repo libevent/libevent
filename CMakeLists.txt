@@ -542,6 +542,7 @@ else()
         arc4random
         arc4random_addrandom
         arc4random_buf
+        arc4random_stir
         epoll_create
         epoll_create1
         epoll_ctl
