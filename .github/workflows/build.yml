@@ -59,7 +59,7 @@ jobs:
             EVENT_MATRIX: UBSAN
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -157,12 +157,12 @@ jobs:
               cmake --build . --target verify
             fi
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure() && matrix.EVENT_MATRIX != 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure() && matrix.EVENT_MATRIX == 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-dist
@@ -180,7 +180,7 @@ jobs:
           - os: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -229,7 +229,7 @@ jobs:
             cd build
             make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
@@ -256,7 +256,7 @@ jobs:
           - TEST_EXPORT_STATIC
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -372,7 +372,7 @@ jobs:
               $host.SetShouldExit($LastExitCode)
             }
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
@@ -385,7 +385,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -433,7 +433,7 @@ jobs:
             make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
             D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -456,7 +456,7 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -518,7 +518,7 @@ jobs:
             cd build
             ctest --output-on-failure
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -542,7 +542,7 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -612,7 +612,7 @@ jobs:
               cmake --build . --target verify
             fi
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -627,7 +627,7 @@ jobs:
         os: [macos-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -662,7 +662,7 @@ jobs:
             cd build
             make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -686,7 +686,7 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -756,7 +756,7 @@ jobs:
             fi
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -771,7 +771,7 @@ jobs:
         release: ["13.2"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -809,7 +809,7 @@ jobs:
             make verify
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -841,7 +841,7 @@ jobs:
           # - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -911,7 +911,7 @@ jobs:
             fi
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -926,7 +926,7 @@ jobs:
         release: [""]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Cache Build
         uses: actions/cache@v4
@@ -967,7 +967,7 @@ jobs:
             make verify
             EOF
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -979,7 +979,7 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Dependencies
         run:
           sudo apt install
@@ -998,12 +998,12 @@ jobs:
           ./extra/abi-check/abi_check.sh
         env:
           ABI_CHECK_ROOT: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: build
           path: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         with:
           name: build
           path: /tmp/le-abi-root/work/abi-check
