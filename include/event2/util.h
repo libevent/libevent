@@ -540,14 +540,14 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_socket_error_to_string(errcode) ...
 #define EVUTIL_INVALID_SOCKET -1
 /**@}*/
-#else /** !EVENT_IN_DOXYGEN_ && !_WIN32 */
+#else /* !EVENT_IN_DOXYGEN_ && !_WIN32 */
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
 #define evutil_socket_geterror(sock) (errno)
 #define evutil_socket_error_to_string(errcode) (strerror(errcode))
 #define EVUTIL_INVALID_SOCKET -1
-#endif /** !_WIN32 */
+#endif /* !_WIN32 */
 
 
 /**
@@ -659,11 +659,11 @@ struct sockaddr;
 /** Parse an IPv4 or IPv6 address, with optional port, from a string.
 
     Recognized formats are:
-    - [IPv6Address]:port
-    - [IPv6Address]
-    - IPv6Address
-    - IPv4Address:port
-    - IPv4Address
+    - "[IPv6Address]:port"
+    - "[IPv6Address]"
+    - "IPv6Address"
+    - "IPv4Address:port"
+    - "IPv4Address"
 
     If no port is specified, the port in the output is set to 0.
 
