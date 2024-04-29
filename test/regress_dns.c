@@ -1307,7 +1307,7 @@ dns_nameservers_no_nameservers_configured_test(void *arg)
 	const char filecontents[] = "# tmp empty resolv.conf\n";
 	const size_t filecontentssize = sizeof(filecontents);
 	int ok;
-
+	
 	fd = regress_make_tmpfile(filecontents, filecontentssize, &tmpfilename);
 	if (fd < 0)
 		tt_skip();
