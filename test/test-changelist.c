@@ -228,6 +228,10 @@ err:
 		event_free(ev);
 	if (timeout)
 		event_free(timeout);
+	if (pair[0] >= 0)
+		evutil_closesocket(pair[0]);
+	if (pair[1] >= 0)
+		evutil_closesocket(pair[1]);
 	if (base)
 		event_base_free(base);
 	return 1;
