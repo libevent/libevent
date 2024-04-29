@@ -28,8 +28,15 @@ TESTPROGRAMS = \
 	test/test-init				\
 	test/test-ratelim				\
 	test/test-time				\
-	test/test-weof \
-	test/regress
+	test/test-weof
+
+if PTHREADS
+if KQUEUE_BACKEND
+TESTPROGRAMS += test/test-kq-collision
+endif
+endif
+
+TESTPROGRAMS += test/regress
 
 if BUILD_REGRESS
 noinst_PROGRAMS += $(TESTPROGRAMS)
@@ -107,6 +114,15 @@ test_test_ratelim_SOURCES = test/test-ratelim.c
 test_test_ratelim_LDADD = libevent_core.la -lm
 test_test_fdleak_SOURCES = test/test-fdleak.c
 test_test_fdleak_LDADD = libevent_core.la
+
+if PTHREADS
+if KQUEUE_BACKEND
+test_test_kq_collision_SOURCES = test/test-kq-collision.c
+test_test_kq_collision_LDADD = libevent_core.la libevent_pthreads.la
+test_test_kq_collision_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) -Itest
+test_test_kq_collision_LDFLAGS = $(PTHREAD_CFLAGS)
+endif
+endif
 
 test_regress_SOURCES = 				\
 	test/regress.c				\
