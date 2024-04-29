@@ -127,6 +127,7 @@ test-weof
 test-changelist
 test-fdleak
 test-kq-collision
+test-reuseport-unix
 
 event-config.h
 evconfig-private.h

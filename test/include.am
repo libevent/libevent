@@ -28,6 +28,7 @@ TESTPROGRAMS = \
 	test/test-init				\
 	test/test-ratelim				\
 	test/test-time				\
+	test-reuseport-unix \
 	test/test-weof
 
 if PTHREADS
@@ -110,6 +111,8 @@ test_test_weof_SOURCES = test/test-weof.c
 test_test_weof_LDADD = libevent_core.la
 test_test_time_SOURCES = test/test-time.c
 test_test_time_LDADD = libevent_core.la
+test_test_reuseport_unix_SOURCES = test/test-reuseport-unix.c
+test_test_reuseport_unix_LDADD = libevent_core.la
 test_test_ratelim_SOURCES = test/test-ratelim.c
 test_test_ratelim_LDADD = libevent_core.la -lm
 test_test_fdleak_SOURCES = test/test-fdleak.c
