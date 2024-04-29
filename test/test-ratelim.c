@@ -202,12 +202,12 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 	if (conn_bucket_cfg) {
 		struct event *check_event =
 		    event_new(base, -1, EV_PERSIST, check_bucket_levels_cb, bev);
-		assert(check_event);
 		if (check_event == NULL)
 			goto err;
 		bufferevent_set_rate_limit(bev, conn_bucket_cfg);
 
-		assert(bufferevent_get_token_bucket_cfg(bev) != NULL);
+		if (bufferevent_get_token_bucket_cfg(bev) == NULL)
+			goto err;
 		event_add(check_event, ms100_common);
 	}
 	if (ratelim_group)
@@ -218,6 +218,7 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 err:
 	if (bev)
 		bufferevent_free(bev);
+	evutil_closesocket(newsock);
 	fprintf(stderr, "Couldn't create bufferevent\n");
 	return;
 }
@@ -268,8 +269,10 @@ check_group_bucket_levels_cb(evutil_socket_t fd, short events, void *arg)
 static void
 group_drain_cb(evutil_socket_t fd, short events, void *arg)
 {
-	bufferevent_rate_limit_group_decrement_read(ratelim_group, cfg_group_drain);
-	bufferevent_rate_limit_group_decrement_write(ratelim_group, cfg_group_drain);
+	if (ratelim_group) {
+		bufferevent_rate_limit_group_decrement_read(ratelim_group, cfg_group_drain);
+		bufferevent_rate_limit_group_decrement_write(ratelim_group, cfg_group_drain);
+	}
 }
 
 static void
@@ -567,7 +570,8 @@ cleanup:
 		event_free(group_drain_event);
 
 	for (i = 0; i < cfg_n_connections; ++i) {
-		bufferevent_free(bevs[i]);
+		if (bevs[i])
+			bufferevent_free(bevs[i]);
 	}
 	if (group)
 		bufferevent_rate_limit_group_free(group);
