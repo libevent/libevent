@@ -417,10 +417,13 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 
 /** Do platform-specific operations to make a listener port reusable.
 
-    Specifically, we want to make sure that multiple programs which also
-    set the same socket option will be able to bind, listen at the same time.
+    Specifically, we want to make sure that multiple programs that also
+    set the same socket option will be able to bind, and listen at the
+    same time, for incoming connections/datagrams to be distributed evenly
+    across all of the threads (or processes).
 
-    This is a feature available only to Linux 3.9+
+    This feature is available only on Linux 3.9+, DragonFlyBSD 3.6+,
+    FreeBSD 12.0+, Solaris 11.4 for now.
 
     @param sock The socket to make reusable
     @return 0 on success, -1 on failure
