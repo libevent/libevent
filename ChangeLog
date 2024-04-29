@@ -40,9 +40,9 @@ Changes in version 2.2.1-alpha (21 May 2023)
  - linux
  - freebsd
  - windows
- - osx
+ - macos
  - openbsd
- - and also tests under Thread/Address/Undefind sanitizers
+ - and also tests under Thread/Address/Undefined sanitizers
 
  Now documentation is automatically deployed to https://libevent.org/doc/
 
@@ -106,7 +106,7 @@ Changes in version 2.2.1-alpha (21 May 2023)
   o Fix crashing http server when callback do not reply in place from *gencb* (306747e5 Azat Khuzhin)
   o CONNECT method only takes an authority (65eb529a Greg Hazel)
   o http: fix leaks in evhttp_uriencode() (61c21492 Azat Khuzhin)
-  o Fix evhttp_connection_get_addr() fox incomming http connections (367cd9e5 Greg Hazel, e4edc7fc Azat Khuzhin)
+  o Fix evhttp_connection_get_addr() for incoming http connections (367cd9e5 Greg Hazel, e4edc7fc Azat Khuzhin)
   o Improve request line parsing (0ec12bc8 Azat Khuzhin)
   o Fix conceivable UAF of the bufferevent in evhttp_connection_free() (5dc88b38 Azat Khuzhin)
   o http: fix connection retries when there more then one request for connection (f3f7aa5a Azat Khuzhin)
@@ -158,7 +158,7 @@ Changes in version 2.2.1-alpha (21 May 2023)
   o evwatch: Add "prepare" and "check" watchers. (#793) (2f184f8b, 1cd8830d Dan Rosen)
   o evutil: implement socketpair with unix domain socket on Win10 (#913) (dda8968c, 1ba94bdf yuangongji)
   o Add support for priority inheritance (#934) (f76456b0 Andre Pereira Azevedo Pinto, 972289f3 Azat Khuzhin)
-  o evutil_time: Implements usleep() using wait funtion on Windows (#939) (6412f34f yuangongji)
+  o evutil_time: Implements usleep() using wait function on Windows (#939) (6412f34f yuangongji)
   o Add EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD flag (fixes: #958) (9a9b92ed Azat Khuzhin)
   o evutil_time: improve evutil_gettimeofday on Windows (#1003) (f0b3160f Nick Grifka)
   o Support EV_CLOSED on linux for poll(2) (4c13afae Azat Khuzhin)
@@ -256,7 +256,7 @@ Changes in version 2.2.1-alpha (21 May 2023)
   o test: fix 32bit linux regress (#554) (63c4bf78 Carlo Marcelo Arenas Belón)
   o test: avoid regress hanging in macOS (#757) (a86f89d3 Carlo Marcelo Arenas Belón)
   o Avoid possible SEGVs in select() (in unit tests) (33baa4e5 Philip Prindeville)
-  o Intorduce TT_RETRIABLE (4d2f013b Azat Khuzhin)
+  o Introduce TT_RETRIABLE (4d2f013b Azat Khuzhin)
   o test-ratelim: calculate timers bias (for slow CPUs) to avoid false-positive (8a348699 Azat Khuzhin)
   o Merge branch 'osx-clock' (a6f81aa4 Azat Khuzhin)
   o Fix some OpenSSL 3 test issues (#1291) (29032da6 Peter Edwards)

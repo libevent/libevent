@@ -2332,7 +2332,7 @@ dbg_leak_resume(void *env_, int cancel, int send_err_shutdown)
 
 	event_base_loop(env->base, EVLOOP_NONBLOCK);
 	/**
-	 * Because we don't cancel request, and want our callback to recieve
+	 * Because we don't cancel request, and want our callback to receive
 	 * DNS_ERR_SHUTDOWN, we use deferred callback, and there was:
 	 * - one extra malloc(),
 	 *   @see reply_schedule_callback()

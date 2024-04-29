@@ -590,7 +590,7 @@
 
 3.1. Linux-specific improvements
 
-  The logic for deciding which arguements to use with epoll_ctl() is now
+  The logic for deciding which arguments to use with epoll_ctl() is now
   a table-driven lookup, rather than the previous pile of cascading
   branches.  This should minimize epoll_ctl() calls and make the epoll
   code run a little faster on change-heavy loads.

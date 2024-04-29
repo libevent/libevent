@@ -82,7 +82,7 @@ struct bufferevent_filtered {
 
 	/** The bufferevent that we read/write filtered data from/to. */
 	struct bufferevent *underlying;
-	/** A callback on our inbuf to notice somebory removes data */
+	/** A callback on our inbuf to notice somebody removes data */
 	struct evbuffer_cb_entry *inbuf_cb;
 	/** A callback on our outbuf to notice when somebody adds data */
 	struct evbuffer_cb_entry *outbuf_cb;

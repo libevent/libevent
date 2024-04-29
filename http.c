@@ -3001,7 +3001,7 @@ evhttp_start_read_(struct evhttp_connection *evcon)
 	    evcon);
 
 	/* If there's still data pending, process it next time through the
-	 * loop.  Don't do it now; that could get recusive. */
+	 * loop.  Don't do it now; that could get recursive. */
 	if (evbuffer_get_length(bufferevent_get_input(evcon->bufev))) {
 		event_deferred_cb_schedule_(get_deferred_queue(evcon),
 		    &evcon->read_more_deferred_cb);

@@ -263,7 +263,7 @@ Changes in version 2.0.12-stable (4 Jun 2011)
 BUGFIXES
  o Fix a warn-and-fail bug in kqueue by providing kevent() room to report errors (28317a0)
  o Fix an assert-inducing fencepost bug in the select backend (d90149d)
- o Fix failing http assertion introducd in commit 0d6622e (0848814 Kevin Ko)
+ o Fix failing http assertion introduced in commit 0d6622e (0848814 Kevin Ko)
  o Fix a bug that prevented us from configuring IPv6 nameservers. (74760f1)
  o Prevent size_t overflow in evhttp_htmlescape. (06c51cd Mansour Moufid)
  o Added several checks for under/overflow conditions in evhttp_handle_chunked_read (a279272 Mark Ellzey)
@@ -986,7 +986,7 @@ BUILD AND DISTRIBUTION CHANGES
 INTERNALS AND CODE CLEANUPS
  o Add a .gitignore file. (ba34071)
  o New EVTHREAD_TRY_LOCK function to try to grab a lock. (689fc09)
- o Add the abilitity to mark some buffer callbacks as never-deferred. (438f9ed)
+ o Add the ability to mark some buffer callbacks as never-deferred. (438f9ed)
  o Refactor our 'suspend operation' logic on bufferevents. (0d744aa)
  o Simplify the read high-watermark checking. (5846bf6)
  o Improve readability of evutil_unparse_protoname() (5a43df8 Jardel Weyrich)
@@ -994,7 +994,7 @@ INTERNALS AND CODE CLEANUPS
  o Whitespace fixes in test.sh (0b151a9)
  o Enable branch-prediction hints with EVUTIL_UNLIKELY. (eaaf27f)
  o Refactor code from evdns into a new internal "read a file" function. (0f7144f)
- o Comestic changes in evconnlistener_new(), new_accepting_socket(), accepted_socket_invoke_user_cb() and iocp_listener_enable(). (510ab6b Jardel Weyrich)
+ o Cosmetic changes in evconnlistener_new(), new_accepting_socket(), accepted_socket_invoke_user_cb() and iocp_listener_enable(). (510ab6b Jardel Weyrich)
  o Add unit-test for bad_request bug fixed in 1.4 recently. (6cc79c6 Pavel Plesov) o Add a comment on evthread_enable_lock_debuging. (b9f43b2)
  o Fix test.sh on shells without echo -n (94131e9)
  o More unit tests for getaddrinfo_async: v4timeout and cancel. (a334b31)
@@ -1082,7 +1082,7 @@ Changes in 2.0.2-alpha (25 Jul 2009):
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
  o Make evdns functionality locked, and automatically defer dns callbacks.
  o Fix a possible free(NULL) when freeing an event_base with no signals.
- o Add a flag to disable checking environment varibles when making an event_base
+ o Add a flag to disable checking environment variables when making an event_base
  o Disallow setting less than 1 priority.
  o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
  o Use signal.h, not sys/signal.h. [Patch from mmadia]

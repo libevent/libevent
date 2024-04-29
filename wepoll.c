@@ -476,7 +476,7 @@ WEPOLL_INTERNAL ts_tree_node_t* port_state_to_handle_tree_node(
  * "destroy" returns, the calling thread may assume that no other threads have
  * a reference to the lock.
  *
- * Attemmpting to lock or destroy a lock after reflock_unref_and_destroy() has
+ * Attempting to lock or destroy a lock after reflock_unref_and_destroy() has
  * been called is invalid and results in undefined behavior. Therefore the user
  * should use another lock to guarantee that this can't happen.
  */

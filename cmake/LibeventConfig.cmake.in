@@ -14,7 +14,7 @@
 #
 # When you try to locate the libevent libraries, you should specify which components you want to use.
 # The following table lists all available components. If none is given, all imported targets will used.
-#  core        - the core functons of libevent
+#  core        - the core functions of libevent
 #  extra       - extra functions, contains http, dns and rpc
 #  pthreads    - multiple threads for libevent, does not exist on Windows
 #  openssl     - OpenSSL support for libevent
