@@ -96,6 +96,7 @@ main(int argc, char **argv)
 
 	if (listener) {
 		fprintf(stderr, "AF_UNIX listener shouldn't use SO_REUSEADDR!\n");
+		evconnlistener_free(listener);
 		return 1;
 	}
 
@@ -105,12 +106,10 @@ main(int argc, char **argv)
 
 	if (listener) {
 		fprintf(stderr, "AF_UNIX listener shouldn't use SO_REUSEPORT!\n");
+		evconnlistener_free(listener);
 		return 1;
 	}
 
-	if (listener) {
-		evconnlistener_free(listener);
-	}
 	event_base_free(base);
 	printf("Tested successfully!\n");
 }
