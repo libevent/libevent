@@ -55,8 +55,8 @@ def link_and_run(link, code):
         if vcpkg_root is not None:
             vcpkg = f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_root}/scripts/buildsystems/vcpkg.cmake"
     elif platform.system() == "Darwin":
-        openssldir = '-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl'
-        mbedtlsdir = '-DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2'
+        openssldir = '-DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl'
+        mbedtlsdir = '-DMBEDTLS_ROOT_DIR=/opt/homebrew/opt/mbedtls@2'
     cmd = f"cmake .." \
           f" {arch}" \
           f" {vcpkg}" \
