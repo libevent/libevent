@@ -557,7 +557,7 @@ jobs:
         shell: bash
         run: |
           # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
-          export OPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl
+          export OPENSSL_ROOT_DIR=`brew --prefix openssl`
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
@@ -583,7 +583,7 @@ jobs:
           else
             EVENT_CMAKE_OPTIONS=""
           fi
-          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/opt/homebrew/opt/mbedtls@2"
+          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=`brew --prefix mbedtls`"
 
           mkdir -p build
           cd build
@@ -641,8 +641,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          export CPPFLAGS="-I/opt/homebrew/opt/mbedtls@2/include"
-          export  LDFLAGS="-L/opt/homebrew/opt/mbedtls@2/lib"
+          export CPPFLAGS="-I`brew --prefix mbedtls`/include"
+          export  LDFLAGS="-L`brew --prefix mbedtls`/lib"
 
           ./autogen.sh
           mkdir -p build
