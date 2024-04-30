@@ -287,7 +287,7 @@ be_pair_destruct(struct bufferevent *bev)
 	 * bufferevent_free(bev1) # refcnt == 0 -> unlink
 	 * bufferevent_free(bev2) # refcnt == 0 -> unlink
 	 *
-	 * event_base_free() -> finilizers -> EVTHREAD_FREE_LOCK(bev1->lock)
+	 * event_base_free() -> finalizers -> EVTHREAD_FREE_LOCK(bev1->lock)
 	 *                                 -> BEV_LOCK(bev2->lock) <-- already freed
 	 *
 	 * Where bev1 == pair[0], bev2 == pair[1].

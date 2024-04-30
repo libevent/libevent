@@ -617,7 +617,7 @@ evdns_remove_all_tcp_clients(struct evdns_server_port *port)
 
 /* Create new tcp connection structure for DNS client. */
 static struct tcp_connection *
-new_tcp_connecton(struct bufferevent *bev)
+new_tcp_connection(struct bufferevent *bev)
 {
 	struct tcp_connection *conn;
 	if (!bev)
@@ -1158,7 +1158,7 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		}
 
 		if (retransmit_via_tcp) {
-			log(EVDNS_LOG_DEBUG, "Recieved truncated reply(flags 0x%x, transanc ID: %d). Retransmiting via TCP.",
+			log(EVDNS_LOG_DEBUG, "Received truncated reply(flags 0x%x, transac ID: %d). Retransmitting via TCP.",
 				req->handle->tcp_flags, req->trans_id);
 			req->handle->tcp_flags |= DNS_QUERY_USEVC;
 			client_retransmit_through_tcp(req->handle);
@@ -1982,9 +1982,9 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 static size_t
 evdns_request_len(const struct evdns_base *base, const size_t name_len)
 {
-	int addional_section_len = 0;
+	int additional_section_len = 0;
 	if (EDNS_ENABLED(base)) {
-		addional_section_len = 1 + /* length of domain name string, always 0 */
+		additional_section_len = 1 + /* length of domain name string, always 0 */
 			2 + /* space for resource type */
 			2 + /* space for UDP payload size */
 			4 + /* space for extended RCODE flags */
@@ -1993,7 +1993,7 @@ evdns_request_len(const struct evdns_base *base, const size_t name_len)
 	return 96 + /* length of the DNS standard header */
 		name_len + 2 +
 		4 /* space for the resource type */ +
-		addional_section_len;
+		additional_section_len;
 }
 
 /* build a dns request packet into buf. buf should be at least as long */
@@ -2188,7 +2188,7 @@ server_tcp_read_packet_cb(struct bufferevent *bev, void *ctx)
 			return;
 		}
 
-		/* Only part of the message was recieved. */
+		/* Only part of the message was received. */
 		if (!msg)
 			break;
 
@@ -2813,7 +2813,7 @@ evdns_tcp_connect_if_disconnected(struct nameserver *server)
 		return 0;
 
 	disconnect_and_free_connection(conn);
-	conn = new_tcp_connecton(bufferevent_socket_new(server->base->event_base, -1, BEV_OPT_CLOSE_ON_FREE));
+	conn = new_tcp_connection(bufferevent_socket_new(server->base->event_base, -1, BEV_OPT_CLOSE_ON_FREE));
 	if (!conn)
 		return 2;
 	server->connection = conn;
@@ -2852,7 +2852,7 @@ client_tcp_read_packet_cb(struct bufferevent *bev, void *ctx)
 			return;
 		}
 
-		/* Only part of the message was recieved. */
+		/* Only part of the message was received. */
 		if (!msg)
 			break;
 

@@ -337,7 +337,7 @@
 
 10.1. autotools is deprecated, use cmake
 
-  Building with autotools/automake is considiered as deprecated, instead, cmake
+  Building with autotools/automake is considered as deprecated, instead, cmake
   is recommended.
 
   CMake is crossplatform so you don't need to support multiple files for
@@ -396,7 +396,7 @@
 
   The space after the initial '"' is significant.
 
-11. Continious Integration
+11. Continuous Integration
 
   Now Libevent uses github actions for CI, previously we had travis-ci for
   linux/macos and appveyor for win32 (removed in #951), and also I used testing
@@ -408,7 +408,7 @@
   - windows
   - osx
   - openbsd
-  - and also tests under Thread/Address/Undefind sanitizers
+  - and also tests under Thread/Address/Undefined sanitizers
 
   So no need to test something locally before releases.
 

@@ -642,7 +642,7 @@ enum evhttp_cmd_type {
 #define EVHTTP_REQ_MAX EVHTTP_REQ_MOVE
 
 /**
- * @brief stucture that is passed to (and modified by) the
+ * @brief structure that is passed to (and modified by) the
  * extended method callback function
  *
  * @see evhttp_set_ext_method_cmp

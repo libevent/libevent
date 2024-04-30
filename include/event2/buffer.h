@@ -105,7 +105,7 @@ struct evbuffer
 
     Used when repeatedly searching through a buffer.  Calling any function
     that modifies or re-packs the buffer contents may invalidate all
-    evbuffer_ptrs for that buffer.  Do not modify or contruct these values
+    evbuffer_ptrs for that buffer.  Do not modify or construct these values
     except with evbuffer_ptr_set.
 
     An evbuffer_ptr can represent any position from the start of a buffer up

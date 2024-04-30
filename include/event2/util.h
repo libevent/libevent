@@ -368,7 +368,7 @@ int evutil_configure_monotonic_time(struct evutil_monotonic_timer *timer,
  * measurements of elapsed time between events even when the system time
  * may be changed.
  *
- * It is not safe to use this funtion on the same timer from multiple
+ * It is not safe to use this function on the same timer from multiple
  * threads.
  */
 EVENT2_EXPORT_SYMBOL

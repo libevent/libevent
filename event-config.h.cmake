@@ -504,7 +504,7 @@
 #define EVENT__SIZEOF_TIME_T @EVENT__SIZEOF_TIME_T@
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
-   calls it, or to nothing if 'inline' is not supported under any name.  */
+   calls it, or do nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 /* why not c++?
  *

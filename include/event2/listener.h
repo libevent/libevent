@@ -117,7 +117,7 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
 /** Flag: Indicates that the listener wants to work only in both IPv4 and
  * IPv6 socket.
  *
- * This flag exists as copmlement to LEV_OPT_BIND_IPV6ONLY to account for
+ * This flag exists as complement to LEV_OPT_BIND_IPV6ONLY to account for
  * the different default behaviour on Windows so that the code can
  * explicitly request the socket to support both modes without having
  * to rely on the default option.

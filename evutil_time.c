@@ -576,7 +576,7 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 			/* It appears that the QueryPerformanceCounter()
 			 * result is more than 1 second away from
 			 * GetTickCount() result. Let's adjust it to be as
-			 * accurate as we can; adjust_monotnonic_time() below
+			 * accurate as we can; adjust_monotonic_time() below
 			 * will keep it monotonic. */
 			counter_usec_elapsed = ticks_elapsed * 1000;
 			base->first_counter = (ev_uint64_t) (counter.QuadPart - counter_usec_elapsed / base->usec_per_count);

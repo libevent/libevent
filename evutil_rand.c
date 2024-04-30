@@ -78,7 +78,7 @@ ev_arc4random_buf(void *buf, size_t n)
 	unsigned char *b = buf;
 
 #if defined(EVENT__HAVE_ARC4RANDOM_BUF)
-	/* OSX 10.7 introducd arc4random_buf, so if you build your program
+	/* OSX 10.7 introduced arc4random_buf, so if you build your program
 	 * there, you'll get surprised when older versions of OSX fail to run.
 	 * To solve this, we can check whether the function pointer is set,
 	 * and fall back otherwise.  (OSX does this using some linker

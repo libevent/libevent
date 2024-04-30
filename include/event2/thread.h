@@ -107,7 +107,7 @@ struct evthread_lock_callbacks {
 	/** Function to allocate and initialize new lock of type 'locktype'.
 	 * Returns NULL on failure. */
 	void *(*alloc)(unsigned locktype);
-	/** Funtion to release all storage held in 'lock', which was created
+	/** Function to release all storage held in 'lock', which was created
 	 * with type 'locktype'. */
 	void (*free)(void *lock, unsigned locktype);
 	/** Acquire an already-allocated lock at 'lock' with mode 'mode'.
