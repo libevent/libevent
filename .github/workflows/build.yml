@@ -556,9 +556,6 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
-          export OPENSSL_ROOT_DIR=`brew --prefix openssl`
-
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
 
