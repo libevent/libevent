@@ -2152,21 +2152,20 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 		return (-1);
 	}
 
-	if (res == 0) {
-		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-		if (activate)
-			event_active_nolock_(&eonce->ev, EV_TIMEOUT, 1);
-		else
-			res = event_add_nolock_(&eonce->ev, tv, 0);
 
-		if (res != 0) {
-			mm_free(eonce);
-			return (res);
-		} else {
-			LIST_INSERT_HEAD(&base->once_events, eonce, next_once);
-		}
-		EVBASE_RELEASE_LOCK(base, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	if (activate)
+		event_active_nolock_(&eonce->ev, EV_TIMEOUT, 1);
+	else
+		res = event_add_nolock_(&eonce->ev, tv, 0);
+
+	if (res != 0) {
+		mm_free(eonce);
+		return (res);
+	} else {
+		LIST_INSERT_HEAD(&base->once_events, eonce, next_once);
 	}
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	return (0);
 }
