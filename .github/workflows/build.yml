@@ -583,7 +583,7 @@ jobs:
           else
             EVENT_CMAKE_OPTIONS=""
           fi
-          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=`brew --prefix mbedtls`"
+          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=`brew --prefix mbedtls@2`"
 
           mkdir -p build
           cd build
@@ -641,8 +641,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          export CPPFLAGS="-I`brew --prefix mbedtls`/include"
-          export  LDFLAGS="-L`brew --prefix mbedtls`/lib"
+          export CPPFLAGS="-I`brew --prefix mbedtls@2`/include"
+          export  LDFLAGS="-L`brew --prefix mbedtls@2`/lib"
 
           ./autogen.sh
           mkdir -p build
