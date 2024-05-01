@@ -123,7 +123,7 @@ jobs:
           mkdir -p build
           cd build
           echo [cmake]: cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS
-          cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS || (rm -rf * && cmake .. $EVENT_CMAKE_OPTIONS)
+          cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS || (rm -rf * && cmake .. -DEVENT__ENABLE_GCC_WARNINGS=ON $EVENT_CMAKE_OPTIONS)
           cmake --build .
 
       - name: Test
