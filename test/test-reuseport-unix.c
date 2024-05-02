@@ -55,7 +55,7 @@ main(int argc, char **argv)
 	struct evconnlistener *listener;
 	struct sockaddr_un addr;
 
-	#ifdef _WIN32
+#ifdef _WIN32
 	DWORD tmpPathLen = GetTempPathA(0, NULL); /* Get required length */
 	TCHAR tmpPath[tmpPathLen];
 	GetTempPath(tmpPathLen, tmpPath);
@@ -63,11 +63,11 @@ main(int argc, char **argv)
 	_stprintf(socket_path, _T("%stest-reuseport-unix.sock"), tmpPath);
 	/* For security reason, we must delete any existing sockets in the filesystem. */
 	DeleteFileW(socket_path);
-	#else
+#else
 	char socket_path[] = "/tmp/test-reuseport-unix.sock";
 	/* For security reason, we must delete any existing sockets in the filesystem. */
 	unlink(socket_path);
-	#endif
+#endif
 
 #ifdef _WIN32
 	WSADATA wsaData;
