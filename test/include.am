@@ -28,7 +28,7 @@ TESTPROGRAMS = \
 	test/test-init				\
 	test/test-ratelim				\
 	test/test-time				\
-	test-reuseport-unix \
+	test/test-reuseport-unix \
 	test/test-weof
 
 if PTHREADS

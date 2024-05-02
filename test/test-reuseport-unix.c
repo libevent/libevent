@@ -24,10 +24,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "../util-internal.h"
+
 #include <string.h>
 #include <stdio.h>
 #ifdef _WIN32
+#ifdef EVENT__HAVE_AFUNIX_H
 #include <afunix.h>
+#endif
 #include <tchar.h>
 #include <winsock2.h>
 #include <windows.h>
@@ -56,20 +60,9 @@ main(int argc, char **argv)
 	struct sockaddr_un addr;
 
 #ifdef _WIN32
-	DWORD tmpPathLen = GetTempPathA(0, NULL); /* Get required length */
-	TCHAR tmpPath[tmpPathLen];
-	GetTempPath(tmpPathLen, tmpPath);
-	TCHAR socket_path[MAX_PATH];
-	_stprintf(socket_path, _T("%stest-reuseport-unix.sock"), tmpPath);
-	/* For security reason, we must delete any existing sockets in the filesystem. */
-	DeleteFileW(socket_path);
-#else
-	char socket_path[] = "/tmp/test-reuseport-unix.sock";
-	/* For security reason, we must delete any existing sockets in the filesystem. */
-	unlink(socket_path);
-#endif
-
-#ifdef _WIN32
+	DWORD n;
+	TCHAR tempPath[MAX_PATH];
+	TCHAR longTempPath[MAX_PATH];
 	WSADATA wsaData;
 	int r;
 	/* Initialize Winsock. */
@@ -78,6 +71,24 @@ main(int argc, char **argv)
 		fprintf(stderr, "WSAStartup failed with error: %d\n", r);
 		return 1;
 	}
+#ifdef EVENT__HAVE_AFUNIX_H
+	if (evutil_check_working_afunix_() == 0)
+		return 0; /* AF_UNIX is not available on the current Windows platform, just mark this test as success. */
+#endif
+	n = GetTempPathW(MAX_PATH, tempPath);
+	if (n == 0 || n < MAX_PATH)
+		return 1;
+	n = GetLongPathNameW(tempPath, longTempPath, MAX_PATH);
+	if (n == 0 || n >= MAX_PATH)
+		return 1;
+	TCHAR socket_path[MAX_PATH];
+	_stprintf(socket_path, _T("%stest-reuseport-unix.sock"), longTempPath);
+	/* For security reason, we must delete any existing sockets in the filesystem. */
+	DeleteFileW(socket_path);
+#else
+	char socket_path[] = "/tmp/test-reuseport-unix.sock";
+	/* For security reason, we must delete any existing sockets in the filesystem. */
+	unlink(socket_path);
 #endif
 
 	base = event_base_new();
