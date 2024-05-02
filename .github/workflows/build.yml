@@ -983,7 +983,7 @@ jobs:
         EVENT_MATRIX:
           - IOS
           - TVOS
-          #- VISIONOS # not yet supported by GitHub
+          - VISIONOS
           - WATCHOS
 
     steps:
@@ -994,6 +994,11 @@ jobs:
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+
+      - name: Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Build
         shell: bash
