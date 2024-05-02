@@ -183,7 +183,8 @@ int
 evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary)
 {
-	int fd, r;
+	int fd;
+	ev_ssize_t r;
 	ev_off_t length;
 	char *mem;
 	size_t read_so_far = 0;
@@ -203,8 +204,7 @@ evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 	if (fd < 0)
 		return -1;
 	length = evutil_fd_filesize(fd);
-	if (length < 0 ||
-        length > EV_SSIZE_MAX-1 ) {
+	if (length < 0 || length > EV_SSIZE_MAX-1) {
 		close(fd);
 		return -2;
 	}
@@ -221,9 +221,8 @@ evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 #endif
 	while ((r = read(fd, mem+read_so_far, N_TO_READ(length - read_so_far))) > 0) {
 		read_so_far += r;
-		if (read_so_far >= length)
+		if (read_so_far >= (size_t)length)
 			break;
-		EVUTIL_ASSERT(read_so_far < length);
 	}
 	close(fd);
 	if (r < 0) {

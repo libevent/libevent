@@ -3019,7 +3019,7 @@ evbuffer_file_segment_new(
 	seg->length = length;
 
 	if (offset < 0 || length < 0 ||
-	    (length > EVBUFFER_CHAIN_MAX) ||
+	    ((ev_uint64_t)length > EVBUFFER_CHAIN_MAX) ||
 	    (ev_uint64_t)offset > (ev_uint64_t)(EVBUFFER_CHAIN_MAX - length))
 		goto err;
 
