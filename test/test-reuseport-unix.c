@@ -34,8 +34,8 @@
 #include <afunix.h>
 #endif
 #include <tchar.h>
-#include <winsock2.h>
 #include <windows.h>
+#include <winsock2.h>
 #else
 #include <unistd.h>
 #include <sys/un.h>
@@ -64,14 +64,6 @@ main(int argc, char **argv)
 	DWORD n;
 	TCHAR tempPath[MAX_PATH];
 	TCHAR longTempPath[MAX_PATH];
-	WSADATA wsaData;
-	int r;
-	/* Initialize Winsock. */
-	r = WSAStartup(MAKEWORD(2,2), &wsaData);
-	if (r) {
-		fprintf(stderr, "WSAStartup failed with error: %d\n", r);
-		return EXIT_FAILURE;
-	}
 #ifdef EVENT__HAVE_AFUNIX_H
 	if (evutil_check_working_afunix_() == 0)
 		/* AF_UNIX is not available on the current Windows platform,
@@ -93,6 +85,17 @@ main(int argc, char **argv)
 	char socket_path[] = "/tmp/test-reuseport-unix.sock";
 	/* For security reason, we must delete any existing sockets in the filesystem. */
 	unlink(socket_path);
+#endif
+
+#ifdef _WIN32
+	WSADATA wsaData;
+	int r;
+	/* Initialize Winsock. */
+	r = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (r) {
+		fprintf(stderr, "WSAStartup failed with error: %d\n", r);
+		return EXIT_FAILURE;
+	}
 #endif
 
 	base = event_base_new();
@@ -137,6 +140,10 @@ main(int argc, char **argv)
 	evconnlistener_free(listener);
 	event_base_free(base);
 	printf("Tested successfully!\n");
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 
 	return EXIT_SUCCESS;
 }
