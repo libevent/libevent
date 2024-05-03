@@ -26,6 +26,7 @@
 
 #include "../util-internal.h"
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #ifdef _WIN32
@@ -69,18 +70,21 @@ main(int argc, char **argv)
 	r = WSAStartup(MAKEWORD(2,2), &wsaData);
 	if (r) {
 		fprintf(stderr, "WSAStartup failed with error: %d\n", r);
-		return 1;
+		return EXIT_FAILURE;
 	}
 #ifdef EVENT__HAVE_AFUNIX_H
 	if (evutil_check_working_afunix_() == 0)
-		return 0; /* AF_UNIX is not available on the current Windows platform, just mark this test as success. */
+		/* AF_UNIX is not available on the current Windows platform,
+		 * just mark this test as success.
+		 */
+		return EXIT_SUCCESS;
 #endif
 	n = GetTempPathW(MAX_PATH, tempPath);
 	if (n == 0 || n < MAX_PATH)
-		return 1;
+		return EXIT_FAILURE;
 	n = GetLongPathNameW(tempPath, longTempPath, MAX_PATH);
 	if (n == 0 || n >= MAX_PATH)
-		return 1;
+		return EXIT_FAILURE;
 	TCHAR socket_path[MAX_PATH];
 	_stprintf(socket_path, _T("%stest-reuseport-unix.sock"), longTempPath);
 	/* For security reason, we must delete any existing sockets in the filesystem. */
@@ -94,7 +98,7 @@ main(int argc, char **argv)
 	base = event_base_new();
 	if (!base) {
 		fprintf(stderr, "Could not initialize libevent!\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	memset(&addr, 0, sizeof(addr));
@@ -108,7 +112,7 @@ main(int argc, char **argv)
 	if (listener) {
 		fprintf(stderr, "AF_UNIX listener shouldn't use SO_REUSEADDR!\n");
 		evconnlistener_free(listener);
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	listener = evconnlistener_new_bind(base, listener_cb, (void *)base,
@@ -118,9 +122,21 @@ main(int argc, char **argv)
 	if (listener) {
 		fprintf(stderr, "AF_UNIX listener shouldn't use SO_REUSEPORT!\n");
 		evconnlistener_free(listener);
-		return 1;
+		return EXIT_FAILURE;
 	}
 
+	/* Create a AF_UNIX listener without reusing address or port. */
+	listener = evconnlistener_new_bind(base, listener_cb, (void *)base,
+	    LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	if (!listener) {
+		fprintf(stderr, "Could not create a AF_UNIX listener!\n");
+		return EXIT_FAILURE;
+	}
+
+	evconnlistener_free(listener);
 	event_base_free(base);
 	printf("Tested successfully!\n");
+
+	return EXIT_SUCCESS;
 }
