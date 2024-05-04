@@ -1,7 +1,7 @@
 #!/bin/sh
 
 BACKENDS="EVPORT KQUEUE EPOLL DEVPOLL POLL SELECT WIN32 WEPOLL"
-TESTS="test-eof test-closed test-weof test-time test-changelist test-fdleak test-reuseport-unix"
+TESTS="test-eof test-closed test-weof test-time test-changelist test-fdleak"
 KQUEUE_TESTS="test-kq-collision"
 FAILED=no
 TEST_OUTPUT_FILE=${TEST_OUTPUT_FILE:-/dev/null}

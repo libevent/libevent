@@ -26,6 +26,10 @@
 #include "util-internal.h"
 
 #ifdef _WIN32
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
+#endif
+#include <tchar.h>
 #include <winsock2.h>
 #include <windows.h>
 #endif
@@ -38,6 +42,9 @@
 # ifdef _XOPEN_SOURCE_EXTENDED
 #  include <arpa/inet.h>
 # endif
+#ifdef EVENT__HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 #include <unistd.h>
 #endif
 #ifdef EVENT__HAVE_SYS_RESOURCE_H
@@ -45,6 +52,8 @@
 #endif
 
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "event2/listener.h"
 #include "event2/event.h"
@@ -430,6 +439,92 @@ end:
 }
 #endif
 
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+
+static void
+empty_listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
+    struct sockaddr *sa, int socklen, void *user_data)
+{
+	printf("Empty listener, do nothing about it!\n");
+}
+
+static void
+regress_listener_reuseport_on_unix_socket(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	struct sockaddr_un addr;
+
+#ifdef _WIN32
+	DWORD n;
+	TCHAR tempPath[MAX_PATH];
+	TCHAR longTempPath[MAX_PATH];
+#ifdef EVENT__HAVE_AFUNIX_H
+	if (evutil_check_working_afunix_() == 0)
+		/* AF_UNIX is not available on the current Windows platform,
+		 * just skip this test.
+		 */
+		tt_skip();
+#endif
+	n = GetTempPathW(MAX_PATH, tempPath);
+	if (n == 0 || n < MAX_PATH)
+		return EXIT_FAILURE;
+	n = GetLongPathNameW(tempPath, longTempPath, MAX_PATH);
+	if (n == 0 || n >= MAX_PATH)
+		return EXIT_FAILURE;
+	TCHAR socket_path[MAX_PATH];
+	_stprintf(socket_path, _T("%stest-reuseport-unix.sock"), longTempPath);
+	/* For security reason, we must delete any existing sockets in the filesystem. */
+	DeleteFileW(socket_path);
+#else
+	char socket_path[] = "/tmp/test-reuseport-unix.sock";
+	/* For security reason, we must delete any existing sockets in the filesystem. */
+	unlink(socket_path);
+#endif
+
+#ifdef _WIN32
+	WSADATA wsaData;
+	int r;
+	/* Initialize Winsock. */
+	r = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (r) {
+		fprintf(stderr, "WSAStartup failed with error: %d\n", r);
+		return EXIT_FAILURE;
+	}
+#endif
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path)-1);
+
+	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
+	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	tt_assert_msg(listener == NULL, "AF_UNIX listener shouldn't use SO_REUSEADDR!");
+
+	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
+	    LEV_OPT_REUSEABLE_PORT|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	tt_assert_msg(listener == NULL, "AF_UNIX listener shouldn't use SO_REUSEPORT!");
+
+	/* Create a AF_UNIX listener without reusing address or port. */
+	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
+	    LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
+end:
+	if (listener)
+		evconnlistener_free(listener);
+}
+
+#endif
+
 struct testcase_t listener_testcases[] = {
 
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
@@ -465,6 +560,12 @@ struct testcase_t listener_testcases[] = {
 
 	{ "disable_in_thread_error", regress_listener_disable_in_thread_error,
 		TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_NEED_SOCKETPAIR,
+		&basic_setup, NULL, },
+#endif
+
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+	{ "reuseport_on_unix_socket", regress_listener_reuseport_on_unix_socket,
+		TT_FORK|TT_NEED_BASE,
 		&basic_setup, NULL, },
 #endif
 
