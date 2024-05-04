@@ -970,6 +970,50 @@ jobs:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: .
 
+  apple-cmake-job:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci/macos skip') && !contains(github.event.head_commit.message, 'ci/macos/cmake skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        EVENT_MATRIX:
+          - IOS
+          - TVOS
+          - VISIONOS
+          - WATCHOS
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+
+      - name: Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build
+        shell: bash
+        run: |
+          if [ "${{ matrix.EVENT_MATRIX }}" == "IOS" ]; then
+            CMAKE_OSX_SYSROOT="iphoneos"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "TVOS" ]; then
+            CMAKE_OSX_SYSROOT="appletvos"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "VISIONOS" ]; then
+            CMAKE_OSX_SYSROOT="xros"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "WATCHOS" ]; then
+            CMAKE_OSX_SYSROOT="watchos"
+          fi
+
+          echo [cmake]: cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT
+          cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
+          cmake --build build -t event_static
+
   # ABI job without deploy
   abi-job:
     runs-on: ubuntu-22.04
