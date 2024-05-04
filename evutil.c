@@ -163,10 +163,10 @@ evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode)
 
 ev_off_t evutil_fd_filesize(evutil_socket_t fd)
 {
-    struct stat st;
-    if (fstat(fd, &st) < 0)
-        return -1;
-    return st.st_size;
+	struct stat st;
+	if (fstat(fd, &st) < 0)
+		return -1;
+	return st.st_size;
 }
 
 /**
