@@ -101,8 +101,9 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
-	epoll_sub.c \
 	bufferevent_ssl.c \
+	epoll_sub.c \
+	PrivacyInfo.xcprivacy \
 	test/regress_ssl.c
 
 CMAKE_FILES = \
