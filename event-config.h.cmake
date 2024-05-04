@@ -56,13 +56,6 @@
 /* Define to 1 if you have the `arc4random_addrandom' function. */
 #cmakedefine EVENT__HAVE_ARC4RANDOM_ADDRANDOM 1
 
-/* Define if clock_gettime is available in libc */
-#cmakedefine EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1
-
-/* Define is no secure id variant is available */
-#cmakedefine EVENT__DNS_USE_GETTIMEOFDAY_FOR_ID 1
-#cmakedefine EVENT__DNS_USE_FTIME_FOR_ID 1
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #cmakedefine EVENT__HAVE_ARPA_INET_H 1
 
@@ -87,12 +80,6 @@
 /* Define to 1 if fd_mask type is defined */
 #cmakedefine EVENT__HAVE_FD_MASK 1
 
-/* Define to 1 if the <sys/queue.h> header file defines TAILQ_FOREACH. */
-#cmakedefine EVENT__HAVE_TAILQFOREACH 1
-
-/* Define to 1 if you have the <dlfcn.h> header file. */
-#cmakedefine EVENT__HAVE_DLFCN_H 1
-
 /* Define if your system supports the epoll system calls */
 #cmakedefine EVENT__HAVE_EPOLL 1
 
@@ -101,9 +88,6 @@
 
 /* Define to 1 if you have the `epoll_pwait2' function. */
 #cmakedefine EVENT__HAVE_EPOLL_PWAIT2 1
-
-/* Define to 1 if you have the `epoll_ctl' function. */
-#cmakedefine EVENT__HAVE_EPOLL_CTL 1
 
 /* Define if your system supports the wepoll module */
 #cmakedefine EVENT__HAVE_WEPOLL 1
@@ -187,9 +171,6 @@
 /* Define to 1 if you have the <mach/mach.h> header file. */
 #cmakedefine EVENT__HAVE_MACH_MACH_H 1
 
-/* Define to 1 if you have the <memory.h> header file. */
-#cmakedefine EVENT__HAVE_MEMORY_H 1
-
 /* Define to 1 if you have the `mmap' function. */
 #cmakedefine EVENT__HAVE_MMAP 1
 
@@ -232,9 +213,6 @@
 /* Define to 1 if you have the `poll' function. */
 #cmakedefine EVENT__HAVE_POLL 1
 
-/* Define to 1 if you have the <poll.h> header file. */
-#cmakedefine EVENT__HAVE_POLL_H 1
-
 /* Define to 1 if you have the `port_create' function. */
 #cmakedefine EVENT__HAVE_PORT_CREATE 1
 
@@ -274,9 +252,6 @@
 /* Define to 1 if you have the `sigaction' function. */
 #cmakedefine EVENT__HAVE_SIGACTION 1
 
-/* Define to 1 if you have the `signal' function. */
-#cmakedefine EVENT__HAVE_SIGNAL 1
-
 /* Define to 1 if you have the `socketpair` function. */
 #cmakedefine EVENT__HAVE_SOCKETPAIR 1
 
@@ -294,9 +269,6 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #cmakedefine EVENT__HAVE_STDLIB_H 1
-
-/* Define to 1 if you have the <string.h> header file. */
-#cmakedefine EVENT__HAVE_STRING_H 1
 
 /* Define to 1 if you have the `strlcpy' function. */
 #cmakedefine EVENT__HAVE_STRLCPY 1
@@ -355,14 +327,8 @@
 /* Define to 1 if you have the `sysctl' function. */
 #cmakedefine EVENT__HAVE_SYSCTL 1
 
-/* Define to 1 if you have the <sys/epoll.h> header file. */
-#cmakedefine EVENT__HAVE_SYS_EPOLL_H 1
-
 /* Define to 1 if you have the <sys/eventfd.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_EVENTFD_H 1
-
-/* Define to 1 if you have the <sys/event.h> header file. */
-#cmakedefine EVENT__HAVE_SYS_EVENT_H 1
 
 /* Define to 1 if you have the <sys/ioctl.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_IOCTL_H 1
@@ -372,9 +338,6 @@
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_PARAM_H 1
-
-/* Define to 1 if you have the <sys/queue.h> header file. */
-#cmakedefine EVENT__HAVE_SYS_QUEUE_H 1
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_RESOURCE_H 1
@@ -426,10 +389,6 @@
 
 /* Define if timerclear is defined in <sys/time.h> */
 #cmakedefine EVENT__HAVE_TIMERCLEAR 1
-
-/* Define if timercmp is defined in <sys/time.h> */
-#cmakedefine EVENT__HAVE_TIMERCMP 1
-
 
 /* Define to 1 if you have the `timerfd_create' function. */
 #cmakedefine EVENT__HAVE_TIMERFD_CREATE 1
@@ -485,9 +444,6 @@
 /* The size of `off_t', as computed by sizeof. */
 #define EVENT__SIZEOF_OFF_T @EVENT__SIZEOF_OFF_T@
 
-#define EVENT__SIZEOF_SSIZE_T @EVENT__SIZEOF_SSIZE_T@
-
-
 /* The size of a `short', as computed by sizeof. */
 #define EVENT__SIZEOF_SHORT @EVENT__SIZEOF_SHORT@
 
@@ -521,9 +477,6 @@
 
 #cmakedefine EVENT__HAVE___func__ 1
 #cmakedefine EVENT__HAVE___FUNCTION__ 1
-
-/* Define to `unsigned' if <sys/types.h> does not define. */
-#define EVENT__size_t @EVENT__size_t@
 
 /* Define to unsigned int if you dont have it */
 #define EVENT__socklen_t @EVENT__socklen_t@
