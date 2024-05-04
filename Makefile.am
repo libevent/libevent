@@ -135,6 +135,8 @@ DOCUMENTATION_FILES = \
 EXTRA_DIST = \
 	ChangeLog-1.4 \
 	ChangeLog-2.0 \
+	ChangeLog-2.1 \
+	ChangeLog \
 	Doxyfile \
 	LICENSE \
 	autogen.sh \
