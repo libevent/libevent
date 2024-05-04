@@ -978,10 +978,10 @@ jobs:
       matrix:
         os: [macos-latest]
         EVENT_MATRIX:
-          - IOS
-          - TVOS
-          - VISIONOS
-          - WATCHOS
+          - iphoneos
+          - appletvos
+          - xros
+          - watchos
 
     steps:
       - uses: actions/checkout@v4
@@ -1000,15 +1000,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [ "${{ matrix.EVENT_MATRIX }}" == "IOS" ]; then
-            CMAKE_OSX_SYSROOT="iphoneos"
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "TVOS" ]; then
-            CMAKE_OSX_SYSROOT="appletvos"
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "VISIONOS" ]; then
-            CMAKE_OSX_SYSROOT="xros"
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "WATCHOS" ]; then
-            CMAKE_OSX_SYSROOT="watchos"
-          fi
+          CMAKE_OSX_SYSROOT="${{ matrix.EVENT_MATRIX }}"
 
           echo [cmake]: cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT
           cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
