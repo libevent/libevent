@@ -750,8 +750,8 @@ end:
 static void
 reader_eventcb_simple(struct bufferevent *bev, short what, void *ctx)
 {
-	TT_BLATHER(("Read eventcb simple invoked on %d.",
-		(int)bufferevent_getfd(bev)));
+	TT_BLATHER(("Read eventcb simple invoked on %d (what=%hd).",
+		(int)bufferevent_getfd(bev), what));
 	n_events_invoked++;
 }
 
