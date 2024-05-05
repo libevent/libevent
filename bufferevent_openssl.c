@@ -143,7 +143,7 @@ bio_bufferevent_write(BIO *b, const char *in, int inlen)
 
 	BIO_clear_retry_flags(b);
 
-	if (!BIO_get_data(b))
+	if (!bufev)
 		return -1;
 
 	output = bufferevent_get_output(bufev);
