@@ -866,6 +866,10 @@ test_bufferevent_connect_fail_eventcb(void *arg)
 
 	fake_listener = fake_listener_create(&localhost);
 
+	n_strings_read = 0;
+	n_reads_invoked = 0;
+	n_events_invoked = 0;
+
 	tt_int_op(n_events_invoked, ==, 0);
 
 	bev = bufferevent_socket_new(data->base, -1, flags);
