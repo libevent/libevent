@@ -2968,7 +2968,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
 	{ "pullup_with_empty", test_evbuffer_pullup_with_empty, 0, NULL, NULL },
 #ifndef EVENT__DISABLE_MM_REPLACEMENT
-	{ "add_file_leak1", test_evbuffer_add_file_leak1, 0, NULL, NULL },
+	{ "add_file_leak1", test_evbuffer_add_file_leak1, TT_NO_LOGS, NULL, NULL },
 #endif
 
 #define ADDFILE_TEST(name, parameters)					\
