@@ -563,7 +563,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					break;
 				if (!attempts--)
 					break;
-				printf("\n  [RETRYING %s (attempts left %i, delay %i sec)]\n", testcase->name, attempts, opt_retries_delay);
+				printf("\n  [RETRYING %s%s (attempts left %i, delay %i sec)]\n", group->prefix, testcase->name, attempts, opt_retries_delay);
 #ifdef _WIN32
 				Sleep(opt_retries_delay * 1000);
 #else
