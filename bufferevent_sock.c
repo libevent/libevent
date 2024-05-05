@@ -194,6 +194,8 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		int err = evutil_socket_geterror(fd);
 		if (EVUTIL_ERR_RW_RETRIABLE(err))
 			goto reschedule;
+		/* NOTE: sometimes on FreeBSD 9.2 the connect() does not returns an
+		 * error, and instead, first readv() will */
 		if (EVUTIL_ERR_CONNECT_REFUSED(err)) {
 			bufev_p->connection_refused = 1;
 			goto done;
