@@ -550,7 +550,8 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 		struct testgroup_t *group = &groups[i];
 		for (j = 0; group->cases[j].name; ++j) {
 			struct testcase_t *testcase = &group->cases[j];
-			int attempts = (testcase->flags & TT_RETRIABLE) ? opt_retries : 0;
+			int retriable = testcase->flags & TT_RETRIABLE;
+			int attempts = retriable ? opt_retries : 0;
 			int test_ret_err;
 
 			if (!(testcase->flags & TT_ENABLED_))
@@ -575,7 +576,8 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 				case OK:   ++n_ok;      break;
 				case SKIP: ++n_skipped; break;
 				default:
-					printf("\n  [FAILED %s%s (%i retries)]\n", group->prefix, testcase->name, opt_retries);
+					printf("\n  [FAILED %s%s (%i retries)]\n",
+						group->prefix, testcase->name, retriable ? opt_retries : 0);
 					++n_bad;
 					break;
 			}
