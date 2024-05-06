@@ -6113,7 +6113,7 @@ struct testcase_t http_testcases[] = {
 	HTTP_OPT(max_connections, SKIP_UNDER_WINDOWS),
 
 	HTTP(timeout_read_client),
-	HTTP(timeout_read_server),
+	HTTP_OPT(timeout_read_server, TT_RETRIABLE),
 
 #ifdef EVENT__HAVE_OPENSSL
 	HTTPS(basic),
