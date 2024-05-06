@@ -110,6 +110,7 @@
 #define read _read
 #define close _close
 #ifndef fstat
+// i64 suffix is for 64-bit filesize support
 #define fstat _fstati64
 #endif
 #ifndef stat
@@ -160,6 +161,14 @@ evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode)
 	return fd;
 }
 
+ev_off_t evutil_fd_filesize(evutil_socket_t fd)
+{
+	struct stat st;
+	if (fstat(fd, &st) < 0)
+		return -1;
+	return st.st_size;
+}
+
 /**
    Read the contents of 'filename' into a newly allocated NUL-terminated
    string.  Set *content_out to hold this string, and *len_out to hold its
@@ -174,10 +183,11 @@ int
 evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary)
 {
-	int fd, r;
-	struct stat st;
+	int fd;
+	ev_ssize_t r;
+	ev_off_t length;
 	char *mem;
-	size_t read_so_far=0;
+	size_t read_so_far = 0;
 	int mode = O_RDONLY;
 
 	EVUTIL_ASSERT(content_out);
@@ -193,12 +203,12 @@ evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 	fd = evutil_open_closeonexec_(filename, mode, 0);
 	if (fd < 0)
 		return -1;
-	if (fstat(fd, &st) || st.st_size < 0 ||
-	    st.st_size > EV_SSIZE_MAX-1 ) {
+	length = evutil_fd_filesize(fd);
+	if (length < 0 || length > EV_SSIZE_MAX-1) {
 		close(fd);
 		return -2;
 	}
-	mem = mm_malloc((size_t)st.st_size + 1);
+	mem = mm_malloc(length + 1);
 	if (!mem) {
 		close(fd);
 		return -2;
@@ -209,11 +219,10 @@ evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 #else
 #define N_TO_READ(x) (x)
 #endif
-	while ((r = read(fd, mem+read_so_far, N_TO_READ(st.st_size - read_so_far))) > 0) {
+	while ((r = read(fd, mem+read_so_far, N_TO_READ(length - read_so_far))) > 0) {
 		read_so_far += r;
-		if (read_so_far >= (size_t)st.st_size)
+		if (read_so_far >= (size_t)length)
 			break;
-		EVUTIL_ASSERT(read_so_far < (size_t)st.st_size);
 	}
 	close(fd);
 	if (r < 0) {

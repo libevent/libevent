@@ -293,6 +293,8 @@ void evutil_rtrim_lws_(char *);
  */
 int evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode);
 
+ev_off_t evutil_fd_filesize(evutil_socket_t fd);
+
 EVENT2_EXPORT_SYMBOL
 int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary);

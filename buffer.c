@@ -2373,7 +2373,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #endif
 	}
 
-#else /*!USE_IOVEC_IMPL*/
+#else /* !USE_IOVEC_IMPL */
 	/* If we don't have FIONREAD, we might waste some space here */
 	/* XXX we _will_ waste some space here if there is any space left
 	 * over on buf->last. */
@@ -3011,22 +3011,10 @@ evbuffer_file_segment_new(
 	seg->file_offset = offset;
 	seg->cleanup_cb = NULL;
 	seg->cleanup_cb_arg = NULL;
-#ifdef _WIN32
-#ifndef lseek
-#define lseek _lseeki64
-#endif
-#ifndef fstat
-#define fstat _fstat
-#endif
-#ifndef stat
-#define stat _stat
-#endif
-#endif
 	if (length == -1) {
-		struct stat st;
-		if (fstat(fd, &st) < 0)
+		length = evutil_fd_filesize(fd);
+		if (length == -1)
 			goto err;
-		length = st.st_size;
 	}
 	seg->length = length;
 
@@ -3148,6 +3136,11 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 		ev_ssize_t n = 0;
 		char *mem;
 #ifndef EVENT__HAVE_PREAD
+#ifdef _WIN32
+#ifndef lseek
+#define lseek _lseeki64
+#endif
+#endif
 		ev_off_t start_pos = lseek(fd, 0, SEEK_CUR);
 		ev_off_t pos;
 		int e;
