@@ -454,44 +454,31 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evconnlistener *listener = NULL;
+	char *socket_path = NULL;
 	struct sockaddr_un addr;
+	int tempfd;
+
+	tempfd = regress_make_tmpfile("", 0, &socket_path);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (tempfd < 0)
+		tt_skip();
+	TT_BLATHER(("Temporary socket path: %s, fd: %i", socket_path, tempfd));
 
 #ifdef _WIN32
-	DWORD n;
-	TCHAR tempPath[MAX_PATH];
-	TCHAR longTempPath[MAX_PATH];
 #ifdef EVENT__HAVE_AFUNIX_H
 	if (evutil_check_working_afunix_() == 0)
 		/* AF_UNIX is not available on the current Windows platform,
-		 * just skip this test.
-		 */
+		 * just skip this test. */
 		tt_skip();
 #endif
-	n = GetTempPathW(MAX_PATH, tempPath);
-	if (n == 0 || n < MAX_PATH)
-		return EXIT_FAILURE;
-	n = GetLongPathNameW(tempPath, longTempPath, MAX_PATH);
-	if (n == 0 || n >= MAX_PATH)
-		return EXIT_FAILURE;
-	TCHAR socket_path[MAX_PATH];
-	_stprintf(socket_path, _T("%stest-reuseport-unix.sock"), longTempPath);
-	/* For security reason, we must delete any existing sockets in the filesystem. */
+	/* For security reason, we must delete any existing sockets in the filesystem.
+	 * Besides, we will get EADDRINUSE error if the socket file already exists. */
 	DeleteFileW(socket_path);
 #else
-	char socket_path[] = "/tmp/test-reuseport-unix.sock";
-	/* For security reason, we must delete any existing sockets in the filesystem. */
+	/* For security reason, we must delete any existing sockets in the filesystem.
+	 * Besides, we will get EADDRINUSE error if the socket file already exists. */
 	unlink(socket_path);
-#endif
-
-#ifdef _WIN32
-	WSADATA wsaData;
-	int r;
-	/* Initialize Winsock. */
-	r = WSAStartup(MAKEWORD(2,2), &wsaData);
-	if (r) {
-		fprintf(stderr, "WSAStartup failed with error: %d\n", r);
-		return EXIT_FAILURE;
-	}
 #endif
 
 	memset(&addr, 0, sizeof(addr));
@@ -514,11 +501,15 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 			(struct sockaddr*)&addr, sizeof(addr));
 	tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
 
-#ifdef _WIN32
-	WSACleanup();
-#endif
-
 end:
+	if (socket_path) {
+#ifdef _WIN32
+		DeleteFileW(socket_path);
+#else
+		unlink(socket_path);
+#endif
+		free(socket_path);
+	}
 	if (listener)
 		evconnlistener_free(listener);
 }
