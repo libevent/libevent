@@ -1677,7 +1677,7 @@ event_process_active_single_queue(struct event_base *base,
 	EVUTIL_ASSERT(activeq != NULL);
 
 	for (evcb = TAILQ_FIRST(activeq); evcb; evcb = TAILQ_FIRST(activeq)) {
-		struct event *ev=NULL;
+		struct event *ev = NULL;
 		if (evcb->evcb_flags & EVLIST_INIT) {
 			ev = event_callback_to_event(evcb);
 
@@ -1698,6 +1698,9 @@ event_process_active_single_queue(struct event_base *base,
 				"closure %d, call %p",
 				(void *)evcb, evcb->evcb_closure, (void *)evcb->evcb_cb_union.evcb_callback));
 		}
+		// We don't want an infinite loop or use of memory after it is freed.
+		// Hence, for next loop iteration, it is expected that `event_queue_remove_active` or `event_del_nolock_` have removed current event from the queue at this point.
+		EVUTIL_ASSERT(evcb != TAILQ_FIRST(activeq));
 
 		if (!(evcb->evcb_flags & EVLIST_INTERNAL))
 			++count;
