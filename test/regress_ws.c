@@ -346,9 +346,10 @@ http_ws_test(void *arg)
 	ev_uint16_t port = 0;
 	int ssl = 0;
 	struct evhttp *http = http_setup(&port, data->base, ssl);
+	struct evbuffer *out;
+
 	if (!http) 
 		goto end;
-	struct evbuffer *out;
 
 	exit_base = data->base;
 
