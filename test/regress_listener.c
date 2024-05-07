@@ -29,7 +29,7 @@
 #ifdef EVENT__HAVE_AFUNIX_H
 #include <afunix.h>
 #endif
-#include <tchar.h>
+#include <io.h>
 #include <winsock2.h>
 #include <windows.h>
 #endif
@@ -63,10 +63,14 @@
 #include "regress_thread.h"
 #endif
 
-
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
+
+#ifdef _WIN32
+#define unlink _unlink
+#define close _close
+#endif
 
 static void
 acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
@@ -465,21 +469,19 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 		tt_skip();
 	TT_BLATHER(("Temporary socket path: %s, fd: %i", socket_path, tempfd));
 
-#ifdef _WIN32
-#ifdef EVENT__HAVE_AFUNIX_H
+#if defined(_WIN32) && defined(EVENT__HAVE_AFUNIX_H)
 	if (evutil_check_working_afunix_() == 0)
 		/* AF_UNIX is not available on the current Windows platform,
 		 * just skip this test. */
 		tt_skip();
 #endif
-	/* For security reason, we must delete any existing sockets in the filesystem.
-	 * Besides, we will get EADDRINUSE error if the socket file already exists. */
-	DeleteFileW(socket_path);
-#else
+
+	/* close fd to avoid leaks, since we only need a temporary file path
+	 * for bind() to create a socket file. */
+	close(tempfd);
 	/* For security reason, we must delete any existing sockets in the filesystem.
 	 * Besides, we will get EADDRINUSE error if the socket file already exists. */
 	unlink(socket_path);
-#endif
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
@@ -503,11 +505,7 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 
 end:
 	if (socket_path) {
-#ifdef _WIN32
-		DeleteFileW(socket_path);
-#else
 		unlink(socket_path);
-#endif
 		free(socket_path);
 	}
 	if (listener)
