@@ -510,7 +510,8 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 	if (truncated_temp_file) {
 		tt_assert_msg(listener == NULL, "Should not create a AF_UNIX listener with truncated socket path!");
 	} else {
-		tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
+		// tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
+		tt_assert_msg(listener, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
 	}
 
 end:
