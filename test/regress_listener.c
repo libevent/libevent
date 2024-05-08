@@ -63,6 +63,7 @@
 #include "regress_thread.h"
 #endif
 
+#include "strlcpy-internal.h"
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
@@ -459,6 +460,7 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 	struct event_base *base = data->base;
 	struct evconnlistener *listener = NULL;
 	char *socket_path = NULL;
+	int truncated_temp_file = 0;
 	struct sockaddr_un addr;
 	int tempfd;
 
@@ -485,7 +487,11 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path)-1);
+	if (strlcpy(addr.sun_path, socket_path, sizeof(addr.sun_path)) >= sizeof(addr.sun_path))
+		/* This could happen on some platforms with Unicode encoding, for instance, the GitHub
+		 * runner of (windows-latest, UNOCODE_TEMPORARY_DIRECTORY). For these platforms, we need
+		 * to adjust the last test of creating a normal Unix domain socket accordingly. */
+		truncated_temp_file = 1;
 
 	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
 	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
@@ -501,7 +507,11 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
 	    LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_CLOSE_ON_FREE, -1,
 			(struct sockaddr*)&addr, sizeof(addr));
-	tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
+	if (truncated_temp_file) {
+		tt_assert_msg(listener == NULL, "Should not create a AF_UNIX listener with truncated socket path!");
+	} else {
+		tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
+	}
 
 end:
 	if (socket_path) {
