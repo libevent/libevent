@@ -2589,12 +2589,10 @@ static int
 evthread_notify_base_eventfd(struct event_base *base)
 {
 	int efd = base->th_notify_fd[0];
-	ev_uint64_t msg = 1;
-	ev_uint64_t val;
-
+	eventfd_t val;
 	int ret;
-	for (;;) {
-		ret = eventfd_write(efd, (eventfd_t) msg);
+	for (val=1;;val=1) {
+		ret = eventfd_write(efd, val);
 		if (ret < 0) {
 			// When EAGAIN occurs, the eventfd counter hits the maximum value of the unsigned 64-bit.
 			// We need to first drain the eventfd and then write again.
