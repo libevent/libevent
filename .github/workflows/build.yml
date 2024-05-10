@@ -265,7 +265,7 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Prepare vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@v7
         id: runvcpkg
         with:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
