@@ -531,10 +531,12 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 	 * port bindings, load balancing is not included. Therefore, only the last
 	 * socket that binds to a given address and port will receive all the traffic,
 	 * which means that incoming connections/datagrams will be shifted from the
-	 * old thread (or process) to the new one. That's not what we want, so we don't
-	 * enable SO_REUSEPORT on these systems.
+	 * old thread (or process) to the new one. That's not what we want, so we fail
+	 * this operation on these systems to indicate that SO_REUSEPORT without load
+	 * balancing is not supported. Otherwise, the callers would expected the load
+	 * balancing capability when they get 0 as the return value of this function.
 	 */
-	return 0;
+	return -1;
 #endif
 }
 
