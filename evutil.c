@@ -500,6 +500,7 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT_LB, (void*)&enabled,
 	    (ev_socklen_t)sizeof(enabled));
 #elif (defined(__linux__) || \
+      defined(_AIX73) || \
       (defined(__DragonFly__) && __DragonFly_version >= 300600) || \
       (defined(__sun) && defined(SO_FLOW_NAME))) && \
       defined(SO_REUSEPORT)
@@ -511,6 +512,9 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 	 *
 	 * DragonFlyBSD 3.6.0 extended SO_REUSEPORT to distribute workload to
 	 * available sockets, which make it the same as Linux's SO_REUSEPORT.
+	 *
+	 * AIX 7.2.5 added the feature that would add the capability to distribute
+	 * incoming connections across all listening ports for SO_REUSEPORT.
 	 *
 	 * Solaris 11 supported SO_REUSEPORT, but it's implemented only for
 	 * binding to the same address and port, without load balancing.
