@@ -423,7 +423,7 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
     across all of the threads (or processes).
 
     This feature is available only on Linux 3.9+, DragonFlyBSD 3.6+,
-    FreeBSD 12.0+, Solaris 11.4 for now.
+    FreeBSD 12.0+, Solaris 11.4, AIX 7.2.5 for now.
 
     @param sock The socket to make reusable
     @return 0 on success, -1 on failure

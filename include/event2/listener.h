@@ -98,7 +98,7 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
  * SO_REUSEPORT does not imply SO_REUSEADDR.
  *
  * This feature is available only on Linux 3.9+, DragonFlyBSD 3.6+,
- * FreeBSD 12.0+, Solaris 11.4 for now.
+ * FreeBSD 12.0+, Solaris 11.4, AIX 7.2.5 for now.
  *
  */
 #define LEV_OPT_REUSEABLE_PORT		(1u<<7)
