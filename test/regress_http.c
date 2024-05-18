@@ -1811,7 +1811,7 @@ http_cancel_test(void *arg)
 	tt_assert(evcon);
 	if (type & INACTIVE_SERVER)
 		evhttp_connection_set_timeout(evcon, 5);
-	
+
 
 	bufev = evhttp_connection_get_bufferevent(evcon);
 	/* Guarantee that we stack in connect() not after waiting EV_READ after
@@ -3545,7 +3545,7 @@ http_base_test(void *ptr)
 	const char *http_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http;
-	
+
 	test_ok = 0;
 	base = event_base_new();
 	tt_assert(base);
@@ -5802,7 +5802,7 @@ end:
 		evhttp_free(http);
 }
 
-static void http_add_output_buffer(int fd, short events, void *arg)
+static void http_add_output_buffer(evutil_socket_t fd, short events, void *arg)
 {
 	evbuffer_add(arg, POST_DATA, strlen(POST_DATA));
 }
