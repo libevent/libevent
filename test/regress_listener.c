@@ -447,6 +447,30 @@ end:
 
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
 
+#ifdef _WIN32
+static int
+is_unicode_temp_path()
+{
+	DWORD n;
+	WCHAR short_temp_path[MAX_PATH];
+	WCHAR long_temp_path[MAX_PATH];
+	n = GetTempPathW(MAX_PATH, short_temp_path);
+	if (n == 0 || n > MAX_PATH)
+		return 1;
+	n = GetLongPathNameW(short_temp_path, long_temp_path, MAX_PATH);
+	if (n == 0 || n > MAX_PATH)
+		return 1;
+
+	// If it contains valid wide characters, it is considered Unicode.
+	for (const wchar_t* p = long_temp_path; *p != L'\0'; ++p) {
+		if (*p > 127) { // Non-ASCII character
+			return 1; // It's a Unicode path
+		}
+	}
+	return 0; // No non-ASCII characters found, may not be Unicode
+}
+#endif
+
 static void
 empty_listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
     struct sockaddr *sa, int socklen, void *user_data)
@@ -511,7 +535,7 @@ regress_listener_reuseport_on_unix_socket(void *arg)
 		tt_assert_msg(listener == NULL, "Should not create a AF_UNIX listener with truncated socket path!");
 	} else {
 #ifdef _WIN32
-		if (listener == NULL && WSAENETDOWN == EVUTIL_SOCKET_ERROR())
+		if (listener == NULL && WSAENETDOWN == EVUTIL_SOCKET_ERROR() && is_unicode_temp_path())
 			/* TODO(panjf2000): this error kept happening on the GitHub Runner of
 			 * (windows-latest, UNOCODE_TEMPORARY_DIRECTORY) disturbingly and the
 			 * root cause still remains unknown.
