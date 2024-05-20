@@ -534,6 +534,10 @@ main(int argc, const char **argv)
 
 	libevent_global_shutdown();
 
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
 	return 0;
 }
 

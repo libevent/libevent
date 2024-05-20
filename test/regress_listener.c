@@ -26,8 +26,13 @@
 #include "util-internal.h"
 
 #ifdef _WIN32
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
+#endif
+#include <io.h>
 #include <winsock2.h>
 #include <windows.h>
+#include <winerror.h>
 #endif
 
 #include <sys/types.h>
@@ -38,6 +43,9 @@
 # ifdef _XOPEN_SOURCE_EXTENDED
 #  include <arpa/inet.h>
 # endif
+#ifdef EVENT__HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 #include <unistd.h>
 #endif
 #ifdef EVENT__HAVE_SYS_RESOURCE_H
@@ -45,6 +53,8 @@
 #endif
 
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "event2/listener.h"
 #include "event2/event.h"
@@ -54,10 +64,15 @@
 #include "regress_thread.h"
 #endif
 
-
+#include "strlcpy-internal.h"
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
+
+#ifdef _WIN32
+#define unlink _unlink
+#define close _close
+#endif
 
 static void
 acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
@@ -430,6 +445,118 @@ end:
 }
 #endif
 
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+
+#ifdef _WIN32
+static int
+is_unicode_temp_path()
+{
+	DWORD n;
+	WCHAR short_temp_path[MAX_PATH];
+	WCHAR long_temp_path[MAX_PATH];
+	n = GetTempPathW(MAX_PATH, short_temp_path);
+	if (n == 0 || n > MAX_PATH)
+		return 1;
+	n = GetLongPathNameW(short_temp_path, long_temp_path, MAX_PATH);
+	if (n == 0 || n > MAX_PATH)
+		return 1;
+
+	// If it contains valid wide characters, it is considered Unicode.
+	for (const wchar_t* p = long_temp_path; *p != L'\0'; ++p) {
+		if (*p > 127) { // Non-ASCII character
+			return 1; // It's a Unicode path
+		}
+	}
+	return 0; // No non-ASCII characters found, may not be Unicode
+}
+#endif
+
+static void
+empty_listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
+    struct sockaddr *sa, int socklen, void *user_data)
+{
+	printf("Empty listener, do nothing about it!\n");
+}
+
+static void
+regress_listener_reuseport_on_unix_socket(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	char *socket_path = NULL;
+	int truncated_temp_file = 0;
+	struct sockaddr_un addr;
+	int tempfd;
+
+	tempfd = regress_make_tmpfile("", 0, &socket_path);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (tempfd < 0)
+		tt_skip();
+	TT_BLATHER(("Temporary socket path: %s, fd: %i", socket_path, tempfd));
+
+#if defined(_WIN32) && defined(EVENT__HAVE_AFUNIX_H)
+	if (evutil_check_working_afunix_() == 0)
+		/* AF_UNIX is not available on the current Windows platform,
+		 * just skip this test. */
+		tt_skip();
+#endif
+
+	/* close fd to avoid leaks, since we only need a temporary file path
+	 * for bind() to create a socket file. */
+	close(tempfd);
+	/* For security reason, we must delete any existing sockets in the filesystem.
+	 * Besides, we will get EADDRINUSE error if the socket file already exists. */
+	unlink(socket_path);
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	if (strlcpy(addr.sun_path, socket_path, sizeof(addr.sun_path)) >= sizeof(addr.sun_path))
+		/* The temporary path exceeds the system limit, we may need to adjust some subsequent
+		 * assertions accordingly to ensure the success of this test. */
+		truncated_temp_file = 1;
+
+	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
+	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	tt_assert_msg(listener == NULL, "AF_UNIX listener shouldn't use SO_REUSEADDR!");
+
+	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
+	    LEV_OPT_REUSEABLE_PORT|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	tt_assert_msg(listener == NULL, "AF_UNIX listener shouldn't use SO_REUSEPORT!");
+
+	/* Create a AF_UNIX listener without reusing address or port. */
+	listener = evconnlistener_new_bind(base, empty_listener_cb, (void *)base,
+	    LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_CLOSE_ON_FREE, -1,
+			(struct sockaddr*)&addr, sizeof(addr));
+	if (truncated_temp_file) {
+		tt_assert_msg(listener == NULL, "Should not create a AF_UNIX listener with truncated socket path!");
+	} else {
+#ifdef _WIN32
+		if (listener == NULL && WSAENETDOWN == EVUTIL_SOCKET_ERROR() && is_unicode_temp_path())
+			/* TODO(panjf2000): this error kept happening on the GitHub Runner of
+			 * (windows-latest, UNOCODE_TEMPORARY_DIRECTORY) disturbingly and the
+			 * root cause still remains unknown.
+			 * Thus, we skip this for now, but try to dive deep and figure out the
+			 * root cause later. */
+			tt_skip();
+#endif
+		tt_assert_msg(listener, "Could not create a AF_UNIX listener normally!");
+	}
+
+end:
+	if (socket_path) {
+		unlink(socket_path);
+		free(socket_path);
+	}
+	if (listener)
+		evconnlistener_free(listener);
+}
+
+#endif
+
 struct testcase_t listener_testcases[] = {
 
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
@@ -465,6 +592,12 @@ struct testcase_t listener_testcases[] = {
 
 	{ "disable_in_thread_error", regress_listener_disable_in_thread_error,
 		TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_NEED_SOCKETPAIR,
+		&basic_setup, NULL, },
+#endif
+
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+	{ "reuseport_on_unix_socket", regress_listener_reuseport_on_unix_socket,
+		TT_FORK|TT_NEED_BASE,
 		&basic_setup, NULL, },
 #endif
 

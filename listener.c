@@ -244,11 +244,31 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	}
 
 	if (flags & LEV_OPT_REUSEABLE) {
+		if (family == AF_UNIX) {
+			/* Despite the fact that SO_REUSEADDR can be set on a Unix domain socket
+			 * via setsockopt() without reporting an error, SO_REUSEADDR is actually
+			 * not supported for sockets of AF_UNIX.
+			 * Instead of confusing the callers by allowing this option to be set and
+			 * failing the subsequent bind() on the same socket, it's better to fail here.
+			 */
+			evutil_closesocket(fd);
+			return NULL;
+		}
 		if (evutil_make_listen_socket_reuseable(fd) < 0)
 			goto err;
 	}
 
 	if (flags & LEV_OPT_REUSEABLE_PORT) {
+		if (family == AF_UNIX) {
+			/* Despite the fact that SO_REUSEPORT can be set on a Unix domain socket
+			 * via setsockopt() without reporting an error, SO_REUSEPORT is actually
+			 * not supported for sockets of AF_UNIX.
+			 * Instead of confusing the callers by allowing this option to be set and
+			 * failing the subsequent bind() on the same socket, it's better to fail here.
+			 */
+			evutil_closesocket(fd);
+			return NULL;
+		}
 		if (evutil_make_listen_socket_reuseable_port(fd) < 0)
 			goto err;
 	}
