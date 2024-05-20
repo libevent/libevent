@@ -258,7 +258,15 @@ basic_test_setup(const struct testcase_t *testcase)
 		evthread_flags |= EVTHREAD_PTHREAD_PRIO_INHERIT;
 #endif
 
+#ifdef _WIN32
+	DWORD tid;
+	THREAD_T p;
+	tid = THREAD_SELF();
+	p = (THREAD_T)&tid;
+	thread_setup(p);
+#else
 	thread_setup(THREAD_SELF());
+#endif
 
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
