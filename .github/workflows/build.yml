@@ -251,7 +251,7 @@ jobs:
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
           - DUNICODE
-          - UNOCODE_TEMPORARY_DIRECTORY
+          - UNICODE_TEMPORARY_DIRECTORY
           - TEST_EXPORT_SHARED
           - TEST_EXPORT_STATIC
 
@@ -296,7 +296,7 @@ jobs:
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "UNICODE" ) {
             $EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS='-DUNICODE -D_UNICODE'"
           }
-          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "UNOCODE_TEMPORARY_DIRECTORY" ) {
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "UNICODE_TEMPORARY_DIRECTORY" ) {
             $EVENT_CMAKE_OPTIONS=""
             mkdir "${{ runner.workspace }}\𝑼𝑵𝑰𝑪𝑶𝑫𝑬"
             echo "TMP=${{ runner.workspace }}\𝑼𝑵𝑰𝑪𝑶𝑫𝑬" >> $env:GITHUB_ENV
