@@ -810,7 +810,7 @@ http_bad_request_test(void *arg)
 	bufferevent_write(bev, http_request, strlen(http_request));
 
 	shutdown(fd, EVUTIL_SHUT_WR);
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
 	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
@@ -846,7 +846,7 @@ http_bad_request_test(void *arg)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
 	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
