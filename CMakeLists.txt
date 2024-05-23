@@ -523,7 +523,6 @@ list(APPEND SYMBOLS_TO_CHECK
     strtoll
     timeradd
     timerclear
-    timercmp
     timerisset
     umask
 )

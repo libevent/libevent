@@ -222,16 +222,6 @@ AC_EGREP_CPP(yes, [
     [AC_MSG_RESULT(no)]
 )
 
-AC_MSG_CHECKING(for timercmp in sys/time.h)
-AC_EGREP_CPP(yes, [
-    #include <sys/time.h>
-    #ifdef timercmp
-     yes
-    #endif],
-    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCMP, 1,[Define if timercmp is defined in <sys/time.h>])],
-    [AC_MSG_RESULT(no)]
-)
-
 AC_MSG_CHECKING(for timerclear in sys/time.h)
 AC_EGREP_CPP(yes, [
     #include <sys/time.h>
