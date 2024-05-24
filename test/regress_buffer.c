@@ -1373,12 +1373,16 @@ test_evbuffer_file_segment_add_cleanup_cb(void* ptr)
 	struct evbuffer *evb = NULL;
 	struct evbuffer_file_segment *seg = NULL, *segptr;
 	char const* arg = "token";
+	struct stat st;
 
 	fd = regress_make_tmpfile("file_segment_test_file", 22, &tmpfilename);
 	/* On Windows, if TMP environment variable is corrupted, we may not be
 	 * able create temporary file, just skip it */
 	if (fd < 0)
 		tt_skip();
+
+	fstat(fd, &st);
+	tt_assert(st.st_size == 22);
 
 	evb = evbuffer_new();
 	tt_assert(evb);
