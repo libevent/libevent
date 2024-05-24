@@ -476,7 +476,7 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
 #ifndef EV_SIZE_FMT
-#if EV_WINDOWS
+#if defined(_MSC_VER) && _MSC_VER < 1400
 #define EV_U64_FMT "%I64u"
 #define EV_I64_FMT "%I64d"
 #define EV_I64_ARG(x) ((__int64)(x))
