@@ -441,9 +441,6 @@ jobs:
 
   mingw-cmake-job:
     runs-on: windows-latest
-    # FIXME: disabled for now, see [1].
-    #   [1]: https://github.com/libevent/libevent/issues/1207
-    if: "false && !contains(github.event.head_commit.message, 'ci/mingw skip') && !contains(github.event.head_commit.message, 'ci/mingw/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
