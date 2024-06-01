@@ -506,25 +506,25 @@ unset(FILES_TO_CHECK)
 # Check if functions exist
 list(APPEND SYMBOLS_TO_CHECK
     getaddrinfo
+    gethostbyname
     getnameinfo
     getprotobynumber
     getservbyname
-    gethostbyname
+    gettimeofday
     inet_ntop
     inet_pton
-    gettimeofday
+    nanosleep
+    putenv
     signal
     socketpair
-    strtoll
     strlcpy
     strsep
     strtok_r
+    strtoll
+    timeradd
     timerclear
     timercmp
     timerisset
-    timeradd
-    nanosleep
-    putenv
     umask
 )
 if (NOT EVENT__DISABLE_CLOCK_GETTIME)
@@ -533,45 +533,45 @@ endif()
 
 if (WIN32)
     list(APPEND SYMBOLS_TO_CHECK
-        _gmtime64_s
         _gmtime64
+        _gmtime64_s
     )
 else()
     list(APPEND SYMBOLS_TO_CHECK
-        getifaddrs
-        select
+        accept4
+        arc4random
+        arc4random_addrandom
+        arc4random_buf
         epoll_create
         epoll_create1
-        epoll_pwait2
         epoll_ctl
+        epoll_pwait2
         eventfd
-        poll
-        port_create
-        kqueue
         fcntl
+        getegid
+        geteuid
+        gethostbyname_r
+        getifaddrs
+        getrandom
+        issetugid
+        kqueue
         mmap
+        mmap64
         pipe
         pipe2
+        poll
+        port_create
         pread
+        select
         sendfile
+        setenv
+        setrlimit
         sigaction
         strsignal
         sysctl
-        accept4
-        arc4random
-        arc4random_buf
-        arc4random_addrandom
-        getrandom
-        getegid
-        geteuid
-        issetugid
-        usleep
         timerfd_create
-        setenv
         unsetenv
-        setrlimit
-        gethostbyname_r
-        mmap64
+        usleep
     )
     if (APPLE)
         list(APPEND SYMBOLS_TO_CHECK mach_absolute_time)
