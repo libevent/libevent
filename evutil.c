@@ -3150,7 +3150,11 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (timeout <= 0)
 		return 0;
 
+#ifdef _WIN32
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (const char*)&on, sizeof(on)))
+#else
 	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
+#endif
 		return -1;
 	if (!on)
 		return 0;
@@ -3164,14 +3168,14 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 * Windows 10 version 1709, but let's gamble here.
 	 */
 #if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&idle, sizeof(idle)))
 		return -1;
 
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intvl, sizeof(intvl)))
 		return -1;
 
 	cnt = 3;
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&cnt, sizeof(cnt)))
 		return -1;
 
 	/* For those versions prior to Windows 10 version 1709, we fall back to SIO_KEEPALIVE_VALS.

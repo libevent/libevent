@@ -424,7 +424,7 @@ static struct le_ssl_ops le_openssl_ops = {
 	SSL_handshake_is_ok,
 	SSL_is_want_read,
 	SSL_is_want_write,
-	(int (*)(void *))be_openssl_get_fd,
+	(evutil_socket_t (*)(void *))be_openssl_get_fd,
 	be_openssl_bio_set_fd,
 	init_bio_counts,
 	decrement_buckets,

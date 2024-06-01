@@ -1307,7 +1307,7 @@ dns_nameservers_no_nameservers_configured_test(void *arg)
 	const char filecontents[] = "# tmp empty resolv.conf\n";
 	const size_t filecontentssize = sizeof(filecontents);
 	int ok;
-	
+
 	fd = regress_make_tmpfile(filecontents, filecontentssize, &tmpfilename);
 	if (fd < 0)
 		tt_skip();
@@ -2542,14 +2542,14 @@ struct race_param
 
 	int locked;
 };
-static void *
+static THREAD_FN
 race_base_run(void *arg)
 {
 	struct race_param *rp = (struct race_param *)arg;
 	event_base_loop(rp->base, EVLOOP_NO_EXIT_ON_EMPTY);
 	THREAD_RETURN();
 }
-static void *
+static THREAD_FN
 race_busywait_run(void *arg)
 {
 	struct race_param *rp = (struct race_param *)arg;

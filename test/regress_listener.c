@@ -331,7 +331,7 @@ disable_thread(void * arg)
 {
 	struct evconnlistener *lev = (struct evconnlistener *)arg;
 	evconnlistener_disable(lev);
-	return NULL;
+	THREAD_RETURN();
 }
 
 static void
