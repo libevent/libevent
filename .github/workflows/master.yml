@@ -94,6 +94,7 @@ jobs:
       - name: Deploy
         env:
           LIBEVENT_DEPLOY_ABI_PRI: ${{ secrets.LIBEVENT_DEPLOY_ABI_PRI }}
+          OWNER_NAME: ${{ github.event.repository.owner.name }}
           COMMIT_ID: ${{ github.sha }}
         run: |
           [[ -n $LIBEVENT_DEPLOY_ABI_PRI ]] || exit 0
@@ -104,7 +105,6 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
           short_commit_id="${COMMIT_ID:0:7}"
-          owner_name="${{ github.event.repository.owner.name }}"
 
           cd /tmp/le-abi-root/work/abi-check
           git init
@@ -112,7 +112,7 @@ jobs:
           git config --local user.email "robot@libevent.org"
           git add -f .
           git commit -m "Update ABI/API backward compatibility report (libevent/libevent@$short_commit_id)"
-          git push -f git@github.com:$owner_name/abi master
+          git push -f git@github.com:"$OWNER_NAME"/abi master
 
       # XXX: requires container-id for docker
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
@@ -149,6 +149,7 @@ jobs:
       - name: Deploy Documentation
         env:
           LIBEVENT_DEPLOY_PRI: ${{ secrets.LIBEVENT_DEPLOY_PRI }}
+          OWNER_NAME: ${{ github.event.repository.owner.name }}
           COMMIT_ID: ${{ github.sha }}
         run: |
           [[ -n $LIBEVENT_DEPLOY_PRI ]] || exit 0
@@ -159,7 +160,6 @@ jobs:
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
           short_commit_id="${COMMIT_ID:0:7}"
-          owner_name="${{ github.event.repository.owner.name }}"
 
           cd ./build/doxygen/html
           git init
@@ -167,7 +167,7 @@ jobs:
           git config --local user.email "robot@libevent.org"
           git add -f .
           git commit -m "Update documentation (libevent/libevent@$short_commit_id)"
-          git push -f git@github.com:$owner_name/doc master
+          git push -f git@github.com:"$OWNER_NAME"/doc master
 
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: failure()
