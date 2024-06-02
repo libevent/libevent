@@ -158,14 +158,16 @@ main(void)
 #ifdef WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	int err;
 
 	/* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
 	wVersionRequested = MAKEWORD(2, 2);
 
-	err = WSAStartup(wVersionRequested, &wsaData);
+	ret = WSAStartup(wVersionRequested, &wsaData);
+	if (ret != 0) {
+		mbedtls_printf(
+			" warning\n  !  WSAStartup returned 0x%x\n\n", ret);
+	}
 #endif
-
 
 #if defined(MBEDTLS_DEBUG_C)
 	mbedtls_debug_set_threshold(DEBUG_LEVEL);
