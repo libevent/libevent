@@ -854,7 +854,7 @@ static void
 test_bufferevent_connect_fail_eventcb(void *arg)
 {
 	struct basic_test_data *data = arg;
-	int flags = BEV_OPT_CLOSE_ON_FREE | (long)data->setup_data;
+	int flags = BEV_OPT_CLOSE_ON_FREE | (intptr_t)data->setup_data;
 	struct event close_listener_event;
 	struct bufferevent *bev = NULL;
 	struct evconnlistener *lev = NULL;
