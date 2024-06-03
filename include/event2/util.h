@@ -76,6 +76,21 @@ extern "C" {
 
 #include <time.h>
 
+#ifdef __sun
+#ifdef SO_FLOW_NAME
+/* Since it's impossible to detect the Solaris 11.4 version via OS macros,
+ * so we check the presence of the socket option SO_FLOW_NAME that was first
+ * introduced to Solaris 11.4 and define a custom macro for determining 11.4.
+ *
+ * Note that this might be a false positive if the code is compiled on a system
+ * but run on another system with an older version of Solaris.
+ */
+#define EVENT__SOLARIS_11_4 (1)
+#else
+#define EVENT__SOLARIS_11_4 (0)
+#endif
+#endif
+
 /* Some openbsd autoconf versions get the name of this macro wrong. */
 #if defined(EVENT__SIZEOF_VOID__) && !defined(EVENT__SIZEOF_VOID_P)
 #define EVENT__SIZEOF_VOID_P EVENT__SIZEOF_VOID__
