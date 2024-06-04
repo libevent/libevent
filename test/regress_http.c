@@ -4855,6 +4855,8 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	const size_t size = (1<<20) * 3;
 	void (*cb)(struct evhttp_request *, void *);
 	struct evhttp *http = http_setup(&port, data->base, 0);
+	size_t i;
+	char header_index[NI_MAXSERV];
 
 	test_ok = 0;
 	cb = http_failed_request_done;
@@ -4875,6 +4877,22 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 		tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_READ_ON_WRITE_ERROR));
 
 	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+
+	evhttp_set_max_headers_number(http, size - 1);
+	TT_BLATHER(("Set max header number %zu", size - 1));
+
+	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
+	tt_assert(req);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	for (i = 0; i < size; ++i) {
+		evutil_snprintf(header_index, sizeof(header_index), "header_index_%zu", i);
+		evhttp_add_header(evhttp_request_get_output_headers(req), header_index, header_index);
+	}
+	TT_BLATHER(("GET /?arg=val"));
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/?arg=val") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_base_dispatch(data->base);
 
 	evhttp_set_max_headers_size(http, size - 1);
 	TT_BLATHER(("Set max header size %zu", size - 1));
