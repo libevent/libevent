@@ -194,21 +194,6 @@ case "${host_os}" in
         ])
 esac
 
-if test "$ac_cv_header_sys_queue_h" = "yes"; then
-	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/queue.h>
-#ifdef TAILQ_FOREACH
- yes
-#endif
-],	[AC_MSG_RESULT(yes)
-	 AC_DEFINE(HAVE_TAILQFOREACH, 1,
-		[Define if TAILQ_FOREACH is defined in <sys/queue.h>])],
-	AC_MSG_RESULT(no)
-	)
-fi
-
 dnl if we have sys/time.h, check for timer* macros
 if test "$ac_cv_header_sys_time_h" = "yes"; then
 

@@ -381,9 +381,6 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine EVENT__HAVE_ERRNO_H 1
 
-/* Define if TAILQ_FOREACH is defined in <sys/queue.h> */
-#cmakedefine EVENT__HAVE_TAILQFOREACH 1
-
 /* Define if timeradd is defined in <sys/time.h> */
 #cmakedefine EVENT__HAVE_TIMERADD 1
 
