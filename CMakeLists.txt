@@ -788,15 +788,6 @@ else()
 endif()
 
 CHECK_TYPE_SIZE("struct in6_addr" EVENT__HAVE_STRUCT_IN6_ADDR)
-if(EVENT__HAVE_STRUCT_IN6_ADDR)
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
-            s6_addr16 "${SOCKADDR_HEADERS}"
-            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
-
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
-            s6_addr32 "${SOCKADDR_HEADERS}"
-            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
-endif()
 
 CHECK_TYPE_SIZE("sa_family_t" EVENT__HAVE_SA_FAMILY_T)
 CHECK_TYPE_SIZE("struct sockaddr_in6" EVENT__HAVE_STRUCT_SOCKADDR_IN6)

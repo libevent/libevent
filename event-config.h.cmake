@@ -213,12 +213,6 @@
 /* Define to 1 if you have the `poll' function. */
 #cmakedefine EVENT__HAVE_POLL 1
 
-/* Define to 1 if you have the `port_create' function. */
-#cmakedefine EVENT__HAVE_PORT_CREATE 1
-
-/* Define to 1 if you have the <port.h> header file. */
-#cmakedefine EVENT__HAVE_PORT_H 1
-
 /* Define if we have pthreads on this system */
 #cmakedefine EVENT__HAVE_PTHREADS 1
 
@@ -293,12 +287,6 @@
 
 /* Define to 1 if the system has the type `struct in6_addr'. */
 #cmakedefine EVENT__HAVE_STRUCT_IN6_ADDR 1
-
-/* Define to 1 if `s6_addr16' is member of `struct in6_addr'. */
-#cmakedefine EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16 1
-
-/* Define to 1 if `s6_addr32' is member of `struct in6_addr'. */
-#cmakedefine EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32 1
 
 /* Define to 1 if the system has the type `struct sockaddr_in6'. */
 #cmakedefine EVENT__HAVE_STRUCT_SOCKADDR_IN6 1
@@ -419,12 +407,6 @@
 
 /* Define if kqueue works correctly with pipes */
 #cmakedefine EVENT__HAVE_WORKING_KQUEUE 1
-
-#ifdef __USE_UNUSED_DEFINITIONS__
-/* Define to necessary symbol if this constant uses a non-standard name on your system. */
-/* XXX: Hello, this isn't even used, nor is it defined anywhere... - Ellzey */
-#define EVENT__PTHREAD_CREATE_JOINABLE ${EVENT__PTHREAD_CREATE_JOINABLE}
-#endif
 
 /* The size of `pthread_t', as computed by sizeof. */
 #define EVENT__SIZEOF_PTHREAD_T @EVENT__SIZEOF_PTHREAD_T@
