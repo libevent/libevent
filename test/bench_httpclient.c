@@ -164,8 +164,8 @@ launch_request(void)
 
 	b = bufferevent_socket_new(base, sock, BEV_OPT_CLOSE_ON_FREE);
 	if (b == NULL) {
+		perror("bufferevent_socket_new");
 		evutil_closesocket(sock);
-		fprintf(stderr, "Couldn't create bufferevent\n");
 		return -1;
 	}
 	bufferevent_setcb(b, readcb, NULL, errorcb, ri);
@@ -199,7 +199,7 @@ main(int argc, char **argv)
 
 	for (i=0; i < PARALLELISM; ++i) {
 		if (launch_request() < 0)
-			perror("launch");
+			fprintf(stderr, "Cannot launch %i request\n", i);
 	}
 
 	evutil_gettimeofday(&start, NULL);
