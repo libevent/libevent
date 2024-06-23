@@ -4,6 +4,9 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    ignore:
+      # Newer versions expect a vcpkg manifest, so stick to v7, that could handle vcpkgArguments
+      - dependency-name: "lukka/run-vcpkg"
     groups:
       github-actions:
         patterns:
