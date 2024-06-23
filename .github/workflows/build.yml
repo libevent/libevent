@@ -265,6 +265,7 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Prepare vcpkg
+        # Newer versions expect a vcpkg manifest, so stick to v7, that could handle vcpkgArguments
         uses: lukka/run-vcpkg@v7
         id: runvcpkg
         with:
