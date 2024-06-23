@@ -148,6 +148,10 @@ main(int argc, char **argv)
 	evfifo = event_new(base, socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
 #endif
+	if (evfifo == NULL)
+		perror("event_new");
+		goto err;
+	}
 
 	/* Add it to the active events, without a timeout */
 	event_add(evfifo, NULL);
