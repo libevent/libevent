@@ -2697,7 +2697,6 @@ test_tcp_resolve(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evdns_base *dns = evdns_base_new(base, 0);
-	tt_assert(dns);
 	ev_uint16_t portnum = 0;
 	struct evdns_request *req = NULL;
 	struct generic_dns_callback_result r;
@@ -2707,6 +2706,7 @@ test_tcp_resolve(void *arg)
 	exit_base = base;
 
 	tt_assert(base);
+	tt_assert(dns);
 
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
@@ -2787,7 +2787,6 @@ test_tcp_resolve_pipeline(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evdns_base *dns = evdns_base_new(base, 0);
-	tt_assert(dns);
 	ev_uint16_t portnum = 0;
 	struct evdns_request *reqs[3] = {NULL, NULL, NULL};
 	struct generic_dns_callback_result results[3];
@@ -2797,6 +2796,7 @@ test_tcp_resolve_pipeline(void *arg)
 	exit_base = base;
 
 	tt_assert(base);
+	tt_assert(dns);
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
@@ -2871,7 +2871,6 @@ test_tcp_timeout(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evdns_base *dns = evdns_base_new(base, 0);
-	tt_assert(dns);
 	ev_uint16_t portnum = 0;
 	struct evdns_request *req = NULL;
 	char buf[64];
@@ -2879,6 +2878,7 @@ test_tcp_timeout(void *arg)
 	exit_base = base;
 
 	tt_assert(base);
+	tt_assert(dns);
 
 	tt_assert(!evdns_base_set_option(dns, "timeout:", "1"));
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
