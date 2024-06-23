@@ -234,11 +234,16 @@ main(int argc, char **argv)
 
 	sig_int = evsignal_new(base, SIGINT, signal_cb, base);
 	if (sig_int == NULL) {
+		perror("evsignal_new");
 		goto cleanup;
 	}
 	event_add(sig_int, NULL);
 
 	http_server = evhttp_new(base);
+	if (http_server == NULL) {
+		perror("evhttp_new");
+		goto cleanup;
+	}
 	evhttp_bind_socket_with_handle(http_server, "0.0.0.0", 8080);
 
 	evhttp_set_cb(http_server, "/", on_html, NULL);
@@ -257,7 +262,11 @@ main(int argc, char **argv)
 	return 0;
 
 cleanup:
-	if (base)
-	event_base_free(base);
+	if (sig_int) {
+		event_free(sig_int);
+	}
+	if (base) {
+		event_base_free(base);
+	}
 	return 1;
 }
