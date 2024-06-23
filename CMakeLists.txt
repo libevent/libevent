@@ -523,7 +523,6 @@ list(APPEND SYMBOLS_TO_CHECK
     strtoll
     timeradd
     timerclear
-    timercmp
     timerisset
     umask
 )
@@ -676,7 +675,6 @@ endif()
 CHECK_SYMBOL_EXISTS("__func__"     "" EVENT__HAVE___func__)
 CHECK_SYMBOL_EXISTS("__FUNCTION__" "" EVENT__HAVE___FUNCTION__)
 
-CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
 CHECK_CONST_EXISTS(CTL_KERN sys/sysctl.h EVENT__HAVE_DECL_CTL_KERN)
 CHECK_CONST_EXISTS(KERN_ARND sys/sysctl.h EVENT__HAVE_DECL_KERN_ARND)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
@@ -685,10 +683,7 @@ CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
 
 CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZE_T)
 if(NOT EVENT__SIZEOF_SIZE_T)
-  set(EVENT__size_t "unsigned")
   set(EVENT__SIZEOF_SIZE_T ${EVENT__SIZEOF_UNSIGNED})
-else()
-    set(EVENT__size_t size_t)
 endif()
 
 CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T LANGUAGE C)
@@ -705,13 +700,10 @@ CHECK_TYPE_SIZE("SSIZE_T" EVENT__SIZEOF_SSIZE_T_UPPER LANGUAGE C)
 
 if (EVENT__SIZEOF_SSIZE_T_LOWER)
     set(EVENT__ssize_t "ssize_t")
-    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_SSIZE_T_LOWER})
 elseif (EVENT__SIZEOF_SSIZE_T_UPPER)
     set(EVENT__ssize_t "SSIZE_T")
-    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_SSIZE_T_UPPER})
 else()
     set(EVENT__ssize_t "int")
-    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
 endif()
 
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
@@ -727,10 +719,6 @@ if(NOT EVENT__SIZEOF_PID_T)
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
 else()
 	set(EVENT__SIZEOF_PID_T EVENT__SIZEOF_PID_T)
-endif()
-
-if(EVENT__HAVE_CLOCK_GETTIME)
-  set(EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1)
 endif()
 
 # we're just getting lazy now.
@@ -800,15 +788,6 @@ else()
 endif()
 
 CHECK_TYPE_SIZE("struct in6_addr" EVENT__HAVE_STRUCT_IN6_ADDR)
-if(EVENT__HAVE_STRUCT_IN6_ADDR)
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
-            s6_addr16 "${SOCKADDR_HEADERS}"
-            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
-
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
-            s6_addr32 "${SOCKADDR_HEADERS}"
-            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
-endif()
 
 CHECK_TYPE_SIZE("sa_family_t" EVENT__HAVE_SA_FAMILY_T)
 CHECK_TYPE_SIZE("struct sockaddr_in6" EVENT__HAVE_STRUCT_SOCKADDR_IN6)
@@ -1069,7 +1048,6 @@ if(WIN32)
 
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
 
-    set(EVENT__DNS_USE_FTIME_FOR_ID 1)
     set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt iphlpapi)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
