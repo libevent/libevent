@@ -282,7 +282,7 @@ test_bufferevent_zlib(void *arg)
 	char buffer[8333];
 	z_stream *z_input, *z_output;
 	int i, r;
-	evutil_socket_t pair[2] = {-1, -1};
+	evutil_socket_t pair[2] = {EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET};
 	(void)arg;
 
 	infilter_calls = outfilter_calls = readcb_finished = writecb_finished
