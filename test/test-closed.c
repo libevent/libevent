@@ -40,6 +40,7 @@
 #ifdef EVENT__HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+#include <assert.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -81,6 +82,7 @@ main(int argc, char **argv)
 	   supports EV_FEATURE_EARLY_CLOSE
 	*/
 	cfg = event_config_new();
+	assert(cfg);
 	event_config_require_features(cfg, EV_FEATURE_EARLY_CLOSE);
 	base = event_base_new_with_config(cfg);
 	event_config_free(cfg);
@@ -90,8 +92,10 @@ main(int argc, char **argv)
 	}
 
 	/* Create a pair of sockets */
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
-		return (1);
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+		perror("evutil_socketpair");
+		goto err;
+	}
 
 	/* Send some data on socket 0 and immediately close it */
 	if (send(pair[0], test, (int)strlen(test)+1, 0) < 0)
@@ -101,6 +105,7 @@ main(int argc, char **argv)
 	/* Dispatch */
 	ev = event_new(base, pair[1], EV_CLOSED | EV_TIMEOUT, closed_cb, event_self_cbarg());
 	if (ev == NULL) {
+		perror("event_new");
 		goto err;
 	}
 	event_add(ev, &timeout);
@@ -110,6 +115,7 @@ main(int argc, char **argv)
 	event_free(ev);
 	event_base_free(base);
 	return 0;
+
 err:
 	if (ev)
 		event_free(ev);
