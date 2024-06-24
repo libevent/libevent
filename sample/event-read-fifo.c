@@ -139,6 +139,10 @@ main(int argc, char **argv)
 #else
 	/* catch SIGINT so that event.fifo can be cleaned up */
 	signal_int = evsignal_new(base, SIGINT, signal_cb, base);
+	if (signal_int == NULL) {
+		perror("evsignal_new");
+		goto err;
+	}
 	event_add(signal_int, NULL);
 
 	evfifo = event_new(base, socket, EV_READ|EV_PERSIST, fifo_read,
@@ -147,7 +151,6 @@ main(int argc, char **argv)
 
 	/* Add it to the active events, without a timeout */
 	event_add(evfifo, NULL);
-
 	event_base_dispatch(base);
 	event_base_free(base);
 #ifdef _WIN32
@@ -158,5 +161,16 @@ main(int argc, char **argv)
 #endif
 	libevent_global_shutdown();
 	return (0);
+
+err:
+	event_base_free(base);
+#ifdef _WIN32
+	CloseHandle(socket);
+#else
+	close(socket);
+	unlink(fifo);
+#endif
+	libevent_global_shutdown();
+	return (1);
 }
 
