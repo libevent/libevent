@@ -148,7 +148,7 @@ main(int argc, char **argv)
 	evfifo = event_new(base, socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
 #endif
-	if (evfifo == NULL)
+	if (evfifo == NULL) {
 		perror("event_new");
 		goto err;
 	}
