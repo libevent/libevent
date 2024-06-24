@@ -117,19 +117,19 @@ main(int argc, char **argv)
 	printf("event_base_dispatch=%d, called=%d, EVENT=%d\n",
 		i, called, NEVENT);
 
-	
 	if (i == 1 && called >= NEVENT) {
 		return EXIT_SUCCESS;
 	} else {
 		return EXIT_FAILURE;
 	}
+
 err:
-	if (base)
-		event_base_free(base);
 	for (i = 0; i < NEVENT; i++) {
 		if (ev[i])
 			event_free(ev[i]);
 	}
+	if (base)
+		event_base_free(base);
 	return EXIT_FAILURE;
 }
 
