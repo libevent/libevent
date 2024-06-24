@@ -391,7 +391,7 @@ test_simpleclose_rw(void *ptr)
 {
 	/* Test that a close of FD is detected as a read and as a write. */
 	struct event_base *base = event_base_new();
-	evutil_socket_t pair1[2]={-1,-1}, pair2[2] = {-1, -1};
+	evutil_socket_t pair1[2]={EVUTIL_INVALID_SOCKET,EVUTIL_INVALID_SOCKET}, pair2[2] = {EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET};
 	evutil_socket_t *to_close[2];
 	struct event *rev=NULL, *wev=NULL, *closeev=NULL;
 	struct timeval tv;

@@ -249,7 +249,7 @@ void *
 basic_test_setup(const struct testcase_t *testcase)
 {
 	struct event_base *base = NULL;
-	evutil_socket_t spair[2] = { -1, -1 };
+	evutil_socket_t spair[2] = { EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET };
 	struct basic_test_data *data = NULL;
 
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
