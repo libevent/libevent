@@ -82,7 +82,10 @@ main(int argc, char **argv)
 	   supports EV_FEATURE_EARLY_CLOSE
 	*/
 	cfg = event_config_new();
-	assert(cfg);
+	if (cfg == NULL) {
+		perror("event_config_new");
+		goto err;
+	}
 	event_config_require_features(cfg, EV_FEATURE_EARLY_CLOSE);
 	base = event_base_new_with_config(cfg);
 	event_config_free(cfg);
@@ -98,8 +101,10 @@ main(int argc, char **argv)
 	}
 
 	/* Send some data on socket 0 and immediately close it */
-	if (send(pair[0], test, (int)strlen(test)+1, 0) < 0)
-		return (1);
+	if (send(pair[0], test, (int)strlen(test)+1, 0) < 0) {
+		perror("send");
+		goto err;
+	}
 	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	/* Dispatch */
