@@ -515,6 +515,18 @@ void evhttp_set_write_timeout_tv(struct evhttp *http, const struct timeval* tv);
 EVENT2_EXPORT_SYMBOL
 int evhttp_set_flags(struct evhttp *http, int flags);
 
+/**
+ * Accept request for bufferevent
+ * @param http an evhttp object
+ * @param bev a bufferevent to use for connecting to the server; if NULL, a
+ *     socket-based bufferevent will be created.
+ * @param sa A location to receive the server's address.
+ * @param salen The number of bytes available at sa.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_get_request_bufferevent(struct evhttp *http,
+	struct bufferevent *bev, struct sockaddr *sa, ev_socklen_t salen);
+
 /* Request/Response functionality */
 
 /**

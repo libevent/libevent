@@ -200,6 +200,7 @@ static int evhttp_add_header_internal(struct evkeyvalq *headers,
     const char *key, const char *value);
 static const char *evhttp_response_phrase_internal(int code);
 static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t, struct bufferevent *bev);
+static void evhttp_get_request_internal(struct evhttp *http, struct evhttp_connection *evcon);
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
@@ -4577,7 +4578,7 @@ struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req)
  */
 
 static struct evhttp_connection*
-evhttp_get_request_connection(
+evhttp_get_request_connection_bufferevent(
 	struct evhttp* http,
 	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
 	struct bufferevent* bev)
@@ -4641,6 +4642,19 @@ evhttp_get_request_connection(
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;
 
+	return (evcon);
+}
+
+static struct evhttp_connection*
+evhttp_get_request_connection(
+	struct evhttp* http,
+	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
+	struct bufferevent* bev)
+{
+	struct evhttp_connection *evcon = evhttp_get_request_connection_bufferevent(http, fd, sa, salen, bev);
+
+	if (!evcon)
+		return (NULL);
 	if (bufferevent_replacefd(evcon->bufev, fd))
 		goto err;
 	if (bufferevent_enable(evcon->bufev, EV_READ))
@@ -4711,6 +4725,12 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 		return;
 	}
 
+	evhttp_get_request_internal(http, evcon);
+}
+
+static void
+evhttp_get_request_internal(struct evhttp *http, struct evhttp_connection *evcon)
+{
 	/* the timeout can be used by the server to close idle connections */
 	if (evutil_timerisset(&http->timeout_read))
 		evhttp_connection_set_read_timeout_tv(evcon,  &http->timeout_read);
@@ -4751,6 +4771,29 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 		evhttp_connection_free(evcon);
 }
 
+/**
+ * Accept request for bufferevent
+ */
+void
+evhttp_get_request_bufferevent(
+	struct evhttp *http, struct bufferevent* bev,
+	struct sockaddr *sa, ev_socklen_t salen
+)
+{
+	struct evhttp_connection *evcon;
+
+	evutil_socket_t fd = bev ? bufferevent_getfd(bev) : EVUTIL_INVALID_SOCKET;
+
+	evcon = evhttp_get_request_connection_bufferevent(http, fd, sa, salen, bev);
+	if (evcon == NULL) {
+		event_warn("%s: cannot get connection on bufferevent "EV_SOCK_FMT,
+		    __func__, EV_SOCK_ARG(bufferevent_getfd(bev)));
+
+		return;
+	}
+
+	evhttp_get_request_internal(http, evcon);
+}
 
 /*
  * Network helper functions that we do not want to export to the rest of
