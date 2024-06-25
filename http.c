@@ -3882,6 +3882,15 @@ accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct so
 	evhttp_get_request(http, nfd, peer_sa, peer_socklen, bev);
 }
 
+void
+evhttp_serve(struct evhttp *http, 
+    evutil_socket_t fd, 
+    struct sockaddr *sa, ev_socklen_t salen, 
+    struct bufferevent *bev)
+{
+	evhttp_get_request(http, nfd, peer_sa, peer_socklen, bev);
+}
+
 int
 evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 {
