@@ -98,6 +98,21 @@ EVENT2_EXPORT_SYMBOL
 struct evhttp *evhttp_new(struct event_base *base);
 
 /**
+   Submit the socket obtained by accept to the http service for processing
+
+   @param http the evhttp server object will handle the connection
+   @param fd accept gets the socket
+   @param sa remote address
+   @param salen remote address length
+   @param bev Optional associated bufferevent
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_serve(struct evhttp *http, 
+    evutil_socket_t fd, 
+    struct sockaddr *sa, ev_socklen_t salen, 
+    struct bufferevent *bev);
+
+/**
  * Binds an HTTP server on the specified address and port.
  *
  * Can be called multiple times to bind the same http server
@@ -357,7 +372,6 @@ void evhttp_set_gencb(struct evhttp *http,
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_bevcb(struct evhttp *http,
     struct bufferevent *(*cb)(struct event_base *, void *), void *arg);
-
 
 /**
    Set a callback which allows the user to note or throttle incoming requests.
