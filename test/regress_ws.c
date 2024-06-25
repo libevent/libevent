@@ -342,17 +342,21 @@ http_ws_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev = NULL;
-	evutil_socket_t fd;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	ev_uint16_t port = 0;
 	int ssl = 0;
 	struct evhttp *http = http_setup(&port, data->base, ssl);
 	struct evbuffer *out;
+
+	if (!http) 
+		goto end;
 
 	exit_base = data->base;
 
 	/* Send HTTP-only request to WS endpoint */
 	fd = http_connect("127.0.0.1", port);
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
 	bufferevent_setcb(
 		bev, http_ws_readcb_bad, http_writecb, http_ws_errorcb, data->base);
 	out = bufferevent_get_output(bev);
@@ -367,10 +371,12 @@ http_ws_test(void *arg)
 	tt_int_op(test_ok, ==, 2);
 
 	bufferevent_free(bev);
-
+	if (fd != EVUTIL_INVALID_SOCKET)
+		EVUTIL_CLOSESOCKET(fd);
 	/* Check for WS handshake and Sec-WebSocket-Accept correctness */
 	fd = http_connect("127.0.0.1", port);
 	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
 	bufferevent_setcb(
 		bev, http_ws_readcb_hdr, http_writecb, http_ws_errorcb, data->base);
 	out = bufferevent_get_output(bev);
@@ -390,4 +396,6 @@ http_ws_test(void *arg)
 end:
 	if (bev)
 		bufferevent_free(bev);
+	if (fd != EVUTIL_INVALID_SOCKET)
+		EVUTIL_CLOSESOCKET(fd);
 }
