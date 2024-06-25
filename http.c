@@ -3888,7 +3888,7 @@ evhttp_serve(struct evhttp *http,
     struct sockaddr *sa, ev_socklen_t salen, 
     struct bufferevent *bev)
 {
-	evhttp_get_request(http, nfd, peer_sa, peer_socklen, bev);
+	evhttp_get_request(http, fd, sa, salen, bev);
 }
 
 int
