@@ -2596,14 +2596,6 @@ static int
 evthread_notify_base_eventfd(struct event_base *base)
 {
 	#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
-		ev_uint64_t msg = 1;
-	int r;
-	do {
-		r = write(base->th_notify_fd[0], (void*) &msg, sizeof(msg));
-	} while (r < 0 && errno == EAGAIN);
-
-	return (r < 0) ? -1 : 0;
-	#else
 	int efd = base->th_notify_fd[0];
 	eventfd_t val;
 	int ret;
@@ -2627,6 +2619,14 @@ evthread_notify_base_eventfd(struct event_base *base)
 	}
 
 	return ret;
+	#else
+		ev_uint64_t msg = 1;
+		int r;
+		do {
+			r = write(base->th_notify_fd[0], (void*) &msg, sizeof(msg));
+		} while (r < 0 && errno == EAGAIN);
+
+		return (r < 0) ? -1 : 0;
 	#endif
 }
 #endif
