@@ -1377,11 +1377,13 @@ event_signal_closure(struct event_base *base, struct event *ev)
 {
 #if defined(__clang__)
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic push
 /* NOTE: it is better to avoid such code all together, by using separate
  * variable to break the loop in the event structure, but now this code is safe
  * */
 #pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 #endif
 
 	short ncalls;
@@ -1412,7 +1414,9 @@ event_signal_closure(struct event_base *base, struct event *ev)
 
 #if defined(__clang__)
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
+#endif
 #endif
 }
 
