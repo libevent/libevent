@@ -104,6 +104,9 @@ main(int argc, char **argv)
 
 	for (i = 0; i < NEVENT; i++) {
 		ev[i] = evtimer_new(base, time_cb, event_self_cbarg());
+		if (ev[i] == NULL) {
+			goto err;
+		}
 		tv.tv_sec = 0;
 		tv.tv_usec = rand_int(50000);
 		evtimer_add(ev[i], &tv);
@@ -119,5 +122,14 @@ main(int argc, char **argv)
 	} else {
 		return EXIT_FAILURE;
 	}
+
+err:
+	for (i = 0; i < NEVENT; i++) {
+		if (ev[i])
+			event_free(ev[i]);
+	}
+	if (base)
+		event_base_free(base);
+	return EXIT_FAILURE;
 }
 
