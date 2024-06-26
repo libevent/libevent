@@ -520,6 +520,10 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 #endif
 
+#if !defined(EVENT__HAVE_STRSIGNAL) && !defined(strsignal)
+#define strsignal(sig) "Signal"
+#endif
+
 EVENT2_EXPORT_SYMBOL
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,

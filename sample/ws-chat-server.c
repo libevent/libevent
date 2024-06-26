@@ -3,6 +3,7 @@
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/ws.h>
+#include "../util-internal.h"
 
 #include <fcntl.h>
 #include <signal.h>
@@ -206,18 +207,10 @@ err:
 		close(fd);
 }
 
-#ifndef EVENT__HAVE_STRSIGNAL
-static inline const char *
-strsignal(evutil_socket_t sig)
-{
-	return "Signal";
-}
-#endif
-
 static void
 signal_cb(evutil_socket_t fd, short event, void *arg)
 {
-	printf("%s signal received\n", strsignal(fd));
+	printf("%s(" EV_SOCK_FMT ") signal received\n", strsignal(fd), EV_SOCK_ARG(fd));
 	event_base_loopbreak(arg);
 }
 

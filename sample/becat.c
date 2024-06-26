@@ -348,9 +348,6 @@ static struct options parse_opts(int argc, char **argv)
 	return o;
 }
 
-#ifndef EVENT__HAVE_STRSIGNAL
-static inline const char* strsignal(evutil_socket_t sig) { return "Signal"; }
-#endif
 static void do_term(evutil_socket_t sig, short events, void *arg)
 {
 	struct event_base *base = arg;
