@@ -520,6 +520,11 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 #endif
 
+/* Either a mapping for strsignal() or snprintf("%d", sig)
+ * NOTE: MT-Unsafe*/
+EVENT2_EXPORT_SYMBOL
+const char * evutil_strsignal(int sig);
+
 EVENT2_EXPORT_SYMBOL
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,

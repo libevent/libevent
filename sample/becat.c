@@ -348,15 +348,12 @@ static struct options parse_opts(int argc, char **argv)
 	return o;
 }
 
-#ifndef EVENT__HAVE_STRSIGNAL
-static inline const char* strsignal(evutil_socket_t sig) { return "Signal"; }
-#endif
 static void do_term(evutil_socket_t sig, short events, void *arg)
 {
 	struct event_base *base = arg;
 	event_base_loopexit(base, NULL);
-	fprintf(stderr, "%s(" EV_SOCK_FMT "), Terminating\n",
-		strsignal(sig), EV_SOCK_ARG(sig));
+	fprintf(stderr, "%s signal received. Terminating\n",
+		evutil_strsignal(EV_SOCK_ARG(sig)));
 }
 
 static ev_socklen_t

@@ -3313,3 +3313,14 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 
 	return 0;
 }
+
+const char * evutil_strsignal(int sig)
+{
+#if !defined(EVENT__HAVE_STRSIGNAL)
+	static char buf[10];
+	evutil_snprintf(buf, 10, "%d", sig);
+	return buf;
+#else
+	return strsignal(sig);
+#endif
+}
