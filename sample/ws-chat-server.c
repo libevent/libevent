@@ -210,7 +210,7 @@ err:
 static void
 signal_cb(evutil_socket_t fd, short event, void *arg)
 {
-	printf("%s(" EV_SOCK_FMT ") signal received\n", strsignal(fd), EV_SOCK_ARG(fd));
+	printf("%s signal received. Terminating\n", evutil_strsignal(EV_SOCK_ARG(fd)));
 	event_base_loopbreak(arg);
 }
 
