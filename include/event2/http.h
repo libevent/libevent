@@ -112,6 +112,10 @@ void evhttp_serve(struct evhttp *http,
     struct sockaddr *sa, ev_socklen_t salen, 
     struct bufferevent *bev);
 
+EVENT2_EXPORT_SYMBOL
+void evhttp_serve_connection(struct evhttp *http, 
+    struct evhttp_connection *evcon);
+
 /**
  * Binds an HTTP server on the specified address and port.
  *

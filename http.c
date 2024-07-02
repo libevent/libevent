@@ -3855,6 +3855,48 @@ evhttp_serve(struct evhttp *http,
 	evhttp_get_request(http, fd, sa, salen, bev);
 }
 
+void evhttp_serve_connection(
+struct evhttp *http, struct evhttp_connection *evcon)
+{
+	/* the timeout can be used by the server to close idle connections */
+	if (evutil_timerisset(&http->timeout_read))
+		evhttp_connection_set_read_timeout_tv(evcon,  &http->timeout_read);
+	if (evutil_timerisset(&http->timeout_write))
+		evhttp_connection_set_write_timeout_tv(evcon, &http->timeout_write);
+
+	/*
+	 * if we want to accept more than one request on a connection,
+	 * we need to know which http server it belongs to.
+	 */
+	evcon->http_server = http;
+	evcon->ext_method_cmp = http->ext_method_cmp;
+	TAILQ_INSERT_TAIL(&http->connections, evcon, next);
+	http->connection_cnt++;
+
+	/* send "service unavailable" if we've reached the connection limit */
+	if (http->connection_max && http->connection_max < http->connection_cnt) {
+		struct evhttp_request *req;
+
+		if ((req = evhttp_request_new(evhttp_handle_request, http)) == NULL) {
+			evhttp_connection_free(evcon);
+			return;
+		}
+
+		req->evcon = evcon;	/* the request owns the connection */
+		req->flags |= EVHTTP_REQ_OWN_CONNECTION;
+		req->kind = EVHTTP_REQUEST;
+		/* note, req->remote_host not needed since we don't read */
+
+		TAILQ_INSERT_TAIL(&evcon->requests, req, next);
+
+		/* send error to client */
+		evcon->state = EVCON_WRITING;
+		bufferevent_enable(evcon->bufev, EV_READ); /* enable close events */
+		evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
+
+	} else if (evhttp_associate_new_request_with_connection(evcon) == -1)
+		evhttp_connection_free(evcon);
+}
 int
 evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 {
