@@ -1326,14 +1326,18 @@ test_event_calloc_enomem(void *arg)
 	errno = 0;
 #if defined(__clang__)
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Walloc-size-larger-than="
+#endif
 #endif
 	/* Requires allocator_may_return_null=1 for sanitizers */
 	p = mm_calloc(EV_SIZE_MAX, EV_SIZE_MAX);
 #if defined(__clang__)
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
+#endif
 #endif
 	tt_ptr_op(p, ==, NULL);
 	tt_int_op(errno, ==, ENOMEM);
