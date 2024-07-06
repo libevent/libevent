@@ -913,7 +913,7 @@ jobs:
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
-          path: .
+          path: build
 
   openbsd-autotools-job:
     runs-on: ubuntu-latest
@@ -969,7 +969,7 @@ jobs:
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
-          path: .
+          path: build
 
   apple-cmake-job:
     runs-on: ${{ matrix.os }}
