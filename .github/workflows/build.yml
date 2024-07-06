@@ -60,6 +60,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -181,6 +183,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -257,7 +261,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -387,6 +392,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -458,6 +465,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -544,7 +553,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -626,7 +636,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -685,7 +696,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -770,7 +782,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -840,7 +853,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -925,7 +939,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -986,7 +1001,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -1014,6 +1030,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Dependencies
         run:
           sudo apt install
