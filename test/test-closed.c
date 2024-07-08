@@ -72,9 +72,9 @@ closed_cb(evutil_socket_t fd, short event, void *arg)
 int
 main(int argc, char **argv)
 {
-	struct event_base *base;
+	struct event_base *base = NULL;
+	struct event *ev = NULL;
 	struct event_config *cfg;
-	struct event *ev;
 	const char *test = "test string";
 	evutil_socket_t pair[2];
 
