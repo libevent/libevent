@@ -396,7 +396,8 @@ do_term(evutil_socket_t sig, short events, void *arg)
 {
 	struct event_base *base = arg;
 	event_base_loopbreak(base);
-	fprintf(stderr, "Got %i, Terminating\n", sig);
+	fprintf(stderr, "%s signal received. Terminating\n",
+		evutil_strsignal(EV_SOCK_ARG(sig)));
 }
 
 static int
