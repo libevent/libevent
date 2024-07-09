@@ -84,7 +84,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 int
 main(int argc, char **argv)
 {
-	struct event *evfifo;
+	struct event *evfifo = NULL;
 	struct event_base* base;
 #ifdef _WIN32
 	HANDLE socket;
@@ -101,7 +101,7 @@ main(int argc, char **argv)
 		return 1;
 
 #else
-	struct event *signal_int;
+	struct event *signal_int = NULL;
 	struct stat st;
 	const char *fifo = "event.fifo";
 	int socket;
@@ -139,16 +139,29 @@ main(int argc, char **argv)
 #else
 	/* catch SIGINT so that event.fifo can be cleaned up */
 	signal_int = evsignal_new(base, SIGINT, signal_cb, base);
+	if (signal_int == NULL) {
+		perror("evsignal_new");
+		goto err;
+	}
 	event_add(signal_int, NULL);
 
 	evfifo = event_new(base, socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
 #endif
+	if (evfifo == NULL) {
+		perror("event_new");
+		goto err;
+	}
 
 	/* Add it to the active events, without a timeout */
 	event_add(evfifo, NULL);
 
 	event_base_dispatch(base);
+
+#ifndef _WIN32
+	event_free(signal_int);
+#endif
+	event_free(evfifo);
 	event_base_free(base);
 #ifdef _WIN32
 	CloseHandle(socket);
@@ -157,6 +170,22 @@ main(int argc, char **argv)
 	unlink(fifo);
 #endif
 	libevent_global_shutdown();
-	return (0);
-}
+	return 0;
 
+err:
+#ifndef _WIN32
+	if (signal_int)
+		event_free(signal_int);
+#endif
+	if (evfifo)
+		event_free(evfifo);
+	event_base_free(base);
+#ifdef _WIN32
+	CloseHandle(socket);
+#else
+	close(socket);
+	unlink(fifo);
+#endif
+	libevent_global_shutdown();
+	return 1;
+}
