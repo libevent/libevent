@@ -2147,7 +2147,8 @@ evhttp_add_header(struct evkeyvalq *headers,
 {
 	event_debug(("%s: key: %s val: %s\n", __func__, key, value));
 
-	if (strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
+	/* RFC 9110 */
+	if (strchr(key, '\r') != NULL || strchr(key, '\n') != NULL || key[0] == '\0') {
 		/* drop illegal headers */
 		event_debug(("%s: dropping illegal header key\n", __func__));
 		return (-1);
