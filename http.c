@@ -199,7 +199,7 @@ static void evhttp_read_header(struct evhttp_connection *evcon,
 static int evhttp_add_header_internal(struct evkeyvalq *headers,
     const char *key, const char *value);
 static const char *evhttp_response_phrase_internal(int code);
-static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t, struct bufferevent *bev);
+static void evhttp_get_request_internal(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t, struct bufferevent *bev);
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
@@ -3843,7 +3843,7 @@ accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct so
 	if (bound->bevcb)
 		bev = bound->bevcb(http->base, bound->bevcbarg);
 
-	evhttp_get_request(http, nfd, peer_sa, peer_socklen, bev);
+	evhttp_get_request_internal(http, nfd, peer_sa, peer_socklen, bev);
 }
 
 int
@@ -4696,8 +4696,15 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	return (0);
 }
 
+void
+evhttp_get_request(struct evhttp *http, evutil_socket_t fd, struct sockaddr *sa,
+	ev_socklen_t salen, struct bufferevent *bev)
+{
+	evhttp_get_request_internal(http, fd, sa, salen, bev);
+}
+
 static void
-evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
+evhttp_get_request_internal(struct evhttp *http, evutil_socket_t fd,
     struct sockaddr *sa, ev_socklen_t salen,
     struct bufferevent *bev)
 {
