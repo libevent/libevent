@@ -2824,6 +2824,12 @@ http_bad_header_test(void *ptr)
 	tt_want(evhttp_add_header(&headers, "One\n", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One", "Two\r") == -1);
 	tt_want(evhttp_add_header(&headers, "One", "Two\n") == -1);
+	tt_want(evhttp_add_header(&headers, "\x00One", "Two") == -1);
+	tt_want(evhttp_add_header(&headers, "O\x00ne", "Two") == -1);
+	tt_want(evhttp_add_header(&headers, "One\x00", "Two") == -1);
+	tt_want(evhttp_add_header(&headers, "One", "\x00Two") == -1);
+	tt_want(evhttp_add_header(&headers, "One", "T\x00wo") == -1);
+	tt_want(evhttp_add_header(&headers, "One", "Two\x00") == -1);
 
 	evhttp_clear_headers(&headers);
 }

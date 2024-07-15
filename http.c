@@ -2283,6 +2283,10 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 
 		req->headers_size += len;
 
+		if (memchr(line, '\x00', len) != NULL) {
+			goto error;
+		}
+
 		if (req->evcon != NULL &&
 		    req->headers_size > req->evcon->max_headers_size) {
 			errcode = DATA_TOO_LONG;
@@ -2309,7 +2313,7 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 		if (svalue == NULL)
 			goto error;
 
-		svalue += strspn(svalue, " ");
+		svalue += strspn(svalue, " \t");
 		evutil_rtrim_lws_(svalue);
 
 		if (evhttp_add_header(headers, skey, svalue) == -1)
