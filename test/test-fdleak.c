@@ -111,6 +111,9 @@ listener_accept_cb(struct evconnlistener *listener, evutil_socket_t sock,
 	struct event_base *base = evconnlistener_get_base(listener);
 	struct bufferevent *bev = bufferevent_socket_new(base, sock,
 		BEV_OPT_CLOSE_ON_FREE);
+	if (bev == NULL) {
+		return;
+	}
 	bufferevent_setcb(bev, server_read_cb, NULL, server_event_cb, NULL);
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
@@ -209,6 +212,10 @@ start_client(struct event_base *base)
 {
 	struct bufferevent *bev = bufferevent_socket_new(base, -1,
                                                          BEV_OPT_CLOSE_ON_FREE);
+	if (bev == NULL) {
+		my_perror("Could not create bufferevent!");
+		exit(2);
+	}
 	bufferevent_setcb(bev, client_read_cb, NULL, client_event_cb, NULL);
 
 	if (bufferevent_socket_connect(bev, (struct sockaddr *)&saddr,
