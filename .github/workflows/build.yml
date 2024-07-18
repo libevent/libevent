@@ -135,7 +135,7 @@ jobs:
           timeout_minutes: 60
           shell: bash
           command: |
-            JOBS=20
+            JOBS=50
             export CTEST_PARALLEL_LEVEL=$JOBS
             export CTEST_OUTPUT_ON_FAILURE=1
 
@@ -157,6 +157,7 @@ jobs:
               sudo python3 ../test-export/test-export.py shared
             else
               cmake --build . --target verify
+              ctest --output-on-failure -j $JOBS
             fi
 
       - uses: actions/upload-artifact@v4
@@ -224,7 +225,7 @@ jobs:
           timeout_minutes: 60
           shell: bash
           command: |
-            JOBS=20
+            JOBS=50
 
             cd dist
             archive=$(echo *.tar.gz)
@@ -361,7 +362,7 @@ jobs:
           timeout_minutes: 60
           shell: powershell
           command: |
-            $EVENT_TESTS_PARALLEL=1
+            $EVENT_TESTS_PARALLEL=50
 
             cd build
 
@@ -433,7 +434,7 @@ jobs:
           timeout_minutes: 60
           shell: powershell
           command: |
-            $env:EVENT_TESTS_PARALLEL=1
+            $env:EVENT_TESTS_PARALLEL=50
 
             $script='
             export PATH="/mingw64/bin:/usr/bin:/bin:/usr/local/bin:/opt/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:$PATH"
@@ -606,7 +607,7 @@ jobs:
           timeout_minutes: 60
           shell: bash
           command: |
-            JOBS=1
+            JOBS=50
             export CTEST_PARALLEL_LEVEL=$JOBS
             export CTEST_OUTPUT_ON_FAILURE=1
 
@@ -667,7 +668,7 @@ jobs:
           timeout_minutes: 60
           shell: bash
           command: |
-            JOBS=1
+            JOBS=50
             cd build
             make -j $JOBS verify
 
@@ -753,7 +754,7 @@ jobs:
           command: |
             ssh freebsd sh <<EOF
             cd $GITHUB_WORKSPACE
-            JOBS=1
+            JOBS=50
             export CTEST_PARALLEL_LEVEL=$JOBS
             export CTEST_OUTPUT_ON_FAILURE=1
             cd build
@@ -815,7 +816,7 @@ jobs:
           command: |
             ssh freebsd sh <<EOF
             cd $GITHUB_WORKSPACE
-            JOBS=1
+            JOBS=50
             cd build
             make verify
             EOF
@@ -910,7 +911,7 @@ jobs:
           command: |
             ssh openbsd sh <<EOF
             cd $GITHUB_WORKSPACE
-            JOBS=1
+            JOBS=50
             export CTEST_PARALLEL_LEVEL=$JOBS
             export CTEST_OUTPUT_ON_FAILURE=1
             cd build
@@ -975,7 +976,7 @@ jobs:
           command: |
             ssh openbsd sh <<EOF
             cd $GITHUB_WORKSPACE
-            JOBS=1
+            JOBS=50
             cd build
             make verify
             EOF
