@@ -386,7 +386,7 @@ evws_new_session(
 		goto error;
 
 	connection = evhttp_find_header(in_hdrs, "Connection");
-	if (connection == NULL || evutil_ascii_strcasecmp(connection, "Upgrade"))
+	if (connection == NULL || evutil_ascii_strcasestr(connection, "Upgrade") == NULL)
 		goto error;
 
 	ws_key = evhttp_find_header(in_hdrs, "Sec-WebSocket-Key");

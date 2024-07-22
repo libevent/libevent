@@ -337,8 +337,8 @@ http_ws_readcb_bad(struct bufferevent *bev, void *arg)
 		free(line);
 }
 
-void
-http_ws_test(void *arg)
+static void
+http_ws_test_with_connection(void *arg, const char* conn_value)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev = NULL;
@@ -377,10 +377,10 @@ http_ws_test(void *arg)
 
 	evbuffer_add_printf(out, "GET /ws HTTP/1.1\r\n"
 							 "Host: somehost\r\n"
-							 "Connection: Upgrade\r\n"
+							 "Connection: %s\r\n"
 							 "Upgrade: websocket\r\n"
 							 "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
-							 "\r\n");
+							 "\r\n", conn_value);
 
 	test_ok = 0;
 	event_base_dispatch(data->base);
@@ -390,4 +390,11 @@ http_ws_test(void *arg)
 end:
 	if (bev)
 		bufferevent_free(bev);
+}
+
+void
+http_ws_test(void *arg)
+{
+	http_ws_test_with_connection(arg, "Upgrade");
+	http_ws_test_with_connection(arg, "keep-alive, Upgrade");
 }
