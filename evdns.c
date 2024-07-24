@@ -4608,21 +4608,20 @@ evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
 	return 0;
 }
 
-typedef DWORD(WINAPI *GetNetworkParams_fn_t)(FIXED_INFO *, DWORD*);
+typedef DWORD(WINAPI *GetAdaptersAddresses_fn_t)(ULONG, ULONG, PVOID, PIP_ADAPTER_ADDRESSES, PULONG);
 
-/* Use the windows GetNetworkParams interface in iphlpapi.dll to */
+/* Use the windows GetAdaptersAddresses interface in iphlpapi.dll to */
 /* figure out what our nameservers are. */
 static int
-load_nameservers_with_getnetworkparams(struct evdns_base *base)
+load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 {
-	/* Based on MSDN examples and inspection of  c-ares code. */
-	FIXED_INFO *fixed;
+	PIP_ADAPTER_ADDRESSES addresses = NULL;
 	HMODULE handle = 0;
-	ULONG size = sizeof(FIXED_INFO);
+	ULONG size = sizeof(IP_ADAPTER_ADDRESSES);
 	void *buf = NULL;
-	int status = 0, r, added_any;
-	IP_ADDR_STRING *ns;
-	GetNetworkParams_fn_t fn;
+	int status = 0, r, added_any = 0;
+	GetAdaptersAddresses_fn_t fn;
+	IP_ADAPTER_DNS_SERVER_ADDRESS *dnserver = NULL;
 
 	ASSERT_LOCKED(base);
 	if (!(handle = evutil_load_windows_system_library_(
@@ -4631,7 +4630,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 		status = -1;
 		goto done;
 	}
-	if (!(fn = (GetNetworkParams_fn_t) GetProcAddress(handle, "GetNetworkParams"))) {
+	if (!(fn = (GetAdaptersAddresses_fn_t) GetProcAddress(handle, "GetAdaptersAddresses"))) {
 		log(EVDNS_LOG_WARN, "Could not get address of function.");
 		status = -1;
 		goto done;
@@ -4639,40 +4638,52 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 
 	buf = mm_malloc(size);
 	if (!buf) { status = 4; goto done; }
-	fixed = buf;
-	r = fn(fixed, &size);
-	if (r != ERROR_SUCCESS && r != ERROR_BUFFER_OVERFLOW) {
+	addresses = buf;
+	r = fn(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, addresses, &size);
+	if (r != NO_ERROR && r != ERROR_BUFFER_OVERFLOW) {
 		status = -1;
 		goto done;
 	}
-	if (r != ERROR_SUCCESS) {
+	if (r != NO_ERROR) {
 		mm_free(buf);
 		buf = mm_malloc(size);
 		if (!buf) { status = 4; goto done; }
-		fixed = buf;
-		r = fn(fixed, &size);
-		if (r != ERROR_SUCCESS) {
+		addresses = buf;
+		r = fn(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, NULL, addresses, &size);
+		if (r != NO_ERROR) {
 			log(EVDNS_LOG_DEBUG, "fn() failed.");
 			status = -1;
 			goto done;
 		}
 	}
+	EVUTIL_ASSERT(addresses);
 
-	EVUTIL_ASSERT(fixed);
-	added_any = 0;
-	ns = &(fixed->DnsServerList);
-	while (ns) {
-		r = evdns_nameserver_ip_add_line(base, ns->IpAddress.String);
-		if (r) {
-			log(EVDNS_LOG_DEBUG,"Could not add nameserver %s to list,error: %d",
-				(ns->IpAddress.String),(int)GetLastError());
-			status = r;
-		} else {
-			++added_any;
-			log(EVDNS_LOG_DEBUG,"Successfully added %s as nameserver",ns->IpAddress.String);
+	while (addresses) {
+		dnserver = addresses->FirstDnsServerAddress;
+		while (dnserver && (addresses->OperStatus == IfOperStatusUp)) {
+			char ip[INET6_ADDRSTRLEN] = {0};
+			if (AF_INET == dnserver->Address.lpSockaddr->sa_family) {
+				inet_ntop(AF_INET, &((SOCKADDR_IN *)dnserver->Address.lpSockaddr)->sin_addr, ip, sizeof(ip));
+			} else if (AF_INET6 == dnserver->Address.lpSockaddr->sa_family) {
+				inet_ntop(AF_INET6, &((SOCKADDR_IN6 *)dnserver->Address.lpSockaddr)->sin6_addr, ip, sizeof(ip));
+			}
+
+			dnserver = dnserver->Next;
+			if (strncmp(ip, "fec0:", 5) == 0) { /* remove ipv6 reserved address */
+				continue;
+			}
+			
+			r = evdns_base_nameserver_ip_add(base, ip);
+			if (r) {
+				log(EVDNS_LOG_DEBUG,"Could not add nameserver %s to list,error: %d", (ip), r);
+				status = r;
+			} else {
+				++added_any;
+				log(EVDNS_LOG_DEBUG,"Successfully added %s as nameserver", ip);
+			}
 		}
-
-		ns = ns->Next;
+		
+		addresses = addresses->Next;
 	}
 
 	if (!added_any) {
@@ -4790,7 +4801,7 @@ evdns_base_config_windows_nameservers(struct evdns_base *base)
 	if (fname)
 		mm_free(fname);
 
-	if (load_nameservers_with_getnetworkparams(base) == 0) {
+	if (load_nameservers_with_getadaptersaddresses(base) == 0) {
 		EVDNS_UNLOCK(base);
 		return 0;
 	}
