@@ -2820,6 +2820,7 @@ http_bad_header_test(void *ptr)
 
 	tt_want(evhttp_add_header(&headers, "One", "Two") == 0);
 	tt_want(evhttp_add_header(&headers, "One", "Two\r\n Three") == 0);
+	tt_want(evhttp_add_header(&headers, "", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One\r", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One\n", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One", "Two\r") == -1);
