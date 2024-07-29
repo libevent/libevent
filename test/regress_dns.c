@@ -1180,6 +1180,12 @@ dns_initialize_nameservers_test(void *arg)
 	dns = evdns_base_new(base, 0);
 	tt_assert(dns);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
+
+#ifdef _WIN32
+	tt_int_op(evdns_base_config_windows_nameservers(dns), ==, 0);
+	tt_int_op(evdns_base_count_nameservers(dns), >, 0);
+#endif
+
 	evdns_base_free(dns, 0);
 
 	dns = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
