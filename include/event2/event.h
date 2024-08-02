@@ -714,10 +714,12 @@ struct event_base *event_base_new_with_config(const struct event_config *cfg);
   Deallocate all memory associated with an event_base, and free the base.
 
   Note that this function will not close any fds or free any memory passed
-  to event_new as the argument to callback.
+  to event_new as the argument to callback. 
+  The caller should not attempt to access or dereference the event_base after invoking event_base_free.
+  Do not call event_base_free multiple times on the same event_base.
 
   If there are any pending finalizer callbacks, this function will invoke
-  them.
+  them. 
 
   @param eb an event_base to be freed
  */
@@ -1166,7 +1168,7 @@ EVENT2_EXPORT_SYMBOL
 int event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, event_callback_fn callback, void *callback_arg);
 
 /**
-   Deallocate a struct event * returned by event_new().
+   Deallocate a struct event * returned by event_new() and not previously freed.
 
    If the event is pending or active, this function makes it non-pending
    and non-active first.

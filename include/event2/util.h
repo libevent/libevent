@@ -859,7 +859,9 @@ EVENT2_EXPORT_SYMBOL
 int evutil_getaddrinfo(const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in, struct evutil_addrinfo **res);
 
-/** Release storage allocated by evutil_getaddrinfo or evdns_getaddrinfo. */
+/** Release storage allocated by evutil_getaddrinfo or evdns_getaddrinfo.
+ *  Do not call evutil_freeaddrinfo multiple times on the same evutil_addrinfo.
+ */
 EVENT2_EXPORT_SYMBOL
 void evutil_freeaddrinfo(struct evutil_addrinfo *ai);
 
