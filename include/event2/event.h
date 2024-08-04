@@ -326,7 +326,7 @@ void event_enable_debug_mode(void);
  * longer be considered as assigned. When debugging mode is not enabled, does
  * nothing.
  *
- * This function must only be called on a non-added event.
+ * This function must only be called on a non-added event. The parameter must not be NULL.
  *
  * @see event_enable_debug_mode()
  */
@@ -364,7 +364,7 @@ int event_reinit(struct event_base *base);
   event_base_loopexit().
 
   @param base the event_base structure returned by event_base_new() or
-     event_base_new_with_config()
+     event_base_new_with_config(). base must not be NULL.
   @return 0 if successful, -1 if an error occurred, or 1 if we exited because
      no events were pending or active.
   @see event_base_loop()
@@ -1285,7 +1285,7 @@ int event_remove_timer(struct event *ev);
   event has already executed or has never been added the call will have no
   effect.
 
-  @param ev an event struct to be removed from the working set
+  @param ev an event struct to be removed from the working set. ev must not be NULL.
   @return 0 if successful, or -1 if an error occurred
   @see event_add()
  */
@@ -1360,7 +1360,7 @@ struct event *event_base_get_running_event(struct event_base *base);
     uninitialized memory.  Thus, it should ONLY be used to distinguish an
     initialized event from zero.
 
-  @param ev an event structure to be tested
+  @param ev an event structure to be tested. ev must not be NULL.
   @return 1 if the structure might be initialized, or 0 if it has not been
           initialized
  */
