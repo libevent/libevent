@@ -4613,7 +4613,7 @@ typedef DWORD(WINAPI *GetAdaptersAddresses_fn_t)(ULONG, ULONG, PVOID, PIP_ADAPTE
 
 /* Use the windows GetAdaptersAddresses interface in iphlpapi.dll to */
 /* figure out what our nameservers are. */
-static int
+int
 load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 {
 	PIP_ADAPTER_ADDRESSES addresses = NULL;
