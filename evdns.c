@@ -102,6 +102,7 @@
 #include "ipv6-internal.h"
 #include "util-internal.h"
 #include "evthread-internal.h"
+#include "evdns-internal.h"
 #ifdef _WIN32
 #include <ctype.h>
 #include <winsock2.h>

@@ -78,6 +78,7 @@
 #include <event2/thread.h>
 #include "log-internal.h"
 #include "evthread-internal.h"
+#include "evdns-internal.h"
 #include "regress.h"
 #include "regress_testutils.h"
 #include "regress_thread.h"
@@ -1182,8 +1183,17 @@ dns_initialize_nameservers_test(void *arg)
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
 
 #ifdef _WIN32
-	tt_int_op(evdns_base_config_windows_nameservers(dns), ==, 0);
-	tt_int_op(evdns_base_count_nameservers(dns), >, 0);
+	int i = 0, count = 0, ipv6_count = 0;
+	tt_int_op(load_nameservers_with_getadaptersaddresses(dns), ==, 0);
+	count = evdns_base_count_nameservers(dns);
+	tt_int_op(count, >, 0);
+	for (i = 0; i < count; ++i) {
+		size = evdns_base_get_nameserver_addr(dns, i, (struct sockaddr *)&ss, sizeof(ss));
+		if (ss.ss_family == AF_INET6) {
+			ipv6_count++;
+		}
+	}
+	tt_int_op(ipv6_count, >, 0);
 #endif
 
 	evdns_base_free(dns, 0);
