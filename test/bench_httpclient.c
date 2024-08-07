@@ -197,6 +197,10 @@ main(int argc, char **argv)
 
 	base = event_base_new();
 
+	if (base == NULL) {
+		return 1;
+	}
+
 	for (i=0; i < PARALLELISM; ++i) {
 		if (launch_request() < 0)
 			fprintf(stderr, "Cannot launch %i request\n", i);

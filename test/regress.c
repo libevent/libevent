@@ -2116,6 +2116,8 @@ test_loopexit_multiple(void)
 
 	base = event_base_new();
 
+	tt_assert(base);
+
 	tv.tv_usec = 200*1000;
 	tv.tv_sec = 0;
 	event_base_loopexit(base, &tv);
