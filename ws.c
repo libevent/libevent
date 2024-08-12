@@ -416,6 +416,9 @@ evws_new_session(
 	evws->http_server = evcon->http_server;
 
 	evws->bufev = evhttp_start_ws_(req);
+	if (evws->bufev == NULL) {
+		goto error;
+	}
 
 	if (options & BEV_OPT_THREADSAFE) {
 		if (bufferevent_enable_locking_(evws->bufev, NULL) < 0)
