@@ -1181,21 +1181,6 @@ dns_initialize_nameservers_test(void *arg)
 	dns = evdns_base_new(base, 0);
 	tt_assert(dns);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
-
-#ifdef _WIN32
-	int i = 0, count = 0, ipv6_count = 0;
-	tt_int_op(load_nameservers_with_getadaptersaddresses(dns), ==, 0);
-	count = evdns_base_count_nameservers(dns);
-	tt_int_op(count, >, 0);
-	for (i = 0; i < count; ++i) {
-		size = evdns_base_get_nameserver_addr(dns, i, (struct sockaddr *)&ss, sizeof(ss));
-		if (ss.ss_family == AF_INET6) {
-			ipv6_count++;
-		}
-	}
-	tt_int_op(ipv6_count, >, 0);
-#endif
-
 	evdns_base_free(dns, 0);
 
 	dns = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
@@ -1213,6 +1198,37 @@ end:
 	if (dns)
 		evdns_base_free(dns, 0);
 }
+
+#ifdef _WIN32
+static void
+windows_dns_initialize_ipv6_nameservers_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	struct sockaddr_storage ss;
+	int i = 0, count = 0, ipv6_count = 0, size = 0;
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+
+	tt_int_op(load_nameservers_with_getadaptersaddresses(dns), ==, 0);
+	count = evdns_base_count_nameservers(dns);
+	tt_int_op(count, >, 0);
+	for (i = 0; i < count; ++i) {
+		size = evdns_base_get_nameserver_addr(dns, i, (struct sockaddr *)&ss, sizeof(ss));
+		tt_int_op(size, >, 0);
+		if (ss.ss_family == AF_INET6) {
+			ipv6_count++;
+		}
+	}
+	tt_int_op(ipv6_count, >, 0);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+}
+#endif
 
 static const char *dns_resolvconf_with_one_nameserver =
 	"nameserver 127.0.0.53\n";
@@ -3149,6 +3165,12 @@ struct testcase_t dns_testcases[] = {
 
 	{ "initialize_nameservers", dns_initialize_nameservers_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
+#ifdef _WIN32
+	{ "windows_initialize_ipv6_nameservers", windows_dns_initialize_ipv6_nameservers_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#endif
+
 #ifndef _WIN32
 	{"initialize_with_one_inactive_nameserver", dns_initialize_inactive_one_nameserver_test,
 	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL},
