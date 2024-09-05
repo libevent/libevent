@@ -177,7 +177,7 @@ enum bufferevent_options {
 /**
   Create a new socket bufferevent over an existing socket.
 
-  @param base the event base to associate with the new bufferevent.
+  @param base the event base to associate with the new bufferevent. base must not be NULL.
   @param fd the file descriptor from which data is read and written to.
 	    This file descriptor is not allowed to be a pipe(2).
 	    It is safe to set the fd to -1, so long as you later
@@ -321,7 +321,7 @@ int bufferevent_get_priority(const struct bufferevent *bufev);
   If there is pending data to write on the bufferevent, it probably won't be
   flushed before the bufferevent is freed.
 
-  @param bufev the bufferevent structure to be freed.
+  @param bufev the bufferevent structure to be freed. bufev must not be NULL.
   */
 EVENT2_EXPORT_SYMBOL
 void bufferevent_free(struct bufferevent *bufev);
@@ -330,7 +330,7 @@ void bufferevent_free(struct bufferevent *bufev);
 /**
   Changes the callbacks for a bufferevent.
 
-  @param bufev the bufferevent object for which to change callbacks
+  @param bufev the bufferevent object for which to change callbacks. bufev must not be NULL.
   @param readcb callback to invoke when there is data to be read, or NULL if
 	 no callback is desired
   @param writecb callback to invoke when the file descriptor is ready for
@@ -391,7 +391,7 @@ int bufferevent_replacefd(struct bufferevent *bufev, evutil_socket_t fd);
 
 /**
    Returns the file descriptor associated with a bufferevent, or -1 if
-   no file descriptor is associated with the bufferevent.
+   no file descriptor is associated with the bufferevent. bufev must not be NULL.
  */
 EVENT2_EXPORT_SYMBOL
 evutil_socket_t bufferevent_getfd(struct bufferevent *bufev);
@@ -464,7 +464,7 @@ int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
 
    The user MUST NOT set the callback on this buffer.
 
-   @param bufev the bufferevent from which to get the evbuffer
+   @param bufev the bufferevent from which to get the evbuffer. bufev must not be NULL.
    @return the evbuffer object for the input buffer
  */
 
@@ -479,7 +479,7 @@ struct evbuffer *bufferevent_get_input(struct bufferevent *bufev);
    When filters are being used, the filters need to be manually
    triggered if the output buffer was manipulated.
 
-   @param bufev the bufferevent from which to get the evbuffer
+   @param bufev the bufferevent from which to get the evbuffer. bufev must not be NULL.
    @return the evbuffer object for the output buffer
  */
 
@@ -489,7 +489,7 @@ struct evbuffer *bufferevent_get_output(struct bufferevent *bufev);
 /**
   Enable a bufferevent.
 
-  @param bufev the bufferevent to be enabled
+  @param bufev the bufferevent to be enabled. bufev must not be NULL.
   @param event any combination of EV_READ | EV_WRITE.
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_disable()
@@ -500,7 +500,7 @@ int bufferevent_enable(struct bufferevent *bufev, short event);
 /**
   Disable a bufferevent.
 
-  @param bufev the bufferevent to be disabled
+  @param bufev the bufferevent to be disabled. bufev must not be NULL.
   @param event any combination of EV_READ | EV_WRITE.
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_enable()
@@ -562,7 +562,7 @@ int bufferevent_set_timeouts(struct bufferevent *bufev,
   not to write more bytes to this buffer than the high watermark would allow,
   except when flushing.
 
-  @param bufev the bufferevent to be modified
+  @param bufev the bufferevent to be modified. bufev must not be NULL.
   @param events EV_READ, EV_WRITE or both
   @param lowmark the lower watermark to set
   @param highmark the high watermark to set

@@ -386,7 +386,7 @@ evws_new_session(
 		goto error;
 
 	connection = evhttp_find_header(in_hdrs, "Connection");
-	if (connection == NULL || evutil_ascii_strcasecmp(connection, "Upgrade"))
+	if (connection == NULL || evutil_ascii_strcasestr(connection, "Upgrade") == NULL)
 		goto error;
 
 	ws_key = evhttp_find_header(in_hdrs, "Sec-WebSocket-Key");
@@ -416,6 +416,9 @@ evws_new_session(
 	evws->http_server = evcon->http_server;
 
 	evws->bufev = evhttp_start_ws_(req);
+	if (evws->bufev == NULL) {
+		goto error;
+	}
 
 	if (options & BEV_OPT_THREADSAFE) {
 		if (bufferevent_enable_locking_(evws->bufev, NULL) < 0)

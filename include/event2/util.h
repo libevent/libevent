@@ -660,7 +660,7 @@ int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 #endif
 ;
 
-/** Replacement for inet_ntop for platforms which lack it. */
+/** Replacement for inet_ntop for platforms which lack it. src must not be NULL. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
 /** Variation of inet_pton that also parses IPv6 scopes. Public for
@@ -669,7 +669,7 @@ const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
 EVENT2_EXPORT_SYMBOL
 int evutil_inet_pton_scope(int af, const char *src, void *dst,
 	unsigned *indexp);
-/** Replacement for inet_pton for platforms which lack it. */
+/** Replacement for inet_pton for platforms which lack it. src must not be NULL. */
 EVENT2_EXPORT_SYMBOL
 int evutil_inet_pton(int af, const char *src, void *dst);
 struct sockaddr;
@@ -707,7 +707,8 @@ int evutil_sockaddr_cmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
     int include_port);
 
 /** As strcasecmp, but always compares the characters in locale-independent
-    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+    ASCII.  That's useful if you're handling data in ASCII-based protocols. 
+    str1 and str2 must not be NULL.
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_ascii_strcasecmp(const char *str1, const char *str2);

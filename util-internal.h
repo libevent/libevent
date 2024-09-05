@@ -569,6 +569,12 @@ int evutil_v4addr_is_local_(const struct in_addr *in);
 EVENT2_EXPORT_SYMBOL
 int evutil_v6addr_is_local_(const struct in6_addr *in);
 
+/** As strcasestr, but always searching substring in locale-independent
+    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+ */
+EVENT2_EXPORT_SYMBOL
+const char* evutil_ascii_strcasestr(const char* s, const char *find);
+
 #ifdef __cplusplus
 }
 #endif

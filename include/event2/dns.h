@@ -333,7 +333,7 @@ const char *evdns_err_to_string(int err);
   The address should be an IPv4 address in network byte order.
   The type of address is chosen so that it matches in_addr.s_addr.
 
-  @param base the evdns_base to which to add the name server
+  @param base the evdns_base to which to add the name server. base must not be NULL.
   @param address an IP address in network byte order
   @return 0 if successful, or -1 if an error occurred
   @see evdns_base_nameserver_ip_add()
@@ -396,7 +396,7 @@ int evdns_base_resume(struct evdns_base *base);
 
   If no port is specified, it defaults to 53.
 
-  @param base the evdns_base to which to apply this operation
+  @param base the evdns_base to which to apply this operation. base must not be NULL
   @return 0 if successful, or -1 if an error occurred
   @see evdns_base_nameserver_add()
  */
@@ -507,7 +507,7 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
   In case of options without values (use-vc, ingore-tc) val should be an empty
   string or NULL.
 
-  @param base the evdns_base to which to apply this operation
+  @param base the evdns_base to which to apply this operation. base must not be NULL.
   @param option the name of the configuration option to be modified
   @param val the value to be set
   @return 0 if successful, or -1 if an error occurred
@@ -534,7 +534,7 @@ int evdns_base_set_option(struct evdns_base *base, const char *option, const cha
    EVDNS_ERROR_SHORT_READ_FROM_FILE (5) - short read from file
    EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED (6) - no nameservers configured.
 
-  @param base the evdns_base to which to apply this operation
+  @param base the evdns_base to which to apply this operation. base must not be NULL.
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
     DNS_OPTION_HOSTSFILE|DNS_OPTIONS_ALL|DNS_OPTION_NAMESERVERS_NO_DEFAULT
   @param filename the path to the resolv.conf file
