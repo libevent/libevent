@@ -1317,6 +1317,9 @@ int event_del_block(struct event *ev);
   One common use in multithreaded programs is to wake the thread running
   event_base_loop() from another thread.
 
+  If event_active() is called on the same event more than once before the 
+  event is run, the flags are OR'd with the flags passed in previous calls.
+
   @param ev an event to make active.
   @param res a set of flags to pass to the event's callback.
   @param ncalls an obsolete argument: this is ignored.
