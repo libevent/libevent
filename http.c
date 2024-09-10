@@ -841,11 +841,14 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	void *cb_arg;
 	void (*error_cb)(enum evhttp_request_error, void *);
 	void *error_cb_arg;
-	EVUTIL_ASSERT(req != NULL);
+
+	if (evcon->state != EVCON_READING_PROXY_DATA) {
+		EVUTIL_ASSERT(req != NULL);
+	}
 
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 
-	if (evcon->flags & EVHTTP_CON_INCOMING) {
+	if (evcon->flags & EVHTTP_CON_INCOMING && evcon->state != EVCON_READING_PROXY_DATA) {
 		/*
 		 * for incoming requests, there are two different
 		 * failure cases.  it's either a network level error
@@ -859,23 +862,30 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 		return;
 	}
 
-	error_cb = req->error_cb;
-	error_cb_arg = req->cb_arg;
-	/* when the request was canceled, the callback is not executed */
-	if (error != EVREQ_HTTP_REQUEST_CANCEL) {
-		/* save the callback for later; the cb might free our object */
-		cb = req->cb;
-		cb_arg = req->cb_arg;
+	if (evcon->state != EVCON_READING_PROXY_DATA) {
+		error_cb = req->error_cb;
+		error_cb_arg = req->cb_arg;
+		/* when the request was canceled, the callback is not executed */
+		if (error != EVREQ_HTTP_REQUEST_CANCEL) {
+			/* save the callback for later; the cb might free our object */
+			cb = req->cb;
+			cb_arg = req->cb_arg;
+		} else {
+			cb = NULL;
+			cb_arg = NULL;
+		}
+
+		/* do not fail all requests; the next request is going to get
+	 	* send over a new connection.   when a user cancels a request,
+	 	* all other pending requests should be processed as normal
+	 	*/
+		evhttp_request_free_(evcon, req);
 	} else {
 		cb = NULL;
 		cb_arg = NULL;
+		error_cb = NULL;
+		error_cb_arg = NULL;
 	}
-
-	/* do not fail all requests; the next request is going to get
-	 * send over a new connection.   when a user cancels a request,
-	 * all other pending requests should be processed as normal
-	 */
-	evhttp_request_free_(evcon, req);
 
 	/* reset the connection */
 	evhttp_connection_reset_(evcon, 1);
@@ -2062,10 +2072,11 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	   host, we consider it a proxy request. */
 	scheme = evhttp_uri_get_scheme(req->uri_elems);
 	hostname = evhttp_uri_get_host(req->uri_elems);
-	if (scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
+	if ((scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
 		       !evutil_ascii_strcasecmp(scheme, "https")) &&
 	    hostname &&
-	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname))
+	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname)) ||
+	    type == EVHTTP_REQ_CONNECT)
 		req->flags |= EVHTTP_PROXY_REQUEST;
 
 	return 0;
@@ -3027,6 +3038,7 @@ static void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
 	int need_close;
+	enum evhttp_cmd_type type;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
@@ -3034,6 +3046,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 		req->on_complete_cb(req, req->on_complete_cb_arg);
 	}
 
+	type = req->type;
 	need_close =
 	    (REQ_VERSION_BEFORE(req, 1, 1) &&
 	    !evhttp_is_connection_keepalive(req->input_headers)) ||
@@ -3048,7 +3061,8 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	}
 
 	/* we have a persistent connection; try to accept another request. */
-	if (evhttp_associate_new_request_with_connection(evcon) == -1) {
+	if (type != EVHTTP_REQ_CONNECT &&
+	    evhttp_associate_new_request_with_connection(evcon) == -1) {
 		evhttp_connection_free(evcon);
 	}
 }
