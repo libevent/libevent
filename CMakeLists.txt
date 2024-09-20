@@ -1116,10 +1116,16 @@ endif()
 
 if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads
-        INNER_LIBRARIES event_core
-        LIBRARIES Threads::Threads
-        SOURCES ${SRC_PTHREADS})
+    if(ANDROID)
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            SOURCES ${SRC_PTHREADS})
+    else()
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            LIBRARIES Threads::Threads
+            SOURCES ${SRC_PTHREADS})
+    endif()
 endif()
 
 # library exists for historical reasons; it contains the contents of
