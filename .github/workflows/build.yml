@@ -17,7 +17,7 @@ on:
       - 'LICENSE'
   push:
     branches:
-      - android-ci
+      - master
     paths-ignore:
       - '**.md'
       - '.mailmap'
