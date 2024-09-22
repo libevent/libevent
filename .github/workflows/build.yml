@@ -30,7 +30,7 @@ permissions: read-all
 jobs:
   android-cmake-job:
     runs-on: ${{ matrix.os }}
-    if: "!contains(github.event.head_commit.message, 'ci/macos skip') && !contains(github.event.head_commit.message, 'ci/macos/cmake skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/android skip') && !contains(github.event.head_commit.message, 'ci/android/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
