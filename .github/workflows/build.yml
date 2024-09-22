@@ -1044,7 +1044,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+          key: android-${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3
