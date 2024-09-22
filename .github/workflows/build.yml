@@ -35,6 +35,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04]
+        EVENT_MATRIX:
+          - arm-linux-androideabi
+          - aarch64-linux-android
+          - i686-linux-android
+          - x86_64-linux-android
 
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +70,7 @@ jobs:
       - name: Bash
         shell: bash
         run: |
-          mkdir build && cd build
-          echo [cmake]: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake
-          cmake --build .
+          NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
+          echo [cmake]: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
+          cmake --build build
