@@ -704,6 +704,15 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 }
 
 void
+evhttp_connection_set_max_headers_number(struct evhttp_connection *evcon,
+    ev_ssize_t new_max_headers_number)
+{
+	if (new_max_headers_number<0)
+		evcon->max_headers_number = EV_SIZE_MAX;
+	else
+		evcon->max_headers_number = new_max_headers_number;
+}
+void
 evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
     ev_ssize_t new_max_headers_size)
 {
@@ -2225,6 +2234,7 @@ evhttp_parse_firstline_(struct evhttp_request *req, struct evbuffer *buffer)
 	}
 
 	req->headers_size = len;
+	req->headers_number = 0;
 
 	switch (req->kind) {
 	case EVHTTP_REQUEST:
@@ -2289,7 +2299,8 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 		req->headers_size += len;
 
 		if (req->evcon != NULL &&
-		    req->headers_size > req->evcon->max_headers_size) {
+		    (req->headers_number > req->evcon->max_headers_number ||
+		     req->headers_size > req->evcon->max_headers_size)) {
 			errcode = DATA_TOO_LONG;
 			goto error;
 		}
@@ -2319,7 +2330,8 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 
 		if (evhttp_add_header(headers, skey, svalue) == -1)
 			goto error;
-
+		
+		req->headers_number++;
 		mm_free(line);
 	}
 
@@ -2554,6 +2566,7 @@ evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 		goto error;
 	}
 
+	evcon->max_headers_number = EV_SIZE_MAX;
 	evcon->max_headers_size = EV_SIZE_MAX;
 	evcon->max_body_size = EV_SIZE_MAX;
 
@@ -3993,6 +4006,7 @@ evhttp_new_object(void)
 	evutil_timerclear(&http->timeout_read);
 	evutil_timerclear(&http->timeout_write);
 
+	evhttp_set_max_headers_number(http, EV_SIZE_MAX);
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
 	evhttp_set_default_content_type(http, "text/html; charset=ISO-8859-1");
@@ -4205,6 +4219,15 @@ int evhttp_set_flags(struct evhttp *http, int flags)
 }
 
 void
+evhttp_set_max_headers_number(struct evhttp* http, ev_ssize_t max_headers_number)
+{
+	if (max_headers_number < 0)
+		http->default_max_headers_number = EV_SIZE_MAX;
+	else
+		http->default_max_headers_number = max_headers_number;
+}
+
+void
 evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size)
 {
 	if (max_headers_size < 0)
@@ -4351,6 +4374,7 @@ evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 		goto error;
 	}
 
+	req->headers_number = 0;
 	req->headers_size = 0;
 	req->body_size = 0;
 
@@ -4638,6 +4662,7 @@ evhttp_get_request_connection(
 	if (evcon == NULL)
 		return (NULL);
 
+	evcon->max_headers_number = http->default_max_headers_number;
 	evcon->max_headers_size = http->default_max_headers_size;
 	evcon->max_body_size = http->default_max_body_size;
 	if (http->flags & EVHTTP_SERVER_LINGERING_CLOSE)
