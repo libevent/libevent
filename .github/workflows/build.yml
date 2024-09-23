@@ -1023,6 +1023,54 @@ jobs:
           cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
           cmake --build build -t event_static
 
+  android-cmake-job:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci/android skip') && !contains(github.event.head_commit.message, 'ci/android/cmake skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04]
+        EVENT_MATRIX:
+          - arm-linux-androideabi
+          - aarch64-linux-android
+          - i686-linux-android
+          - x86_64-linux-android
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Cache Build
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: android-${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install latest NDK
+        run: |
+          latest_ndk=$(sdkmanager --list | grep -o "ndk;[0-9.]*" | sort -V | tail -1)
+          echo "Installing $latest_ndk"
+          sdkmanager "$latest_ndk"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(echo $latest_ndk | cut -d';' -f2)" >> $GITHUB_ENV
+
+      - name: Bash
+        shell: bash
+        run: |
+          NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
+          echo [cmake]: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
+          cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
+          cmake --build build
+
+
   # ABI job without deploy
   abi-job:
     runs-on: ubuntu-22.04
