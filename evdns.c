@@ -431,6 +431,7 @@ struct evdns_base {
 #endif
 
 	int disable_when_inactive;
+	int disable_cache;
 
 	/* Maximum timeout between two probe packets
 	 * will change `global_nameserver_probe_initial_timeout`
@@ -4877,7 +4878,6 @@ evdns_base_new(struct event_base *event_base, int flags)
 	base->global_tcp_idle_timeout.tv_sec = CLIENT_IDLE_CONN_TIMEOUT;
 
 	TAILQ_INIT(&base->hostsdb);
-
 	SPLAY_INIT(&base->cache_root);
 
 #define EVDNS_BASE_ALL_FLAGS ( \
@@ -4915,6 +4915,8 @@ evdns_base_new(struct event_base *event_base, int flags)
 			return NULL;
 		}
 	}
+
+	base->disable_cache = flags & EVDNS_BASE_NO_CACHE;
 
 	EVDNS_UNLOCK(base);
 	return base;
@@ -5529,7 +5531,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* If we have an answer waiting, and we weren't
 			 * canceled, ignore this error. */
 			add_cname_to_reply(data, data->pending_result);
-			evdns_cache_write(data->evdns_base, data->nodename, data->pending_result, data->pending_result_ttl);
+			if (!data->evdns_base->disable_cache) {
+				evdns_cache_write(data->evdns_base, data->nodename, data->pending_result, data->pending_result_ttl);
+			}
 			data->user_cb(0, data->pending_result, data->user_data);
 			data->pending_result = NULL;
 		} else {
@@ -5626,7 +5630,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 
 		/* Call the user callback. */
 		add_cname_to_reply(data, res);
-		evdns_cache_write(data->evdns_base, data->nodename, res, res_ttl);
+		if (!data->evdns_base->disable_cache) {
+			evdns_cache_write(data->evdns_base, data->nodename, res, res_ttl);
+		}
 		data->user_cb(0, res, data->user_data);
 
 		/* Free data. */
@@ -5752,7 +5758,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	}
 
 	/* See if we have it in the cache */
-	if (!evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
+	if (!dns_base->disable_cache && !evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
 		cb(0, res, arg);
 		return NULL;
 	}
