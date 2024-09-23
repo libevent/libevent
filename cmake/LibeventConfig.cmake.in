@@ -33,15 +33,20 @@
 # find_package() can handle dependencies automatically. For example, given the 'openssl' component,
 # all dependencies (libevent_core, libssl, libcrypto and openssl include directories) will be found.
 
+# Add an option to enable or disable SSL/TLS support (defaults to ON)
+option(USE_SSL_TLS "Enable SSL/TLS support (OpenSSL or MbedTLS)" ON)
 set(LIBEVENT_VERSION @EVENT_PACKAGE_VERSION@)
 
-# Load the dependencies of all components. As find_dependency propagates the original
-# find_package attributes (i.e. required or not), there's no need to repeat this or filter
-# by component.
+# Load the dependencies of all components
 include(CMakeFindDependencyMacro)
 find_dependency(Threads)
-@LIBEVENT_MBEDTLS_DEPENDENCY@
-@LIBEVENT_OPENSSL_DEPENDENCY@
+# Conditional SSL/TLS dependency handling
+if(USE_SSL_TLS)
+    @LIBEVENT_MBEDTLS_DEPENDENCY@
+    @LIBEVENT_OPENSSL_DEPENDENCY@
+else()
+    message(STATUS "SSL/TLS support disabled.")
+endif()
 
 # IMPORTED targets from LibeventTargets.cmake
 set(LIBEVENT_STATIC_LIBRARIES "@LIBEVENT_STATIC_LIBRARIES@")
@@ -57,7 +62,7 @@ if(${LIBEVENT_STATIC_LINK})
     set(_AVAILABLE_LIBS "${LIBEVENT_STATIC_LIBRARIES}")
 
     # CMake before 3.15 doesn't link OpenSSL to pthread/dl, do it ourselves instead
-    if (${CMAKE_VERSION} VERSION_LESS "3.15.0" AND ${LIBEVENT_STATIC_LINK} AND ${OPENSSL_FOUND} AND ${Threads_FOUND})
+    if (${CMAKE_VERSION} VERSION_LESS "3.15.0" AND ${LIBEVENT_STATIC_LINK} AND ${OPENSSL_FOUND} AND ${Threads_FOUND} AND USE_SSL_TLS)
         set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES Threads::Threads)
         set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${CMAKE_DL_LIBS})
     endif ()

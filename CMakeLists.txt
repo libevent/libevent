@@ -1719,6 +1719,14 @@ if (EVENT__DOXYGEN)
     UseDoxygen()
 endif()
 
+option(USE_SSL_TLS
+    "Enable SSL/TLS support (OpenSSL or MbedTLS)" ON)
+if(USE_SSL_TLS)
+    find_package(OpenSSL REQUIRED)
+    message(STATUS "SSL/TLS support enabled.")
+else()
+    message(STATUS "SSL/TLS support disabled.")
+endif()
 
 if (NOT TARGET uninstall)
 	# Create the uninstall target.
