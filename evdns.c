@@ -74,6 +74,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/tree.h>
 #ifdef _WIN32
 #include <winsock2.h>
 #include <winerror.h>
@@ -422,6 +423,8 @@ struct evdns_base {
 
 	TAILQ_HEAD(hosts_list, hosts_entry) hostsdb;
 
+	SPLAY_HEAD(evdns_tree, evdns_cache) cache_root;
+
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	void *lock;
 #endif
@@ -445,6 +448,14 @@ struct hosts_entry {
 	} addr;
 	int addrlen;
 	char hostname[1];
+};
+
+struct evdns_cache {
+	SPLAY_ENTRY(evdns_cache) node;
+	char *name;
+	struct evutil_addrinfo *ai;
+	struct event ev_timeout;
+	struct evdns_base *base;
 };
 
 static struct evdns_base *current_base = NULL;
@@ -2026,7 +2037,7 @@ evdns_request_data_build(const struct evdns_base *base,
 	APPEND16(class);
 
 	if (EDNS_ENABLED(base)) {
-		/* The OPT pseudo-RR format 
+		/* The OPT pseudo-RR format
 		 * (https://tools.ietf.org/html/rfc6891#section-6.1.2)
 		 * +------------+--------------+------------------------------+
 		 * | Field Name | Field Type   | Description                  |
@@ -4866,6 +4877,8 @@ evdns_base_new(struct event_base *event_base, int flags)
 
 	TAILQ_INIT(&base->hostsdb);
 
+	SPLAY_INIT(&base->cache_root);
+
 #define EVDNS_BASE_ALL_FLAGS ( \
 	EVDNS_BASE_INITIALIZE_NAMESERVERS | \
 	EVDNS_BASE_DISABLE_WHEN_INACTIVE  | \
@@ -4957,6 +4970,24 @@ evdns_nameserver_free(struct nameserver *server)
 	mm_free(server);
 }
 
+static int
+evdns_cache_compare(struct evdns_cache *a, struct evdns_cache *b)
+{
+	return strcasecmp(a->name, b->name);
+}
+
+SPLAY_PROTOTYPE(evdns_tree, evdns_cache, node, evdns_cache_compare);
+SPLAY_GENERATE(evdns_tree, evdns_cache, node, evdns_cache_compare);
+
+static void
+evdns_cache_free(struct evdns_cache *cache)
+{
+	SPLAY_REMOVE(evdns_tree, &cache->base->cache_root, cache);
+	mm_free(cache->name);
+	evtimer_del(&cache->ev_timeout);
+	mm_free(cache);
+}
+
 static void
 evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 {
@@ -5011,6 +5042,10 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 
 	mm_free(base->req_heads);
+
+	while (!SPLAY_EMPTY(&base->cache_root)) {
+		evdns_cache_free(SPLAY_ROOT(&base->cache_root));
+	}
 
 	EVDNS_UNLOCK(base);
 	EVTHREAD_FREE_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
@@ -5165,6 +5200,8 @@ struct evdns_getaddrinfo_request {
 	/* Copy of the modified 'hints' data that we'll use to build
 	 * answers. */
 	struct evutil_addrinfo hints;
+	/* The original requested nodename */
+	char *nodename;
 	/* The callback to invoke when we're done */
 	evdns_getaddrinfo_cb user_cb;
 	/* User-supplied data to give to the callback. */
@@ -5182,6 +5219,7 @@ struct evdns_getaddrinfo_request {
 	/* If we have one request answered and one request still inflight,
 	 * then this field holds the answer from the first request... */
 	struct evutil_addrinfo *pending_result;
+	int pending_result_ttl;
 	/* And this event is a timeout that will tell us to cancel the second
 	 * request if it's taking a long time. */
 	struct event timeout;
@@ -5229,6 +5267,7 @@ free_getaddrinfo_request(struct evdns_getaddrinfo_request *data)
 	if (data->cname_result)
 		mm_free(data->cname_result);
 	event_del(&data->timeout);
+	mm_free(data->nodename);
 	mm_free(data);
 	return;
 }
@@ -5311,6 +5350,62 @@ evdns_result_is_answer(int result)
 {
 	return (result != DNS_ERR_NOTIMPL && result != DNS_ERR_REFUSED &&
 	    result != DNS_ERR_SERVERFAILED && result != DNS_ERR_CANCEL);
+}
+
+static void
+evdns_ttl_expired(int result, short what, void *arg)
+{
+	struct evdns_cache *cache = arg;
+	log(EVDNS_LOG_DEBUG, "Expiring cache for %s\n", cache->name);
+	EVDNS_LOCK(cache->base);
+	evdns_cache_free(cache);
+	EVDNS_UNLOCK(cache->base);
+}
+
+static void
+evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_addrinfo *res, int ttl)
+{
+	struct timeval tv;
+	struct evdns_cache *cache;
+	struct evdns_cache find;
+
+	log(EVDNS_LOG_DEBUG, "Writing cache for %s\n", nodename);
+	EVDNS_LOCK(dns_base);
+	find.name = (char *)nodename;
+	cache = SPLAY_FIND(evdns_tree, &dns_base->cache_root, &find);
+	if (cache) {
+		log(EVDNS_LOG_DEBUG, "Ejecting old cache for %s\n", nodename);
+		evdns_cache_free(cache);
+	}
+	cache = mm_malloc(sizeof(struct evdns_cache));
+	cache->base = dns_base;
+	cache->name = strdup(nodename);
+	cache->ai = evutil_dupe_addrinfo_(res);
+	SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
+	evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
+	timerclear(&tv);
+	tv.tv_sec = ttl;
+	evtimer_add(&cache->ev_timeout, &tv);
+	EVDNS_UNLOCK(dns_base);
+}
+
+static struct evutil_addrinfo*
+evdns_cache_lookup(struct evdns_base *dns_base, const char *nodename)
+{
+	struct evdns_cache *cache;
+	struct evdns_cache find;
+	struct evutil_addrinfo *ai = NULL;
+
+	log(EVDNS_LOG_DEBUG, "Reading cache for %s\n", nodename);
+	EVDNS_LOCK(dns_base);
+	find.name = (char *)nodename;
+	cache = SPLAY_FIND(evdns_tree, &dns_base->cache_root, &find);
+	if (cache) {
+		log(EVDNS_LOG_DEBUG, "Cache found for %s\n", nodename);
+		ai = evutil_dupe_addrinfo_(cache->ai);
+	}
+	EVDNS_UNLOCK(dns_base);
+	return ai;
 }
 
 static void
@@ -5404,6 +5499,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* If we have an answer waiting, and we weren't
 			 * canceled, ignore this error. */
 			add_cname_to_reply(data, data->pending_result);
+			evdns_cache_write(data->evdns_base, data->nodename, data->pending_result, data->pending_result_ttl);
 			data->user_cb(0, data->pending_result, data->user_data);
 			data->pending_result = NULL;
 		} else {
@@ -5481,10 +5577,12 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		/* XXXX handle failure from set_timeout */
 		evdns_getaddrinfo_set_timeout(data->evdns_base, data);
 		data->pending_result = res;
+		data->pending_result_ttl = ttl;
 		return;
 	} else {
 		/* The other request is done or never started; append its
 		 * results (if any) and return them. */
+		int res_ttl = ttl;
 		if (data->pending_result) {
 			if (req->type == DNS_IPv4_A)
 				res = evutil_addrinfo_append_(res,
@@ -5492,11 +5590,13 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			else
 				res = evutil_addrinfo_append_(
 				    data->pending_result, res);
+			res_ttl = data->pending_result_ttl;
 			data->pending_result = NULL;
 		}
 
 		/* Call the user callback. */
 		add_cname_to_reply(data, res);
+		evdns_cache_write(data->evdns_base, data->nodename, res, res_ttl);
 		data->user_cb(0, res, data->user_data);
 
 		/* Free data. */
@@ -5621,6 +5721,13 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		return NULL;
 	}
 
+	/* See if we have it in the cache */
+	res = evdns_cache_lookup(dns_base, nodename);
+	if (res) {
+		cb(0, res, arg);
+		return NULL;
+	}
+
 	/* Okay, things are serious now. We're going to need to actually
 	 * launch a request.
 	 */
@@ -5637,6 +5744,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	data->user_cb = cb;
 	data->user_data = arg;
 	data->evdns_base = dns_base;
+	data->nodename = strdup(nodename);
 
 	want_cname = (hints.ai_flags & EVUTIL_AI_CANONNAME);
 
@@ -5688,7 +5796,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	if (started) {
 		return data;
 	} else {
-		mm_free(data);
+		free_getaddrinfo_request(data);
 		cb(EVUTIL_EAI_FAIL, NULL, arg);
 		return NULL;
 	}
