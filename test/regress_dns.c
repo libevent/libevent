@@ -2188,13 +2188,13 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_flags = 0;
 	r = evdns_getaddrinfo(dns_base, "v4timeout.example.com", "8010",
-	    &hints, gai_cb, &a_out[10]);
+	    &hints, gai_cb, &b_out[10]);
 	tt_assert(r);
 	++n_gai_results_pending;
 
 	/* 11: timeout.example.com: shouldn't have cached as it was cancelled. */
 	r = evdns_getaddrinfo(dns_base, "all-timeout.example.com", "8011",
-	    &hints, gai_cb, &a_out[11]);
+	    &hints, gai_cb, &b_out[11]);
 	tt_assert(r);
 	++n_gai_results_pending;
 
@@ -2203,13 +2203,15 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = EVUTIL_AI_CANONNAME;
 	r = evdns_getaddrinfo(dns_base, "long.example.com", "8000",
-	    &hints, gai_cb, &a_out[12]);
+	    &hints, gai_cb, &b_out[12]);
 	tt_assert(!r);
 
-	n_gai_results_pending = 12;
 	exit_base_on_no_pending_results = data->base;
 
 	event_base_dispatch(data->base);
+
+	/* 12: HOST_NAME_MAX_NAME should be valid */
+	tt_str_op(b_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
 
 end:
 	if (local_outcome.ai)
