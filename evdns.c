@@ -4989,6 +4989,7 @@ evdns_cache_free(struct evdns_cache *cache)
 	SPLAY_REMOVE(evdns_tree, &cache->base->cache_root, cache);
 	mm_free(cache->name);
 	evtimer_del(&cache->ev_timeout);
+	evutil_freeaddrinfo(cache->ai);
 	mm_free(cache);
 }
 
@@ -5403,6 +5404,7 @@ evdns_cache_lookup(struct evdns_base *base,
 	struct evdns_cache *cache;
 	struct evdns_cache find;
 	struct evutil_addrinfo *ai=NULL;
+	int want_cname = hints->ai_flags & EVUTIL_AI_CANONNAME;
 	int f = hints->ai_family;
 
 	log(EVDNS_LOG_DEBUG, "Looking in cache for %s", nodename);
@@ -5413,12 +5415,17 @@ evdns_cache_lookup(struct evdns_base *base,
 		struct evutil_addrinfo *e = cache->ai;
 		log(EVDNS_LOG_DEBUG, "Found cache for %s", cache->name);
 		for (; e; e = e->ai_next) {
-			struct evutil_addrinfo *ai_new;
+			// an existing record might not have the canonname
+			if (want_cname && e->ai_canonname == NULL)
+				continue;
 			++n_found;
 			if ((e->ai_addr->sa_family == AF_INET && f == PF_INET6) ||
 				(e->ai_addr->sa_family == AF_INET6 && f == PF_INET))
 				continue;
-			ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
+			struct evutil_addrinfo *ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
+			if(want_cname) {
+				ai_new->ai_canonname = strdup(e->ai_canonname);
+			}
 			if (!ai_new) {
 				n_found = 0;
 				goto out;

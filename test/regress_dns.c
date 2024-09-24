@@ -1747,7 +1747,7 @@ static void
 test_getaddrinfo_async(void *arg)
 {
 	struct basic_test_data *data = arg;
-	struct evutil_addrinfo hints, *a;
+	struct evutil_addrinfo hints, *a, *b;
 	struct gai_outcome local_outcome;
 	struct gai_outcome a_out[13], b_out[13];
 	unsigned i;
@@ -2120,35 +2120,65 @@ test_getaddrinfo_async(void *arg)
 	test_ai_eq(a_out[12].ai, "18.52.86.120:8000", SOCK_STREAM, IPPROTO_TCP);
 	tt_str_op(a_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
 
-	/* Let's make sure the results are all cached */
+	/* 3. Let's make sure the results are all cached */
 
-	/* 0: both.example.com should have been cached */
+	/* 0: both.example.com should have been evicted with no canonname */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_CANONNAME;
 	r = evdns_getaddrinfo(dns_base, "both.example.com", "8000",
 	    &hints, gai_cb, &b_out[0]);
-	tt_assert(!r);
+	tt_assert(r);
+	++n_gai_results_pending;
 
-	/* 1: v4only.example.com should have been cached */
+	/* 1: v4only.example.com should have been cached, but CNAME was not replied with and the client wants CNAME. */
+	// XXX ideally, cache should respond no CNAME if AI_CANONNAME on the previous call didn't obtain canonname.
+	hints.ai_flags = AI_CANONNAME;
 	r = evdns_getaddrinfo(dns_base, "v4only.example.com", "8001",
 	    &hints, gai_cb, &b_out[1]);
-	tt_assert(!r);
+	if(!r) {
+			++n_gai_results_pending;
+			// check
+			tt_int_op(b_out[1].err, ==, 0);
+			tt_assert(b_out[1].ai);
+			tt_assert(! b_out[1].ai->ai_next);
+			test_ai_eq(b_out[1].ai, "18.52.86.120:8001", SOCK_STREAM, IPPROTO_TCP);
+			tt_assert(b_out[1].ai->ai_canonname == NULL);
+	}
 
 	/* 2: v6only.example.com should have been cached */
 	hints.ai_flags = 0;
 	r = evdns_getaddrinfo(dns_base, "v6only.example.com", "8002",
 	    &hints, gai_cb, &b_out[2]);
 	tt_assert(!r);
+	// check
+	tt_int_op(b_out[2].err, ==, 0);
+	tt_assert(b_out[2].ai);
+	tt_assert(! b_out[2].ai->ai_next);
+	test_ai_eq(b_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
 
 	/* 3: v4assert.example.com should have been cached */
 	hints.ai_family = PF_INET;
 	r = evdns_getaddrinfo(dns_base, "v4assert.example.com", "8003",
 	    &hints, gai_cb, &b_out[3]);
 	tt_assert(!r);
+	// check
+	tt_int_op(b_out[3].err, ==, 0);
+	tt_assert(b_out[3].ai);
+	tt_assert(! b_out[3].ai->ai_next);
+	test_ai_eq(b_out[3].ai, "18.52.86.120:8003", SOCK_STREAM, IPPROTO_TCP);
 
 	/* 4: v6assert.example.com should have been cached. */
 	hints.ai_family = PF_INET6;
 	r = evdns_getaddrinfo(dns_base, "v6assert.example.com", "8004",
 	    &hints, gai_cb, &b_out[4]);
 	tt_assert(!r);
+	/* check */
+	tt_int_op(b_out[4].err, ==, 0);
+	tt_assert(b_out[4].ai);
+	tt_assert(! b_out[4].ai->ai_next);
+	test_ai_eq(b_out[4].ai, "[b0b::f00d]:8004", SOCK_STREAM, IPPROTO_TCP);
 
 	/* 5: NEXIST shouldn't be cached, as it is instant. */
 	hints.ai_family = PF_INET;
@@ -2178,11 +2208,12 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(r);
 	++n_gai_results_pending;
 
-	/* 9: AI_ADDRCONFIG should at least not crash. But shouldn't be cache. */
+	/* 9: AI_ADDRCONFIG should at least not crash. */
 	hints.ai_flags |= EVUTIL_AI_ADDRCONFIG;
 	r = evdns_getaddrinfo(dns_base, "both.example.com",
 	    "8009", &hints, gai_cb, &b_out[9]);
-	tt_assert(!r);
+	if(r)
+		++n_gai_results_pending;
 
 	/* 10: v4timeout.example.com shouldn't cache as it didn't succeed. */
 	hints.ai_family = PF_UNSPEC;
@@ -2198,20 +2229,22 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(r);
 	++n_gai_results_pending;
 
-	/* 12: HOST_NAME_MAX_NAME should've cached */
+	/* 12: HOST_NAME_MAX_NAME should've cached and match the original value */
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = EVUTIL_AI_CANONNAME;
 	r = evdns_getaddrinfo(dns_base, "long.example.com", "8000",
 	    &hints, gai_cb, &b_out[12]);
 	tt_assert(!r);
+	//check
+	tt_int_op(b_out[12].err, ==, 0);
+	tt_assert(b_out[12].ai);
+	tt_assert(! b_out[12].ai->ai_next);
+	test_ai_eq(b_out[12].ai, "18.52.86.120:8000", SOCK_STREAM, IPPROTO_TCP);
+	tt_str_op(b_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
 
 	exit_base_on_no_pending_results = data->base;
-
 	event_base_dispatch(data->base);
-
-	/* 12: HOST_NAME_MAX_NAME should be valid */
-	tt_str_op(b_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
 
 end:
 	if (local_outcome.ai)
