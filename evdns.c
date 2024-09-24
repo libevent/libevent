@@ -4884,6 +4884,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 	EVDNS_BASE_INITIALIZE_NAMESERVERS | \
 	EVDNS_BASE_DISABLE_WHEN_INACTIVE  | \
 	EVDNS_BASE_NAMESERVERS_NO_DEFAULT | \
+	EVDNS_BASE_NO_CACHE               | \
 	0)
 
 	if (flags & ~EVDNS_BASE_ALL_FLAGS) {
