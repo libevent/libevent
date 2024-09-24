@@ -5360,7 +5360,7 @@ static void
 evdns_ttl_expired(int result, short what, void *arg)
 {
 	struct evdns_cache *cache = arg;
-    struct evdns_base *base = cache->base;
+	struct evdns_base *base = cache->base;
 	log(EVDNS_LOG_DEBUG, "Expiring cache for %s", cache->name);
 	EVDNS_LOCK(base);
 	evdns_cache_free(cache);
