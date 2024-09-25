@@ -423,7 +423,7 @@ jobs:
               ABI=arm64-v8a
           elif test "$NDK_TRIPLE" = "i686-linux-android"; then
               ABI=x86
-          elif test "$NDK_TRIPLE" = x86_64linux-android"; then
+          elif test "$NDK_TRIPLE" = "x86_64linux-android"; then
               ABI=x86_64
           fi
           NDK_API=21
