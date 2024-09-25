@@ -418,8 +418,9 @@ jobs:
         run: |
           NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
           echo [cmake]: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
-          cmake --build build
+          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE'"
+          cmake -B build $EVENT_CMAKE_OPTIONS || (rm -rf build && cmake -B build $EVENT_CMAKE_OPTIONS)
+          cmake --build build --target event_static
 
 
   # ABI job without deploy
