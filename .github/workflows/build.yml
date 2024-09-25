@@ -17,7 +17,7 @@ on:
       - 'LICENSE'
   push:
     branches:
-      - openbsd-ci-fix
+      - master
     paths-ignore:
       - '**.md'
       - '.mailmap'
