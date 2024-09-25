@@ -87,7 +87,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -244,7 +243,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
