@@ -326,7 +326,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
-            sysctl kern.maxfiles=$(($(sysctl -n kern.maxfiles) * 2))
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             cd build
