@@ -120,7 +120,7 @@ jobs:
           NDK_API=21
 
           EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DANDROID_PLATFORM=android-$NDK_API' '-DANDROID_NDK=$NDK' -DANDROID_ABI=$ABI"
-          echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS"
+          echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
           cmake -B build $EVENT_CMAKE_OPTIONS || (rm -rf build && cmake -B build $EVENT_CMAKE_OPTIONS)
           cmake --build build --target event_static
 
