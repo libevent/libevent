@@ -103,18 +103,7 @@ jobs:
         shell: bash
         run: |
           NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
-          if test "$NDK_TRIPLE" = "arm-linux-androideabi"; then
-              ABI=armeabi-v7a
-          elif test "$NDK_TRIPLE" = "aarch64-linux-android"; then
-              ABI=arm64-v8a
-          elif test "$NDK_TRIPLE" = "i686-linux-android"; then
-              ABI=x86
-          elif test "$NDK_TRIPLE" = "x86_64linux-android"; then
-              ABI=x86_64
-          fi
-          NDK_API=21
-
-          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DANDROID_PLATFORM=android-$NDK_API' '-DANDROID_NDK=$NDK' -DANDROID_ABI=$ABI"
+          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE'"
           echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
           cmake -B build $EVENT_CMAKE_OPTIONS || (rm -rf build && cmake -B build $EVENT_CMAKE_OPTIONS)
           cmake --build build --target event_static
