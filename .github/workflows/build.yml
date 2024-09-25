@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2", "14.0"]
+        release: ["13.4", "14.1"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -128,7 +128,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2"]
+        release: ["13.4"]
 
     steps:
       - uses: actions/checkout@v4
