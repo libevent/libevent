@@ -1747,7 +1747,7 @@ static void
 test_getaddrinfo_async(void *arg)
 {
 	struct basic_test_data *data = arg;
-	struct evutil_addrinfo hints, *a, *b;
+	struct evutil_addrinfo hints, *a;
 	struct gai_outcome local_outcome;
 	struct gai_outcome a_out[13], b_out[13];
 	unsigned i;
