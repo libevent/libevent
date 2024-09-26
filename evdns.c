@@ -5415,6 +5415,7 @@ evdns_cache_lookup(struct evdns_base *base,
 		struct evutil_addrinfo *e = cache->ai;
 		log(EVDNS_LOG_DEBUG, "Found cache for %s", cache->name);
 		for (; e; e = e->ai_next) {
+			struct evutil_addrinfo *ai_new;
 			// an existing record might not have the canonname
 			if (want_cname && e->ai_canonname == NULL)
 				continue;
@@ -5422,7 +5423,7 @@ evdns_cache_lookup(struct evdns_base *base,
 			if ((e->ai_addr->sa_family == AF_INET && f == PF_INET6) ||
 				(e->ai_addr->sa_family == AF_INET6 && f == PF_INET))
 				continue;
-			struct evutil_addrinfo *ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
+			ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
 			if(want_cname) {
 				ai_new->ai_canonname = strdup(e->ai_canonname);
 			}
