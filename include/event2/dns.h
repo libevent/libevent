@@ -253,6 +253,8 @@ struct event_base;
 
 /** Flag for evdns_base_new: process resolv.conf.  */
 #define EVDNS_BASE_INITIALIZE_NAMESERVERS 1
+/** Flag for evdns_base_new: disable caching of DNS responses by default
+ * for async resolver. */
 #define EVDNS_BASE_NO_CACHE 0x10
 /** Flag for evdns_base_new: Do not prevent the libevent event loop from
  * exiting when we have no active dns requests. */
@@ -286,7 +288,8 @@ struct event_base;
 
   @param event_base the event base to associate the dns client with
   @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
-    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT|
+    EVDNS_BASE_NO_CACHE
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
@@ -806,13 +809,19 @@ struct evdns_getaddrinfo_request;
  * When the callback is invoked, we pass as its first argument the error code
  * that getaddrinfo would return (or 0 for no error).  As its second argument,
  * we pass the evutil_addrinfo structures we found (or NULL on error).  We
- * pass 'arg' as the third argument.
+ * pass 'arg' as the third argument. If a request is cached with (CNAME when
+ * required), but the cached entries are of a different address type (e.g.
+ * PF_INET vs PF_INET6), the address info is wra
  *
  * Limitations:
  *
  * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
  * - For ai_socktype, we only handle SOCKTYPE_STREAM, SOCKTYPE_UDP, and 0.
  * - For ai_protocol, we only handle IPPROTO_TCP, IPPROTO_UDP, and 0.
+ * - If we cached a response exclusively for a different address type (e.g.
+ *   PF_INET), we will set addrinfo to NULL (e.g. queried with PF_INET6)
+ * - Cache isn't hit when AI_CANONNAME is set but cached server response
+ *	 doesn't contain CNAME.
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_getaddrinfo_request *evdns_getaddrinfo(
