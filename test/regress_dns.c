@@ -2253,6 +2253,10 @@ end:
 		if (a_out[i].ai)
 			evutil_freeaddrinfo(a_out[i].ai);
 	}
+	for (i = 0; i < ARRAY_SIZE(b_out); ++i) {
+		if (b_out[i].ai)
+			evutil_freeaddrinfo(b_out[i].ai);
+	}
 	if (port)
 		evdns_close_server_port(port);
 	if (dns_base)
