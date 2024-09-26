@@ -1759,6 +1759,7 @@ test_getaddrinfo_async(void *arg)
 	struct evdns_base *dns_base;
 
 	memset(a_out, 0, sizeof(a_out));
+	memset(b_out, 0, sizeof(a_out));
 	memset(&local_outcome, 0, sizeof(local_outcome));
 
 	dns_base = evdns_base_new(data->base, 0);
@@ -2148,6 +2149,7 @@ test_getaddrinfo_async(void *arg)
 	}
 
 	/* 2: v6only.example.com should have been cached */
+	hints.ai_family = PF_INET6;
 	hints.ai_flags = 0;
 	r = evdns_getaddrinfo(dns_base, "v6only.example.com", "8002",
 	    &hints, gai_cb, &b_out[2]);
@@ -2157,6 +2159,16 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(b_out[2].ai);
 	tt_assert(! b_out[2].ai->ai_next);
 	test_ai_eq(b_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 2.5: v6only.example.com cache lookup with PF_INET should return NULL addressinfo. */
+	hints.ai_family = PF_INET;
+	hints.ai_flags = 0;
+	r = evdns_getaddrinfo(dns_base, "v6only.example.com", "8002",
+	    &hints, gai_cb, &b_out[2]);
+	tt_assert(!r);
+	// check
+	tt_int_op(b_out[2].err, ==, 0);
+	tt_assert(! b_out[2].ai);
 
 	/* 3: v4assert.example.com should have been cached */
 	hints.ai_family = PF_INET;
