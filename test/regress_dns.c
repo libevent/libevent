@@ -2135,11 +2135,11 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(r);
 
 	/* 1: v4only.example.com should have been cached, but CNAME was not replied with and the client wants CNAME. */
-	// XXX ideally, cache should respond no CNAME if AI_CANONNAME on the previous call didn't obtain canonname.
+	// XXX ideally, cache should hit with no CNAME if AI_CANONNAME on the previous call didn't obtain it with this flag.
 	hints.ai_flags = AI_CANONNAME;
 	r = evdns_getaddrinfo(dns_base, "v4only.example.com", "8001",
 	    &hints, gai_cb, &b_out[1]);
-	if(!r) {
+	if (!r) {
 			// check
 			tt_int_op(b_out[1].err, ==, 0);
 			tt_assert(b_out[1].ai);
@@ -2222,7 +2222,6 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_flags |= EVUTIL_AI_ADDRCONFIG;
 	r = evdns_getaddrinfo(dns_base, "both.example.com",
 	    "8009", &hints, gai_cb, &b_out[9]);
-	if(r)
 
 	/* 10: v4timeout.example.com shouldn't cache as it didn't succeed. */
 	hints.ai_family = PF_UNSPEC;
