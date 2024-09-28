@@ -42,8 +42,8 @@
 /**
   Create a new bufferevent for an fd.
 
-  This function is deprecated.  Use bufferevent_socket_new and
-  bufferevent_set_callbacks instead.
+  This function is deprecated.  Use bufferevent_socket_new() and
+  bufferevent_setcb() instead.
 
   Libevent provides an abstraction on top of the regular event callbacks.
   This abstraction is called a buffered event.  A buffered event provides
