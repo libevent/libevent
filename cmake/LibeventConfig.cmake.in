@@ -61,7 +61,7 @@ if(${LIBEVENT_STATIC_LINK})
     set(_AVAILABLE_LIBS "${LIBEVENT_STATIC_LIBRARIES}")
 
     # CMake before 3.15 doesn't link OpenSSL to pthread/dl, do it ourselves instead
-    if (${CMAKE_VERSION} VERSION_LESS "3.15.0" AND ${LIBEVENT_STATIC_LINK} AND ${OPENSSL_FOUND} AND ${Threads_FOUND})
+    if (${CMAKE_VERSION} VERSION_LESS "3.15.0" AND "${LIBEVENT_STATIC_LINK}" AND "${OPENSSL_FOUND}" AND "${Threads_FOUND}")
         set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES Threads::Threads)
         set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${CMAKE_DL_LIBS})
     endif ()
