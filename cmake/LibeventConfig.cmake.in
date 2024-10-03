@@ -40,8 +40,12 @@ set(LIBEVENT_VERSION @EVENT_PACKAGE_VERSION@)
 # by component.
 include(CMakeFindDependencyMacro)
 find_dependency(Threads)
-@LIBEVENT_MBEDTLS_DEPENDENCY@
-@LIBEVENT_OPENSSL_DEPENDENCY@
+if(@EVENT__HAVE_MBEDTLS@)
+    find_dependency(MbedTLS)
+endif()
+if(@EVENT__HAVE_OPENSSL@)
+    find_dependency(OpenSSL)
+endif()
 
 # IMPORTED targets from LibeventTargets.cmake
 set(LIBEVENT_STATIC_LIBRARIES "@LIBEVENT_STATIC_LIBRARIES@")
