@@ -683,7 +683,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2", "14.0"]
+        release: ["13.4", "14.1"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -736,7 +736,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -778,7 +777,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2"]
+        release: ["13.4"]
 
     steps:
       - uses: actions/checkout@v4
@@ -893,7 +892,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -909,6 +907,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             export CTEST_PARALLEL_LEVEL=$JOBS
@@ -974,6 +973,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             cd build
@@ -1040,14 +1040,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Cache Build
-        uses: actions/cache@v4
-        with:
-          path: build
-          key: android-${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v3
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -1066,9 +1060,10 @@ jobs:
         shell: bash
         run: |
           NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
-          echo [cmake]: cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
-          cmake -B build -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME="$NDK_TRIPLE"
-          cmake --build build
+          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE'"
+          echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
+          cmake -B build $EVENT_CMAKE_OPTIONS
+          cmake --build build --target event_static
 
 
   # ABI job without deploy
