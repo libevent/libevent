@@ -466,6 +466,7 @@ else()
         sys/ioctl.h
         sys/mman.h
         sys/queue.h
+        sys/tree.h
         sys/select.h
         sys/sendfile.h
         sys/uio.h
@@ -839,7 +840,8 @@ set(HDR_PRIVATE
     openssl-compat.h
     evconfig-private.h
     sha1.h
-    compat/sys/queue.h)
+    compat/sys/queue.h
+    compat/sys/tree.h)
 
 set(HDR_COMPAT
     include/evdns.h
