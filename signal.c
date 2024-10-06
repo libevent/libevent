@@ -45,6 +45,7 @@
 #endif
 #include <signal.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #ifdef EVENT__HAVE_UNISTD_H
@@ -54,6 +55,7 @@
 #ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#include <stdatomic.h>
 
 #include "event2/event.h"
 #include "event2/event_struct.h"
@@ -107,8 +109,10 @@ static const struct eventop evsigops = {
 /* Lock for evsig_base and evsig_base_n_signals_added fields. */
 static void *evsig_base_lock = NULL;
 #endif
+
 /* The event base that's currently getting informed about signals. */
-static struct event_base *evsig_base = NULL;
+static atomic_intptr_t evsig_base;
+
 /* A copy of evsig_base->sigev_n_signals_added. */
 static int evsig_base_n_signals_added = 0;
 static evutil_socket_t evsig_base_fd = -1;
@@ -122,9 +126,9 @@ void
 evsig_set_base_(struct event_base *base)
 {
 	EVSIGBASE_LOCK();
-	evsig_base = base;
 	evsig_base_n_signals_added = base->sig.ev_n_signals_added;
 	evsig_base_fd = base->sig.ev_signal_pair[1];
+	atomic_store(&evsig_base, (intptr_t)base);
 	EVSIGBASE_UNLOCK();
 }
 
@@ -295,16 +299,16 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 
 	/* catch signals if they happen quickly */
 	EVSIGBASE_LOCK();
-	if (evsig_base != base && evsig_base_n_signals_added) {
+	if (atomic_load(&evsig_base) != (intptr_t)base && evsig_base_n_signals_added) {
 		event_warnx("Added a signal to event base %p with signals "
 		    "already added to event_base %p.  Only one can have "
 		    "signals at a time with the %s backend.  The base with "
 		    "the most recently added signal or the most recent "
 		    "event_base_loop() call gets preference; do "
 		    "not rely on this behavior in future Libevent versions.",
-                   (void *)base, (void *)evsig_base, base->evsel->name);
+		    (void *)base, (void *)atomic_load(&evsig_base), base->evsel->name);
 	}
-	evsig_base = base;
+	atomic_store(&evsig_base, (intptr_t)base);
 	evsig_base_n_signals_added = ++sig->ev_n_signals_added;
 	evsig_base_fd = base->sig.ev_signal_pair[1];
 	EVSIGBASE_UNLOCK();
@@ -393,7 +397,7 @@ evsig_handler(int sig)
 #endif
 	ev_uint8_t msg;
 
-	if (evsig_base == NULL) {
+	if (atomic_load(&evsig_base) == (intptr_t)NULL) {
 		event_warnx(
 			"%s: received signal %d, but have no base configured",
 			__func__, sig);
@@ -453,8 +457,8 @@ evsig_dealloc_(struct event_base *base)
 			evsig_restore_handler_(base, i);
 	}
 	EVSIGBASE_LOCK();
-	if (base == evsig_base) {
-		evsig_base = NULL;
+	if ((intptr_t)base == evsig_base) {
+		atomic_store(&evsig_base, (intptr_t)NULL);
 		evsig_base_n_signals_added = 0;
 		evsig_base_fd = -1;
 	}
