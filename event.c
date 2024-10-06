@@ -1377,11 +1377,13 @@ event_signal_closure(struct event_base *base, struct event *ev)
 {
 #if defined(__clang__)
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic push
 /* NOTE: it is better to avoid such code all together, by using separate
  * variable to break the loop in the event structure, but now this code is safe
  * */
 #pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 #endif
 
 	short ncalls;
@@ -1412,7 +1414,9 @@ event_signal_closure(struct event_base *base, struct event *ev)
 
 #if defined(__clang__)
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
+#endif
 #endif
 }
 
@@ -2591,6 +2595,7 @@ evthread_notify_base_default(struct event_base *base)
 static int
 evthread_notify_base_eventfd(struct event_base *base)
 {
+	#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 	int efd = base->th_notify_fd[0];
 	eventfd_t val;
 	int ret;
@@ -2614,6 +2619,15 @@ evthread_notify_base_eventfd(struct event_base *base)
 	}
 
 	return ret;
+	#else
+		ev_uint64_t msg = 1;
+		int r;
+		do {
+			r = write(base->th_notify_fd[0], (void*) &msg, sizeof(msg));
+		} while (r < 0 && errno == EAGAIN);
+
+		return (r < 0) ? -1 : 0;
+	#endif
 }
 #endif
 

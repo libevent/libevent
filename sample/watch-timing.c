@@ -44,8 +44,10 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wfloat-equal"
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
 #endif
 
 /** Compare two doubles for equality without the compiler warning. This is
@@ -59,7 +61,9 @@ eq(double a, double b)
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(__GNUC__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
 #pragma GCC diagnostic pop
+#endif
 #endif
 
 struct bin {
