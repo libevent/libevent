@@ -598,6 +598,7 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
         set(EVENT__HAVE_PTHREADS 1)
         # for CHECK_SYMBOLS_EXIST()
         list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+        list(APPEND LIB_APPS Threads::Threads)
 
         CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
         list(APPEND SYMBOLS_TO_CHECK pthread_mutexattr_setprotocol)
@@ -955,6 +956,7 @@ if (EVENT__DISABLE_OPENSSL STREQUAL "OFF" OR EVENT__DISABLE_OPENSSL STREQUAL "AU
 
         list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
         list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+        list(APPEND LIB_APPS ${OPENSSL_TARGETS})
     elseif (EVENT__DISABLE_OPENSSL STREQUAL "OFF")
         message(FATAL_ERROR "OpenSSL required, but not found.")
     endif()
@@ -990,6 +992,7 @@ if (EVENT__DISABLE_MBEDTLS STREQUAL "OFF" OR EVENT__DISABLE_MBEDTLS STREQUAL "AU
 
         list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
         list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+        list(APPEND LIB_APPS ${MBEDTLS_TARGETS})
     elseif (EVENT__DISABLE_MBEDTLS STREQUAL "OFF")
         message(FATAL_ERROR "MbedTLS required, but not found.")
     endif()
