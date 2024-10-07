@@ -33,6 +33,7 @@ extern "C" {
 
 #include "event2/event-config.h"
 #include "event2/watch.h"
+#include "event-atomic.h"
 #include "evconfig-private.h"
 
 #include <time.h>
@@ -190,7 +191,7 @@ struct event_changelist {
 #ifndef EVENT__DISABLE_DEBUG_MODE
 /* Global internal flag: set to one if debug mode is on. */
 extern int event_debug_mode_on_;
-#define EVENT_DEBUG_MODE_IS_ON() (event_debug_mode_on_)
+#define EVENT_DEBUG_MODE_IS_ON() ATOMIC_LOAD(event_debug_mode_on_)
 #else
 #define EVENT_DEBUG_MODE_IS_ON() (0)
 #endif
