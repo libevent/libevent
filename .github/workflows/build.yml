@@ -683,7 +683,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2", "14.0"]
+        release: ["13.4", "14.1"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -736,7 +736,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -778,7 +777,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2"]
+        release: ["13.4"]
 
     steps:
       - uses: actions/checkout@v4
@@ -893,7 +892,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -909,6 +907,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             export CTEST_PARALLEL_LEVEL=$JOBS
@@ -974,6 +973,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             cd build
@@ -1022,6 +1022,49 @@ jobs:
           echo [cmake]: cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT
           cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
           cmake --build build -t event_static
+
+  android-cmake-job:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci/android skip') && !contains(github.event.head_commit.message, 'ci/android/cmake skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04]
+        EVENT_MATRIX:
+          - arm-linux-androideabi
+          - aarch64-linux-android
+          - i686-linux-android
+          - x86_64-linux-android
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install latest NDK
+        run: |
+          latest_ndk=$(sdkmanager --list | grep -o "ndk;[0-9.]*" | sort -V | tail -1)
+          echo "Installing $latest_ndk"
+          sdkmanager "$latest_ndk"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(echo $latest_ndk | cut -d';' -f2)" >> $GITHUB_ENV
+
+      - name: Bash
+        shell: bash
+        run: |
+          NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
+          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE'"
+          echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
+          cmake -B build $EVENT_CMAKE_OPTIONS
+          cmake --build build --target event_static
+
 
   # ABI job without deploy
   abi-job:

@@ -1100,9 +1100,6 @@ if (EVENT__HAVE_OPENSSL)
         INNER_LIBRARIES event_core
         LIBRARIES ${OPENSSL_TARGETS}
         SOURCES ${SRC_OPENSSL})
-    set(LIBEVENT_OPENSSL_DEPENDENCY "find_dependency(OpenSSL)")
-else ()
-    set(LIBEVENT_OPENSSL_DEPENDENCY "")
 endif()
 
 if (EVENT__HAVE_MBEDTLS)
@@ -1110,17 +1107,20 @@ if (EVENT__HAVE_MBEDTLS)
         INNER_LIBRARIES event_core
         LIBRARIES ${MBEDTLS_TARGETS}
         SOURCES ${SRC_MBEDTLS})
-    set(LIBEVENT_MBEDTLS_DEPENDENCY "find_dependency(MbedTLS)")
-else ()
-    set(LIBEVENT_MBEDTLS_DEPENDENCY "")
 endif()
 
 if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads
-        INNER_LIBRARIES event_core
-        LIBRARIES Threads::Threads
-        SOURCES ${SRC_PTHREADS})
+    if(ANDROID)
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            SOURCES ${SRC_PTHREADS})
+    else()
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            LIBRARIES Threads::Threads
+            SOURCES ${SRC_PTHREADS})
+    endif()
 endif()
 
 # library exists for historical reasons; it contains the contents of
