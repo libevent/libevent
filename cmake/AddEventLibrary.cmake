@@ -105,9 +105,8 @@ macro(add_event_library LIB_NAME)
             set(INNER_LIBRARIES "${LIB_INNER_LIBRARIES}_static")
         endif()
         target_link_libraries("${LIB_NAME}_static"
-            ${LIB_PLATFORM}
-            ${INNER_LIBRARIES}
-            ${LIB_LIBRARIES})
+            PUBLIC ${LIB_PLATFORM} ${INNER_LIBRARIES}
+            PRIVATE ${LIB_LIBRARIES})
 
         export_install_target(static "${LIB_NAME}")
 
@@ -121,9 +120,8 @@ macro(add_event_library LIB_NAME)
             set(INNER_LIBRARIES "${LIB_INNER_LIBRARIES}_shared")
         endif()
         target_link_libraries("${LIB_NAME}_shared"
-            ${LIB_PLATFORM}
-            ${INNER_LIBRARIES}
-            ${LIB_LIBRARIES})
+            PUBLIC ${LIB_PLATFORM} ${INNER_LIBRARIES}
+            PRIVATE ${LIB_LIBRARIES})
 
         if (EVENT_SHARED_FLAGS)
             set_event_shared_lib_flags("${LIB_NAME}" "${EVENT_SHARED_FLAGS}")
