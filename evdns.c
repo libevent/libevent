@@ -4622,7 +4622,7 @@ load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 	void *buf = NULL;
 	int status = 0, r, added_any = 0;
 	GetAdaptersAddresses_fn_t fn;
-	IP_ADAPTER_DNS_SERVER_ADDRESS *dnserver = NULL;
+	IP_ADAPTER_DNS_SERVER_ADDRESS *dnsserver = NULL;
 
 	ASSERT_LOCKED(base);
 	if (!(handle = evutil_load_windows_system_library_(
@@ -4657,30 +4657,29 @@ load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 			goto done;
 		}
 	}
-	EVUTIL_ASSERT(addresses);
 
 	while (addresses) {
-		dnserver = addresses->FirstDnsServerAddress;
-		while (dnserver && (addresses->OperStatus == IfOperStatusUp)) {
+		dnsserver = addresses->FirstDnsServerAddress;
+		while (dnsserver && (addresses->OperStatus == IfOperStatusUp)) {
 			char ip[INET6_ADDRSTRLEN] = {0};
-			if (AF_INET == dnserver->Address.lpSockaddr->sa_family) {
-				inet_ntop(AF_INET, &((SOCKADDR_IN *)dnserver->Address.lpSockaddr)->sin_addr, ip, sizeof(ip));
-			} else if (AF_INET6 == dnserver->Address.lpSockaddr->sa_family) {
-				inet_ntop(AF_INET6, &((SOCKADDR_IN6 *)dnserver->Address.lpSockaddr)->sin6_addr, ip, sizeof(ip));
+			if (AF_INET == dnsserver->Address.lpSockaddr->sa_family) {
+				inet_ntop(AF_INET, &((SOCKADDR_IN *)dnsserver->Address.lpSockaddr)->sin_addr, ip, sizeof(ip));
+			} else if (AF_INET6 == dnsserver->Address.lpSockaddr->sa_family) {
+				inet_ntop(AF_INET6, &((SOCKADDR_IN6 *)dnsserver->Address.lpSockaddr)->sin6_addr, ip, sizeof(ip));
 			}
 
-			dnserver = dnserver->Next;
+			dnsserver = dnsserver->Next;
 			if (strncmp(ip, "fec0:", 5) == 0) { /* remove ipv6 reserved address */
 				continue;
 			}
 			
 			r = evdns_base_nameserver_ip_add(base, ip);
 			if (r) {
-				log(EVDNS_LOG_DEBUG,"Could not add nameserver %s to list,error: %d", (ip), r);
+				log(EVDNS_LOG_DEBUG, "Could not add nameserver %s to list, error: %d", ip, r);
 				status = r;
 			} else {
 				++added_any;
-				log(EVDNS_LOG_DEBUG,"Successfully added %s as nameserver", ip);
+				log(EVDNS_LOG_DEBUG, "Successfully added %s as nameserver", ip);
 			}
 		}
 		
