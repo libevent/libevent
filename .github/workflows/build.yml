@@ -66,12 +66,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
+
       - name: Cache Dist Build
         uses: actions/cache@v4
         with:
           path: dist
-          key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Install Depends
         run: |
@@ -267,7 +268,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Prepare vcpkg
         # Newer versions expect a vcpkg manifest, so stick to v7, that could handle vcpkgArguments
@@ -471,7 +472,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v4
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -559,7 +560,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Install Depends
         run: brew install mbedtls
@@ -702,7 +703,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
+          key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Build
         uses: vmactions/freebsd-vm@v1
@@ -858,7 +859,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
+          key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v1
 
       - name: Build
         uses: vmactions/openbsd-vm@v1
@@ -1007,7 +1008,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Xcode
         uses: maxim-lobanov/setup-xcode@v1
