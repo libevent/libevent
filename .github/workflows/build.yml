@@ -866,7 +866,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add  mbedtls cmake python3
+            pkg_add mbedtls cmake py3-pip
           usesh: true
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -953,7 +953,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add  mbedtls  python3 automake-1.16.5  autoconf-2.71  libtool pkgconf
+            pkg_add mbedtls py3-pip automake-1.16.5 autoconf-2.72p0 libtool pkgconf
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
