@@ -172,9 +172,10 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 	struct evbuffer *b = bufferevent_get_input(bev);
 	char *line;
 	int n;
-
+#ifdef SSL_renegotiate
 	enum regress_openssl_type type;
 	type = (enum regress_openssl_type)ctx;
+#endif
 
 	line = evbuffer_readln(b, NULL, EVBUFFER_EOL_LF);
 	if (! line)
