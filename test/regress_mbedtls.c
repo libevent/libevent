@@ -47,7 +47,9 @@
 #define get_ssl_ctx get_mbedtls_config
 
 /* FIXME: clean this up, add some prefix, i.e. le_ssl_ */
+#if MBEDTLS_VERSION_MAJOR < 3
 #define SSL_renegotiate mbedtls_ssl_renegotiate
+#endif
 #undef SSL_get_peer_certificate
 #define SSL_get_peer_certificate mbedtls_ssl_get_peer_cert
 #define SSL_get1_peer_certificate mbedtls_ssl_get_peer_cert
