@@ -1387,7 +1387,8 @@ event_signal_closure(struct event_base *base, struct event *ev)
 	short ncalls;
 	int should_break;
 
-	/* Allows deletes to work */
+	/* Allows deletes to work, see also event_del_nolock_() that has
+	 * special treatment for signals */
 	ncalls = ev->ev_ncalls;
 	if (ncalls != 0)
 		ev->ev_pncalls = &ncalls;
