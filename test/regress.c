@@ -2063,6 +2063,58 @@ end:
 	event_free(ev[4]);
 }
 
+/* del_timeout_notify */
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+static THREAD_FN
+event_base_dispatch_threadcb(void *arg)
+{
+	event_base_dispatch(arg);
+	THREAD_RETURN();
+}
+
+/* Regression test for the case when removing active event with EV_TIMEOUT does
+ * not notifies the base properly like it should */
+static void
+test_del_timeout_notify(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+	struct timeval start_tv, now_tv;
+	THREAD_T thread;
+
+	ev = event_new(base, -1, EV_PERSIST, null_cb, NULL);
+	{
+		struct timeval tv;
+		tv.tv_sec = 5;
+		tv.tv_usec = 0;
+		event_add(ev, &tv);
+	}
+
+	THREAD_START(thread, event_base_dispatch_threadcb, base);
+
+	/* FIXME: let's consider that 1 second is enough for the OS to spawn the
+	 * thread and enter event loop */
+	{
+		struct timeval delay = { 1, 0 };
+		evutil_usleep_(&delay);
+	}
+
+	evutil_gettimeofday(&start_tv, NULL);
+	event_del(ev);
+	THREAD_JOIN(thread);
+
+	evutil_gettimeofday(&now_tv, NULL);
+	/* Let's consider that 1 second is enough to notify the base thread */
+	tt_int_op(timeval_msec_diff(&start_tv, &now_tv), <, 1000);
+
+	event_base_assert_ok_(base);
+
+end:
+	event_free(ev);
+}
+#endif
+
 static void
 test_event_base_new(void *ptr)
 {
@@ -3664,6 +3716,7 @@ struct testcase_t main_testcases[] = {
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
+	BASIC(del_timeout_notify, TT_NEED_THREADS|TT_FORK|TT_NEED_BASE),
 #endif
 
 	END_OF_TESTCASES
