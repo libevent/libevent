@@ -891,15 +891,15 @@ bufferevent_replacefd(struct bufferevent *bev, evutil_socket_t fd)
 	BEV_LOCK(bev);
 	if (bev->be_ops->ctrl) {
 		err = bev->be_ops->ctrl(bev, BEV_CTRL_GET_FD, &d);
-		if (!err) {
+		if (!err && d.fd != fd) {
 			old_fd = d.fd;
 			if (old_fd != EVUTIL_INVALID_SOCKET) {
 				err = evutil_closesocket(old_fd);
 			}
-		}
-		if (!err) {
-			d.fd = fd;
-			err = bev->be_ops->ctrl(bev, BEV_CTRL_SET_FD, &d);
+			if (!err) {
+				d.fd = fd;
+				err = bev->be_ops->ctrl(bev, BEV_CTRL_SET_FD, &d);
+			}
 		}
 	}
 	if (err)
