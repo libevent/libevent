@@ -508,7 +508,7 @@ static void incoming_conn_cb(struct evconnlistener *listener, evutil_socket_t fd
 static int strtoint(const char *const str);
 
 #ifdef EVENT__DISABLE_THREAD_SUPPORT
-#define EVDNS_LOCK(base)  EVUTIL_NIL_STMT_
+#define EVDNS_LOCK(base)  EVUTIL_NIL_CONDITION_(base)
 #define EVDNS_UNLOCK(base) EVUTIL_NIL_STMT_
 #define ASSERT_LOCKED(base) EVUTIL_NIL_STMT_
 #else
@@ -5361,7 +5361,7 @@ static void
 evdns_ttl_expired(int result, short what, void *arg)
 {
 	struct evdns_cache *cache = arg;
-	struct evdns_base *base = cache->base; (void)(base);
+	struct evdns_base *base = cache->base;
 	log(EVDNS_LOG_DEBUG, "Expiring cache for %s", cache->name);
 	EVDNS_LOCK(base);
 	evdns_cache_free(cache);
