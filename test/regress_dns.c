@@ -2139,14 +2139,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_flags = AI_CANONNAME;
 	r = evdns_getaddrinfo(dns_base, "v4only.example.com", "8001",
 	    &hints, gai_cb, &b_out[1]);
-	if (!r) {
-		// check
-		tt_int_op(b_out[1].err, ==, 0);
-		tt_assert(b_out[1].ai);
-		tt_assert(!b_out[1].ai->ai_next);
-		test_ai_eq(b_out[1].ai, "18.52.86.120:8001", SOCK_STREAM, IPPROTO_TCP);
-		tt_assert(b_out[1].ai->ai_canonname == NULL);
-	}
+	tt_assert(r);
 
 	/* 2: v6only.example.com should have been cached */
 	hints.ai_family = PF_INET6;
