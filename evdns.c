@@ -4624,7 +4624,7 @@ load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 	GetAdaptersAddresses_fn_t fn;
 	IP_ADAPTER_DNS_SERVER_ADDRESS *dnsserver = NULL;
 
-	ASSERT_LOCKED(base);
+	EVDNS_LOCK(base);
 	if (!(handle = evutil_load_windows_system_library_(
 			TEXT("iphlpapi.dll")))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
@@ -4699,6 +4699,8 @@ load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 		mm_free(buf);
 	if (handle)
 		FreeLibrary(handle);
+	
+	EVDNS_UNLOCK(base);
 	return status;
 }
 
