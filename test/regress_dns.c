@@ -2215,6 +2215,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_flags |= EVUTIL_AI_ADDRCONFIG;
 	r = evdns_getaddrinfo(dns_base, "both.example.com",
 	    "8009", &hints, gai_cb, &b_out[9]);
+	tt_assert(!r);
 
 	/* 10: v4timeout.example.com shouldn't cache as it didn't succeed. */
 	hints.ai_family = PF_UNSPEC;
