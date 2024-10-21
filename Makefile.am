@@ -108,6 +108,7 @@ PLATFORM_DEPENDENT_SRC = \
 
 CMAKE_FILES = \
 	cmake/AddCompilerFlags.cmake \
+	cmake/AddLinkerFlags.cmake \
 	cmake/AddEventLibrary.cmake \
 	cmake/CheckConstExists.cmake \
 	cmake/CheckFileOffsetBits.c \
