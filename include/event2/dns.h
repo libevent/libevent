@@ -803,15 +803,14 @@ struct evdns_getaddrinfo_request;
 /** Make a non-blocking getaddrinfo request using the dns_base in 'dns_base'.
  *
  * If we can answer the request immediately (with an error or not!), then we
- * invoke cb immediately and return NULL.  Otherwise we return
- * an evdns_getaddrinfo_request and invoke cb later.
+ * invoke cb immediately and return NULL. This can happen e.g. if the
+ * requested address is in the hosts file, or cached, or invalid. Otherwise
+ * we return an evdns_getaddrinfo_request and invoke cb later.
  *
  * When the callback is invoked, we pass as its first argument the error code
  * that getaddrinfo would return (or 0 for no error).  As its second argument,
  * we pass the evutil_addrinfo structures we found (or NULL on error).  We
- * pass 'arg' as the third argument. If a request is cached with (CNAME when
- * required), but the cached entries are of a different address type (e.g.
- * PF_INET vs PF_INET6), the address info is wra
+ * pass 'arg' as the third argument.
  *
  * Limitations:
  *
@@ -822,6 +821,8 @@ struct evdns_getaddrinfo_request;
  *   PF_INET), we will set addrinfo to NULL (e.g. queried with PF_INET6)
  * - Cache isn't hit when AI_CANONNAME is set but cached server response
  *	 doesn't contain CNAME.
+ * - If we can answer immediately (e.g. using hosts file, there is an error
+ *   or when cache is hit), we invoke the call back and return NULL.
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_getaddrinfo_request *evdns_getaddrinfo(

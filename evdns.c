@@ -5386,7 +5386,7 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 	cache = mm_malloc(sizeof(struct evdns_cache));
 	cache->base = dns_base;
 	cache->name = strdup(nodename);
-	cache->ai = evutil_dupe_addrinfo_(res);
+	cache->ai = evutil_dup_addrinfo_(res);
 	SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
 	evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
 	timerclear(&tv);
@@ -5403,7 +5403,7 @@ evdns_cache_lookup(struct evdns_base *base,
 	int n_found = 0;
 	struct evdns_cache *cache;
 	struct evdns_cache find;
-	struct evutil_addrinfo *ai=NULL;
+	struct evutil_addrinfo *ai = NULL;
 	int want_cname = hints->ai_flags & EVUTIL_AI_CANONNAME;
 	int f = hints->ai_family;
 
@@ -5540,7 +5540,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* If we have an answer waiting, and we weren't
 			 * canceled, ignore this error. */
 			add_cname_to_reply(data, data->pending_result);
-			if (!data->evdns_base->disable_cache) {
+			if (data->evdns_base && !data->evdns_base->disable_cache) {
 				evdns_cache_write(data->evdns_base, data->nodename, data->pending_result, data->pending_result_ttl);
 			}
 			data->user_cb(0, data->pending_result, data->user_data);
@@ -5639,7 +5639,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 
 		/* Call the user callback. */
 		add_cname_to_reply(data, res);
-		if (!data->evdns_base->disable_cache) {
+		if (data->evdns_base && !data->evdns_base->disable_cache) {
 			evdns_cache_write(data->evdns_base, data->nodename, res, res_ttl);
 		}
 		data->user_cb(0, res, data->user_data);
@@ -5674,7 +5674,7 @@ evdns_getaddrinfo_fromhosts(struct evdns_base *base,
 {
 	int n_found = 0;
 	struct hosts_entry *e;
-	struct evutil_addrinfo *ai=NULL;
+	struct evutil_addrinfo *ai = NULL;
 	int f = hints->ai_family;
 
 	EVDNS_LOCK(base);

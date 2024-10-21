@@ -2140,12 +2140,12 @@ test_getaddrinfo_async(void *arg)
 	r = evdns_getaddrinfo(dns_base, "v4only.example.com", "8001",
 	    &hints, gai_cb, &b_out[1]);
 	if (!r) {
-			// check
-			tt_int_op(b_out[1].err, ==, 0);
-			tt_assert(b_out[1].ai);
-			tt_assert(! b_out[1].ai->ai_next);
-			test_ai_eq(b_out[1].ai, "18.52.86.120:8001", SOCK_STREAM, IPPROTO_TCP);
-			tt_assert(b_out[1].ai->ai_canonname == NULL);
+		// check
+		tt_int_op(b_out[1].err, ==, 0);
+		tt_assert(b_out[1].ai);
+		tt_assert(!b_out[1].ai->ai_next);
+		test_ai_eq(b_out[1].ai, "18.52.86.120:8001", SOCK_STREAM, IPPROTO_TCP);
+		tt_assert(b_out[1].ai->ai_canonname == NULL);
 	}
 
 	/* 2: v6only.example.com should have been cached */
@@ -2157,7 +2157,7 @@ test_getaddrinfo_async(void *arg)
 	// check
 	tt_int_op(b_out[2].err, ==, 0);
 	tt_assert(b_out[2].ai);
-	tt_assert(! b_out[2].ai->ai_next);
+	tt_assert(!b_out[2].ai->ai_next);
 	test_ai_eq(b_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
 
 	/* 2.5: v6only.example.com cache lookup with PF_INET should return NULL addressinfo. */
@@ -2170,7 +2170,7 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(!r);
 	// check
 	tt_int_op(b_out[2].err, ==, 0);
-	tt_assert(! b_out[2].ai);
+	tt_assert(!b_out[2].ai);
 
 	/* 3: v4assert.example.com should have been cached */
 	hints.ai_family = PF_INET;
@@ -2180,7 +2180,7 @@ test_getaddrinfo_async(void *arg)
 	// check
 	tt_int_op(b_out[3].err, ==, 0);
 	tt_assert(b_out[3].ai);
-	tt_assert(! b_out[3].ai->ai_next);
+	tt_assert(!b_out[3].ai->ai_next);
 	test_ai_eq(b_out[3].ai, "18.52.86.120:8003", SOCK_STREAM, IPPROTO_TCP);
 
 	/* 4: v6assert.example.com should have been cached. */
@@ -2191,7 +2191,7 @@ test_getaddrinfo_async(void *arg)
 	/* check */
 	tt_int_op(b_out[4].err, ==, 0);
 	tt_assert(b_out[4].ai);
-	tt_assert(! b_out[4].ai->ai_next);
+	tt_assert(!b_out[4].ai->ai_next);
 	test_ai_eq(b_out[4].ai, "[b0b::f00d]:8004", SOCK_STREAM, IPPROTO_TCP);
 
 	/* 5: NEXIST shouldn't be cached, as it is instant. */
@@ -2245,7 +2245,7 @@ test_getaddrinfo_async(void *arg)
 	//check
 	tt_int_op(b_out[12].err, ==, 0);
 	tt_assert(b_out[12].ai);
-	tt_assert(! b_out[12].ai->ai_next);
+	tt_assert(!b_out[12].ai->ai_next);
 	test_ai_eq(b_out[12].ai, "18.52.86.120:8000", SOCK_STREAM, IPPROTO_TCP);
 	tt_str_op(b_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
 
