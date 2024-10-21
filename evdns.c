@@ -4613,8 +4613,8 @@ typedef DWORD(WINAPI *GetAdaptersAddresses_fn_t)(ULONG, ULONG, PVOID, PIP_ADAPTE
 
 /* Use the windows GetAdaptersAddresses interface in iphlpapi.dll to */
 /* figure out what our nameservers are. */
-int
-load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
+static int
+load_nameservers_with_getadaptersaddresses_unlocked(struct evdns_base *base)
 {
 	PIP_ADAPTER_ADDRESSES addresses = NULL;
 	HMODULE handle = 0;
@@ -4624,7 +4624,7 @@ load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 	GetAdaptersAddresses_fn_t fn;
 	IP_ADAPTER_DNS_SERVER_ADDRESS *dnsserver = NULL;
 
-	EVDNS_LOCK(base);
+	ASSERT_LOCKED(base);
 	if (!(handle = evutil_load_windows_system_library_(
 			TEXT("iphlpapi.dll")))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
@@ -4699,9 +4699,17 @@ load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
 		mm_free(buf);
 	if (handle)
 		FreeLibrary(handle);
-	
-	EVDNS_UNLOCK(base);
 	return status;
+}
+
+int
+load_nameservers_with_getadaptersaddresses(struct evdns_base *base)
+{
+	int r;
+	EVDNS_LOCK(base);
+	r = load_nameservers_with_getadaptersaddresses_unlocked(base);
+	EVDNS_UNLOCK(base);
+	return r;
 }
 
 static int
@@ -4803,7 +4811,7 @@ evdns_base_config_windows_nameservers(struct evdns_base *base)
 	if (fname)
 		mm_free(fname);
 
-	if (load_nameservers_with_getadaptersaddresses(base) == 0) {
+	if (load_nameservers_with_getadaptersaddresses_unlocked(base) == 0) {
 		EVDNS_UNLOCK(base);
 		return 0;
 	}

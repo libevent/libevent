@@ -1208,6 +1208,7 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 	struct evdns_base *dns = NULL;
 	struct sockaddr_storage ss;
 	int i = 0, count = 0, ipv6_count = 0, size = 0;
+	int sockfd = 0;
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(dns);
@@ -1215,6 +1216,14 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 	tt_int_op(load_nameservers_with_getadaptersaddresses(dns), ==, 0);
 	count = evdns_base_count_nameservers(dns);
 	tt_int_op(count, >, 0);
+
+	sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (sockfd < 0) {
+		TT_BLATHER("Not support ipv6, skip ipv6 test.");
+		goto end;
+	}
+	evutil_closesocket(sockfd);
+
 	for (i = 0; i < count; ++i) {
 		size = evdns_base_get_nameserver_addr(dns, i, (struct sockaddr *)&ss, sizeof(ss));
 		tt_int_op(size, >, 0);
@@ -1223,6 +1232,9 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 		}
 	}
 	tt_int_op(ipv6_count, >, 0);
+	if (ipv6_count == 0) {
+		TT_BLATHER("DNS server without IPv6 address.");
+	}
 
 end:
 	if (dns)
