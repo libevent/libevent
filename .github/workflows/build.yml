@@ -957,7 +957,7 @@ jobs:
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
-            export AUTOCONF_VERSION=2.71
+            export AUTOCONF_VERSION=2.72
 
             ./autogen.sh
             mkdir -p build
