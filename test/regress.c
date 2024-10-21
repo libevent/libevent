@@ -1086,6 +1086,37 @@ test_simplesignal(void)
 	test_simplesignal_impl(1);
 }
 
+/* signal_free_in_callback */
+static void
+signal_cb_free_event(evutil_socket_t fd, short event, void *arg)
+{
+	struct event *ev = arg;
+	event_free(ev);
+	++test_ok;
+}
+static void
+test_signal_free_in_callback(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+
+	ev = evsignal_new(base, SIGUSR1, signal_cb_free_event, event_self_cbarg());
+	evsignal_add(ev, NULL);
+
+	kill(getpid(), SIGUSR1);
+	kill(getpid(), SIGUSR1);
+	test_ok = 0;
+
+	event_base_loop(base, 0);
+	tt_int_op(test_ok, ==, 1);
+	test_ok = 0;
+	return;
+
+end:
+	;
+}
+
 static void
 test_multiplesignal(void)
 {
@@ -3666,6 +3697,7 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(signal_restore, TT_ISOLATED),
 	LEGACY(signal_assert, TT_ISOLATED),
 	LEGACY(signal_while_processing, TT_ISOLATED),
+	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE|RETRY_ON_DARWIN),
 #endif
 	END_OF_TESTCASES
 };
