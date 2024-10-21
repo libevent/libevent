@@ -1679,10 +1679,16 @@ test_bufferevent_connect_hostname(void *arg)
 	tt_int_op(be_outcome[2].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[2].dnserr, ==, 0);
 	tt_int_op(be_outcome[3].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
+	/*
+	 * Some platforms check for localhost explicitly, and therefore may succeed without opening any files *
+	 * e.g. https://github.com/openbsd/src/blob/53e0023678f73561cc0c0c07e49830be23d94673/lib/libc/asr/getaddrinfo_async.c#L234
+	 */
 	if (!emfile) {
 		tt_int_op(be_outcome[3].dnserr, ==, 0);
+#if defined(__linux__)
 	} else {
 		tt_int_op(be_outcome[3].dnserr, !=, 0);
+#endif
 	}
 	if (expect_err) {
 		tt_int_op(be_outcome[4].what, ==, BEV_EVENT_ERROR);

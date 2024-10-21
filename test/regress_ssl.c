@@ -114,7 +114,9 @@ enum regress_openssl_type
 {
 	REGRESS_OPENSSL_SOCKETPAIR = 1,
 	REGRESS_OPENSSL_FILTER = 2,
+#ifdef SSL_renegotiate
 	REGRESS_OPENSSL_RENEGOTIATE = 4,
+#endif
 	REGRESS_OPENSSL_OPEN = 8,
 	REGRESS_OPENSSL_DIRTY_SHUTDOWN = 16,
 	REGRESS_OPENSSL_FD = 32,
@@ -170,9 +172,10 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 	struct evbuffer *b = bufferevent_get_input(bev);
 	char *line;
 	int n;
-
+#ifdef SSL_renegotiate
 	enum regress_openssl_type type;
 	type = (enum regress_openssl_type)ctx;
+#endif
 
 	line = evbuffer_readln(b, NULL, EVBUFFER_EOL_LF);
 	if (! line)
@@ -187,9 +190,11 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 		bufferevent_free(bev); /* Should trigger close on other side. */
 		return;
 	}
+#ifdef SSL_renegotiate
 	if ((type & REGRESS_OPENSSL_CLIENT) && n == renegotiate_at) {
 		SSL_renegotiate(bufferevent_ssl_get_ssl(bev));
 	}
+#endif
 	++n;
 	evbuffer_add_printf(bufferevent_get_output(bev),
 	    "%d\n", n);
@@ -332,6 +337,7 @@ regress_bufferevent_openssl(void *arg)
 	enum regress_openssl_type type;
 	type = (enum regress_openssl_type)data->setup_data;
 
+#ifdef SSL_renegotiate
 	if (type & REGRESS_OPENSSL_RENEGOTIATE) {
 		/*
 		 * Disable TLS 1.3, so we negotiate something older to test
@@ -347,6 +353,7 @@ regress_bufferevent_openssl(void *arg)
 		}
 		renegotiate_at = 600;
 	}
+#endif
 
 	ssl1 = SSL_new(get_ssl_ctx(SSL_IS_CLIENT));
 	ssl2 = SSL_new(get_ssl_ctx(SSL_IS_SERVER));
@@ -767,12 +774,14 @@ struct testcase_t TESTCASES_NAME[] = {
 	{ "bufferevent_filter_write_after_connect", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER|REGRESS_OPENSSL_CLIENT_WRITE) },
+#ifdef SSL_renegotiate
 	{ "bufferevent_renegotiate_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_RENEGOTIATE) },
 	{ "bufferevent_renegotiate_filter", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_RENEGOTIATE) },
+#endif
 	{ "bufferevent_socketpair_startopen", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_OPEN) },
@@ -786,6 +795,7 @@ struct testcase_t TESTCASES_NAME[] = {
 	{ "bufferevent_filter_dirty_shutdown", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+#ifdef SSL_renegotiate
 	{ "bufferevent_renegotiate_socketpair_dirty_shutdown",
 	  regress_bufferevent_openssl,
 	  TT_ISOLATED,
@@ -796,6 +806,7 @@ struct testcase_t TESTCASES_NAME[] = {
 	  TT_ISOLATED,
 	  &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_RENEGOTIATE | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+#endif
 	{ "bufferevent_socketpair_startopen_dirty_shutdown",
 	  regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
