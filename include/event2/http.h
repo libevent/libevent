@@ -235,6 +235,15 @@ evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound_soc
 EVENT2_EXPORT_SYMBOL
 void evhttp_free(struct evhttp* http);
 
+/**
+ * Set the maximum number of headers.
+ * A value of zero or less disables the limit.
+ *
+ * @param http a pointer to an evhttp object
+ * @param max_headers_number the maximum number of headers
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_max_headers_number(struct evhttp* http, ev_ssize_t max_headers_number);
 /** XXX Document. */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size);
@@ -884,6 +893,10 @@ struct evhttp_connection *evhttp_request_get_connection(struct evhttp_request *r
  */
 EVENT2_EXPORT_SYMBOL
 struct event_base *evhttp_connection_get_base(struct evhttp_connection *req);
+
+EVENT2_EXPORT_SYMBOL
+void evhttp_connection_set_max_headers_number(struct evhttp_connection *evcon,
+    ev_ssize_t new_max_headers_number);
 
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
