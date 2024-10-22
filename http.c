@@ -928,6 +928,9 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	int con_outgoing = evcon->flags & EVHTTP_CON_OUTGOING;
 	int free_evcon = 0;
 
+	/* notify the user of the request */
+	(*req->cb)(req, req->cb_arg);
+
 	if (con_outgoing) {
 		/* idle or close the connection */
 		int need_close = evhttp_is_request_connection_close(req);
@@ -969,9 +972,6 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 		 */
 		evcon->state = EVCON_WRITING;
 	}
-
-	/* notify the user of the request */
-	(*req->cb)(req, req->cb_arg);
 
 	/* if this was an outgoing request, we own and it's done. so free it. */
 	if (con_outgoing) {
