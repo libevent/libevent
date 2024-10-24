@@ -1387,7 +1387,8 @@ event_signal_closure(struct event_base *base, struct event *ev)
 	short ncalls;
 	int should_break;
 
-	/* Allows deletes to work */
+	/* Allows deletes to work, see also event_del_nolock_() that has
+	 * special treatment for signals */
 	ncalls = ev->ev_ncalls;
 	if (ncalls != 0)
 		ev->ev_pncalls = &ncalls;
@@ -2925,13 +2926,9 @@ event_del_nolock_(struct event *ev, int blocking)
 	}
 
 	if (ev->ev_flags & EVLIST_TIMEOUT) {
-		/* NOTE: We never need to notify the main thread because of a
-		 * deleted timeout event: all that could happen if we don't is
-		 * that the dispatch loop might wake up too early.  But the
-		 * point of notifying the main thread _is_ to wake up the
-		 * dispatch loop early anyway, so we wouldn't gain anything by
-		 * doing it.
-		 */
+		/* Notify the base if this was the minimal timeout */
+		if (min_heap_top_(&base->timeheap) == ev)
+			notify = 1;
 		event_queue_remove_timeout(base, ev);
 	}
 

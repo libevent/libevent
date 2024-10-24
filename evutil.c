@@ -502,7 +502,7 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 #elif (defined(__linux__) || \
       defined(_AIX73) || \
       (defined(__DragonFly__) && __DragonFly_version >= 300600) || \
-      (defined(__sun) && defined(SO_FLOW_NAME))) && \
+      (defined(EVENT__SOLARIS_11_4) && EVENT__SOLARIS_11_4)) && \
       defined(SO_REUSEPORT)
 	int enabled = 1;
 	/* SO_REUSEPORT on Linux 3.9+ means, "Multiple servers (processes or
@@ -519,10 +519,6 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 	 * Solaris 11 supported SO_REUSEPORT, but it's implemented only for
 	 * binding to the same address and port, without load balancing.
 	 * Solaris 11.4 extended SO_REUSEPORT with the capability of load balancing.
-	 *
-	 * Since it's impossible to detect the Solaris 11.4 version via OS macros,
-	 * so we check the presence of the socket option SO_FLOW_NAME that was first
-	 * introduced to Solaris 11.4.
 	 */
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (void*)&enabled,
 	    (ev_socklen_t)sizeof(enabled));
@@ -2629,6 +2625,25 @@ int evutil_ascii_strncasecmp(const char *s1, const char *s2, size_t n)
 	return 0;
 }
 
+const char* evutil_ascii_strcasestr(const char* s, const char *find)
+{
+	char c, sc;
+	size_t len;
+
+	if ((c = *find++) != 0) {
+		c = EVUTIL_TOLOWER_(c);
+		len = strlen(find);
+		do {
+			do {
+				if ((sc = *s++) == 0)
+					return (NULL);
+			} while ((char)EVUTIL_TOLOWER_(sc) != c);
+		} while (evutil_ascii_strncasecmp(s, find, len) != 0);
+		s--;
+	}
+	return s;
+}
+
 void
 evutil_rtrim_lws_(char *str)
 {
@@ -3135,6 +3150,15 @@ evutil_free_globals_(void)
 	evutil_free_sock_err_globals();
 }
 
+#if (defined(EVENT__SOLARIS_11_4) && !EVENT__SOLARIS_11_4) || \
+    (defined(__DragonFly__) && __DragonFly_version < 500702) || \
+    (defined(_WIN32) && !defined(TCP_KEEPIDLE))
+/* DragonFlyBSD <500702, Solaris <11.4, and Windows <10.0.16299
+ * require millisecond units for TCP keepalive options. */
+#define EVENT_KEEPALIVE_FACTOR(x) (x *= 1000)
+#else
+#define EVENT_KEEPALIVE_FACTOR(x)
+#endif
 int
 evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 {
@@ -3164,6 +3188,10 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	intvl = idle/3;
 	if (intvl == 0)
 		intvl = 1;
+
+	EVENT_KEEPALIVE_FACTOR(idle);
+	EVENT_KEEPALIVE_FACTOR(intvl);
+
 	/* The three options TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT are not available until
 	 * Windows 10 version 1709, but let's gamble here.
 	 */
@@ -3183,8 +3211,8 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 #elif defined(SIO_KEEPALIVE_VALS)
 	struct tcp_keepalive keepalive;
 	keepalive.onoff = on;
-	keepalive.keepalivetime = idle * 1000; /* the kernel expects milliseconds */
-	keepalive.keepaliveinterval = intvl * 1000; /* ditto */
+	keepalive.keepalivetime = idle;
+	keepalive.keepaliveinterval = intvl;
 	/* On Windows Vista and later, the number of keep-alive probes (data retransmissions)
 	 * is set to 10 and cannot be changed.
 	 * On Windows Server 2003, Windows XP, and Windows 2000, the default setting for
@@ -3228,6 +3256,8 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (idle > 10*24*60*60)
 		idle = 10*24*60*60;
 
+	EVENT_KEEPALIVE_FACTOR(idle);
+
 	/* `TCP_KEEPIDLE`, `TCP_KEEPINTVL`, and `TCP_KEEPCNT` were not available on Solaris
 	 * until version 11.4, but let's gamble here.
 	 */
@@ -3239,6 +3269,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	/* Kernel expects at least 10 seconds. */
 	if (intvl < 10)
 		intvl = 10;
+	EVENT_KEEPALIVE_FACTOR(intvl);
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
 		return -1;
 
@@ -3249,7 +3280,6 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	/* Fall back to the first implementation of tcp-alive mechanism for older Solaris,
 	 * simulate the tcp-alive mechanism on other platforms via `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
 	 */
-	idle *= 1000; /* kernel expects milliseconds */
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, &idle, sizeof(idle)))
 		return -1;
 
@@ -3263,13 +3293,13 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 
 #else /* !__sun */
 
-#ifdef TCP_KEEPIDLE
 	idle = timeout;
+	EVENT_KEEPALIVE_FACTOR(idle);
+#ifdef TCP_KEEPIDLE
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
 		return -1;
 #elif defined(TCP_KEEPALIVE)
 	/* Darwin/macOS uses TCP_KEEPALIVE in place of TCP_KEEPIDLE. */
-	idle = timeout;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle)))
 		return -1;
 #endif
@@ -3282,6 +3312,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	intvl = timeout/3;
 	if (intvl == 0)
 		intvl = 1;
+	EVENT_KEEPALIVE_FACTOR(intvl);
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
 		return -1;
 #endif
@@ -3300,4 +3331,15 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 #endif /* !_WIN32 */
 
 	return 0;
+}
+
+const char * evutil_strsignal(int sig)
+{
+#if !defined(EVENT__HAVE_STRSIGNAL)
+	static char buf[10];
+	evutil_snprintf(buf, 10, "%d", sig);
+	return buf;
+#else
+	return strsignal(sig);
+#endif
 }

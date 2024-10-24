@@ -520,6 +520,11 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 #endif
 
+/* Either a mapping for strsignal() or snprintf("%d", sig)
+ * NOTE: MT-Unsafe*/
+EVENT2_EXPORT_SYMBOL
+const char * evutil_strsignal(int sig);
+
 EVENT2_EXPORT_SYMBOL
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
@@ -563,6 +568,12 @@ int evutil_v4addr_is_local_(const struct in_addr *in);
  * link-local, multicast, or unspecified address. */
 EVENT2_EXPORT_SYMBOL
 int evutil_v6addr_is_local_(const struct in6_addr *in);
+
+/** As strcasestr, but always searching substring in locale-independent
+    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+ */
+EVENT2_EXPORT_SYMBOL
+const char* evutil_ascii_strcasestr(const char* s, const char *find);
 
 #ifdef __cplusplus
 }

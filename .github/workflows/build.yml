@@ -60,16 +60,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
+
       - name: Cache Dist Build
         uses: actions/cache@v4
         with:
           path: dist
-          key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Install Depends
         run: |
@@ -181,6 +184,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -257,14 +262,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Prepare vcpkg
+        # Newer versions expect a vcpkg manifest, so stick to v7, that could handle vcpkgArguments
         uses: lukka/run-vcpkg@v7
         id: runvcpkg
         with:
@@ -386,6 +393,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -457,11 +466,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v4
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -543,15 +554,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Install Depends
-        run: brew install mbedtls@2
+        run: brew install mbedtls
 
       - name: Build
         shell: bash
@@ -580,7 +592,7 @@ jobs:
           else
             EVENT_CMAKE_OPTIONS=""
           fi
-          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=`brew --prefix mbedtls@2`"
+          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=`brew --prefix mbedtls`"
 
           mkdir -p build
           cd build
@@ -625,7 +637,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -633,13 +646,13 @@ jobs:
           key: ${{ matrix.os }}-autotools-v3
 
       - name: Install Depends
-        run: brew install autoconf automake libtool pkg-config mbedtls@2
+        run: brew install autoconf automake libtool pkg-config mbedtls
 
       - name: Build
         shell: bash
         run: |
-          export CPPFLAGS="-I`brew --prefix mbedtls@2`/include"
-          export  LDFLAGS="-L`brew --prefix mbedtls@2`/lib"
+          export CPPFLAGS="-I`brew --prefix mbedtls`/include"
+          export  LDFLAGS="-L`brew --prefix mbedtls`/lib"
 
           ./autogen.sh
           mkdir -p build
@@ -671,7 +684,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2", "14.0"]
+        release: ["13.4", "14.1"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -684,12 +697,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
+          key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Build
         uses: vmactions/freebsd-vm@v1
@@ -723,7 +737,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -765,11 +778,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.2"]
+        release: ["13.4"]
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -839,19 +853,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
+          key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v1
 
       - name: Build
         uses: vmactions/openbsd-vm@v1
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add  mbedtls cmake python3
+            pkg_add mbedtls cmake py3-pip
           usesh: true
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -878,7 +893,6 @@ jobs:
             else
               EVENT_CMAKE_OPTIONS=""
             fi
-            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
             mkdir -p build
             cd build
@@ -894,6 +908,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             export CTEST_PARALLEL_LEVEL=$JOBS
@@ -912,7 +927,7 @@ jobs:
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
-          path: .
+          path: build
 
   openbsd-autotools-job:
     runs-on: ubuntu-latest
@@ -924,7 +939,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
@@ -937,11 +953,11 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add  mbedtls  python3 automake-1.16.5  autoconf-2.71  libtool pkgconf
+            pkg_add mbedtls py3-pip automake-1.16.5 autoconf-2.72p0 libtool pkgconf
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
-            export AUTOCONF_VERSION=2.71
+            export AUTOCONF_VERSION=2.72
 
             ./autogen.sh
             mkdir -p build
@@ -958,6 +974,7 @@ jobs:
           shell: bash
           command: |
             ssh openbsd sh <<EOF
+            ulimit -n 102400
             cd $GITHUB_WORKSPACE
             JOBS=1
             cd build
@@ -968,7 +985,7 @@ jobs:
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
-          path: .
+          path: build
 
   apple-cmake-job:
     runs-on: ${{ matrix.os }}
@@ -985,12 +1002,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Cache Build
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v4
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -1006,6 +1024,49 @@ jobs:
           cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
           cmake --build build -t event_static
 
+  android-cmake-job:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci/android skip') && !contains(github.event.head_commit.message, 'ci/android/cmake skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04]
+        EVENT_MATRIX:
+          - arm-linux-androideabi
+          - aarch64-linux-android
+          - i686-linux-android
+          - x86_64-linux-android
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install latest NDK
+        run: |
+          latest_ndk=$(sdkmanager --list | grep -o "ndk;[0-9.]*" | sort -V | tail -1)
+          echo "Installing $latest_ndk"
+          sdkmanager "$latest_ndk"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(echo $latest_ndk | cut -d';' -f2)" >> $GITHUB_ENV
+
+      - name: Bash
+        shell: bash
+        run: |
+          NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
+          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE'"
+          echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
+          cmake -B build $EVENT_CMAKE_OPTIONS
+          cmake --build build --target event_static
+
+
   # ABI job without deploy
   abi-job:
     runs-on: ubuntu-22.04
@@ -1013,6 +1074,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Install Dependencies
         run:
           sudo apt install

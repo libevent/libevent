@@ -609,6 +609,7 @@ dns_search_test_impl(void *arg, int lower)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	evdns_base_search_add(dns, "a.example.com");
@@ -722,6 +723,8 @@ dns_search_cancel_test(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	evdns_base_search_add(dns, "a.example.com");
@@ -799,6 +802,8 @@ dns_retry_test_impl(void *arg, int flags)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, flags);
+	tt_assert(dns);
+
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(! evdns_base_set_option(dns, "timeout", "0.2"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10"));
@@ -884,6 +889,8 @@ dns_probe_settings_test(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(!evdns_base_set_option(dns, "timeout", "0.2"));
 	tt_assert(!evdns_base_set_option(dns, "max-timeouts", "1"));
@@ -986,6 +993,8 @@ dns_reissue_test_impl(void *arg, int flags)
 	evutil_snprintf(buf2, sizeof(buf2), "127.0.0.1:%d", (int)portnum2);
 
 	dns = evdns_base_new(base, flags);
+	tt_assert(dns);
+
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf1));
 	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2"));
@@ -1065,6 +1074,8 @@ dns_inflight_test_impl(void *arg, int flags)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, flags);
+	tt_assert(dns);
+
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(! evdns_base_set_option(dns, "max-inflight:", "3"));
 	tt_assert(! evdns_base_set_option(dns, "randomize-case:", "0"));
@@ -1124,6 +1135,7 @@ dns_disable_when_inactive_no_ns_test(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(dns);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.1"));
 
@@ -1591,6 +1603,8 @@ test_bufferevent_connect_hostname(void *arg)
 
 	/* Start an evdns_base that uses the server as its resolver. */
 	dns = evdns_base_new(data->base, 0);
+	tt_assert(dns);
+
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)dns_port);
 	evdns_base_nameserver_ip_add(dns, buf);
 
@@ -1612,6 +1626,7 @@ test_bufferevent_connect_hostname(void *arg)
 	for (i = 0; i < ARRAY_SIZE(be); ++i) {
 		memset(&be_outcome[i], 0, sizeof(be_outcome[i]));
 		be[i] = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+		tt_assert(be[i]);
 		bufferevent_setcb(be[i], NULL, NULL, be_connect_hostname_event_cb,
 			&be_outcome[i]);
 	}
@@ -1664,10 +1679,16 @@ test_bufferevent_connect_hostname(void *arg)
 	tt_int_op(be_outcome[2].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[2].dnserr, ==, 0);
 	tt_int_op(be_outcome[3].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
+	/*
+	 * Some platforms check for localhost explicitly, and therefore may succeed without opening any files *
+	 * e.g. https://github.com/openbsd/src/blob/53e0023678f73561cc0c0c07e49830be23d94673/lib/libc/asr/getaddrinfo_async.c#L234
+	 */
 	if (!emfile) {
 		tt_int_op(be_outcome[3].dnserr, ==, 0);
+#if defined(__linux__)
 	} else {
 		tt_int_op(be_outcome[3].dnserr, !=, 0);
+#endif
 	}
 	if (expect_err) {
 		tt_int_op(be_outcome[4].what, ==, BEV_EVENT_ERROR);
@@ -2461,6 +2482,7 @@ dns_client_fail_requests_test(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(dns);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	if (limit_inflight)
@@ -2509,6 +2531,8 @@ dns_client_fail_requests_getaddrinfo_test(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(dns);
+
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	for (i = 0; i < 20; ++i)
@@ -2606,6 +2630,7 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	rp.dns = evdns_base_new(rp.base, 0);
+	tt_assert(rp.dns);
 	tt_assert(!evdns_base_nameserver_ip_add(rp.dns, buf));
 
 	n_replies_left = n_reqs;
@@ -2687,6 +2712,7 @@ test_tcp_resolve(void *arg)
 	exit_base = base;
 
 	tt_assert(base);
+	tt_assert(dns);
 
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
@@ -2776,6 +2802,7 @@ test_tcp_resolve_pipeline(void *arg)
 	exit_base = base;
 
 	tt_assert(base);
+	tt_assert(dns);
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
@@ -2820,6 +2847,7 @@ test_tcp_resolve_many_clients(void *arg)
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 	for (i = 0; i < 3; ++i) {
+		tt_assert(dns[i]);
 		tt_assert(!evdns_base_nameserver_ip_add(dns[i], buf));
 		req[i] = evdns_base_resolve_ipv4(
 				dns[i], "small.a.example.com", DNS_QUERY_USEVC, generic_dns_callback, &r[i]);
@@ -2856,6 +2884,7 @@ test_tcp_timeout(void *arg)
 	exit_base = base;
 
 	tt_assert(base);
+	tt_assert(dns);
 
 	tt_assert(!evdns_base_set_option(dns, "timeout:", "1"));
 	tt_assert(regress_dnsserver(base, &portnum, search_table, tcp_search_table));
@@ -2895,6 +2924,7 @@ test_edns(void *arg)
 	tt_assert(regress_dnsserver(base, &portnum, search_table, NULL));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	n_replies_left = 1;

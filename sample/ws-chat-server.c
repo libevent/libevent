@@ -3,6 +3,7 @@
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/ws.h>
+#include "../util-internal.h"
 
 #include <fcntl.h>
 #include <signal.h>
@@ -206,18 +207,10 @@ err:
 		close(fd);
 }
 
-#ifndef EVENT__HAVE_STRSIGNAL
-static inline const char *
-strsignal(evutil_socket_t sig)
-{
-	return "Signal";
-}
-#endif
-
 static void
 signal_cb(evutil_socket_t fd, short event, void *arg)
 {
-	printf("%s signal received\n", strsignal(fd));
+	printf("%s signal received. Terminating\n", evutil_strsignal(EV_SOCK_ARG(fd)));
 	event_base_loopbreak(arg);
 }
 
@@ -233,9 +226,17 @@ main(int argc, char **argv)
 	base = event_base_new();
 
 	sig_int = evsignal_new(base, SIGINT, signal_cb, base);
+	if (sig_int == NULL) {
+		perror("evsignal_new");
+		goto cleanup;
+	}
 	event_add(sig_int, NULL);
 
 	http_server = evhttp_new(base);
+	if (http_server == NULL) {
+		perror("evhttp_new");
+		goto cleanup;
+	}
 	evhttp_bind_socket_with_handle(http_server, "0.0.0.0", 8080);
 
 	evhttp_set_cb(http_server, "/", on_html, NULL);
@@ -252,4 +253,13 @@ main(int argc, char **argv)
 	libevent_global_shutdown();
 
 	return 0;
+
+cleanup:
+	if (sig_int) {
+		event_free(sig_int);
+	}
+	if (base) {
+		event_base_free(base);
+	}
+	return 1;
 }

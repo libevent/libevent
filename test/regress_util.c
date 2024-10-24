@@ -1731,7 +1731,7 @@ test_evutil_win_socketpair(void *arg)
 	struct basic_test_data *data = arg;
 	const int inet = strstr(data->setup_data, "inet") != NULL;
 	int family = inet ? AF_INET : AF_UNIX;
-	evutil_socket_t fd[2] = { -1, -1 };
+	evutil_socket_t fd[2] = { EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET };
 	int r;
 	int type;
 	ev_socklen_t typelen;
