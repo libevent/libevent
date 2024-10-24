@@ -1749,7 +1749,7 @@ test_getaddrinfo_async(void *arg)
 	struct basic_test_data *data = arg;
 	struct evutil_addrinfo hints, *a;
 	struct gai_outcome local_outcome;
-	struct gai_outcome a_out[13];
+	struct gai_outcome a_out[13], b_out[13];
 	unsigned i;
 	struct evdns_getaddrinfo_request *r;
 	char buf[128];
@@ -1759,6 +1759,7 @@ test_getaddrinfo_async(void *arg)
 	struct evdns_base *dns_base;
 
 	memset(a_out, 0, sizeof(a_out));
+	memset(b_out, 0, sizeof(b_out));
 	memset(&local_outcome, 0, sizeof(local_outcome));
 
 	dns_base = evdns_base_new(data->base, 0);
@@ -2026,7 +2027,7 @@ test_getaddrinfo_async(void *arg)
 
 	 */
 
-	n_gai_results_pending = 12;
+	n_gai_results_pending = 13;
 	exit_base_on_no_pending_results = data->base;
 
 	event_base_dispatch(data->base);
@@ -2120,6 +2121,130 @@ test_getaddrinfo_async(void *arg)
 	test_ai_eq(a_out[12].ai, "18.52.86.120:8000", SOCK_STREAM, IPPROTO_TCP);
 	tt_str_op(a_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
 
+	/* 3. Let's make sure the results are all cached */
+
+	n_gai_results_pending = 13;
+
+	/* 0: both.example.com should have been replaced (evicted) in cache with no canonname */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_CANONNAME;
+	r = evdns_getaddrinfo(dns_base, "both.example.com", "8000",
+	    &hints, gai_cb, &b_out[0]);
+	tt_assert(r);
+
+	/* 1: v4only.example.com should have been cached, but CNAME was not replied with and the client wants CNAME. */
+	// XXX ideally, cache should hit with no CNAME if AI_CANONNAME on the previous call didn't obtain it with this flag.
+	hints.ai_flags = AI_CANONNAME;
+	r = evdns_getaddrinfo(dns_base, "v4only.example.com", "8001",
+	    &hints, gai_cb, &b_out[1]);
+	tt_assert(r);
+
+	/* 2: v6only.example.com should have been cached */
+	hints.ai_family = PF_INET6;
+	hints.ai_flags = 0;
+	r = evdns_getaddrinfo(dns_base, "v6only.example.com", "8002",
+	    &hints, gai_cb, &b_out[2]);
+	tt_assert(!r);
+	// check
+	tt_int_op(b_out[2].err, ==, 0);
+	tt_assert(b_out[2].ai);
+	tt_assert(!b_out[2].ai->ai_next);
+	test_ai_eq(b_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 2.5: v6only.example.com cache lookup with PF_INET should return NULL addressinfo. */
+	hints.ai_family = PF_INET;
+	hints.ai_flags = 0;
+	evutil_freeaddrinfo(b_out[2].ai); // since this is reused
+	++n_gai_results_pending;
+	r = evdns_getaddrinfo(dns_base, "v6only.example.com", "8002",
+	    &hints, gai_cb, &b_out[2]);
+	tt_assert(!r);
+	// check
+	tt_int_op(b_out[2].err, ==, 0);
+	tt_assert(!b_out[2].ai);
+
+	/* 3: v4assert.example.com should have been cached */
+	hints.ai_family = PF_INET;
+	r = evdns_getaddrinfo(dns_base, "v4assert.example.com", "8003",
+	    &hints, gai_cb, &b_out[3]);
+	tt_assert(!r);
+	// check
+	tt_int_op(b_out[3].err, ==, 0);
+	tt_assert(b_out[3].ai);
+	tt_assert(!b_out[3].ai->ai_next);
+	test_ai_eq(b_out[3].ai, "18.52.86.120:8003", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 4: v6assert.example.com should have been cached. */
+	hints.ai_family = PF_INET6;
+	r = evdns_getaddrinfo(dns_base, "v6assert.example.com", "8004",
+	    &hints, gai_cb, &b_out[4]);
+	tt_assert(!r);
+	/* check */
+	tt_int_op(b_out[4].err, ==, 0);
+	tt_assert(b_out[4].ai);
+	tt_assert(!b_out[4].ai->ai_next);
+	test_ai_eq(b_out[4].ai, "[b0b::f00d]:8004", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 5: NEXIST shouldn't be cached, as it is instant. */
+	hints.ai_family = PF_INET;
+	r = evdns_getaddrinfo(dns_base, "nosuchplace.example.com", "8005",
+	    &hints, gai_cb, &b_out[5]);
+	tt_assert(r);
+
+	/* 6: NEXIST shouldn't be cached. */
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "nosuchplace.example.com", "8006",
+	    &hints, gai_cb, &b_out[6]);
+	tt_assert(r);
+
+	/* 7: v6timeout.example.com timed out and therefore shouldn't be in cache. */
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "v6timeout.example.com", "8007",
+	    &hints, gai_cb, &b_out[7]);
+	tt_assert(r);
+
+	/* 8: v6timeout-nonexist.example.com produced NEXIST and shouldn't be cached */
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "v6timeout-nonexist.example.com",
+	    "8008", &hints, gai_cb, &b_out[8]);
+	tt_assert(r);
+
+	/* 9: AI_ADDRCONFIG should at least not crash. */
+	hints.ai_flags |= EVUTIL_AI_ADDRCONFIG;
+	r = evdns_getaddrinfo(dns_base, "both.example.com",
+	    "8009", &hints, gai_cb, &b_out[9]);
+	tt_assert(!r);
+
+	/* 10: v4timeout.example.com shouldn't cache as it didn't succeed. */
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_flags = 0;
+	r = evdns_getaddrinfo(dns_base, "v4timeout.example.com", "8010",
+	    &hints, gai_cb, &b_out[10]);
+	tt_assert(r);
+
+	/* 11: timeout.example.com: shouldn't have cached as it was cancelled. */
+	r = evdns_getaddrinfo(dns_base, "all-timeout.example.com", "8011",
+	    &hints, gai_cb, &b_out[11]);
+	tt_assert(r);
+
+	/* 12: HOST_NAME_MAX_NAME should've cached and match the original value */
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_CANONNAME;
+	r = evdns_getaddrinfo(dns_base, "long.example.com", "8000",
+	    &hints, gai_cb, &b_out[12]);
+	tt_assert(!r);
+	//check
+	tt_int_op(b_out[12].err, ==, 0);
+	tt_assert(b_out[12].ai);
+	tt_assert(!b_out[12].ai->ai_next);
+	test_ai_eq(b_out[12].ai, "18.52.86.120:8000", SOCK_STREAM, IPPROTO_TCP);
+	tt_str_op(b_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
+
+	exit_base_on_no_pending_results = data->base;
+	event_base_dispatch(data->base);
 
 end:
 	if (local_outcome.ai)
@@ -2127,6 +2252,10 @@ end:
 	for (i = 0; i < ARRAY_SIZE(a_out); ++i) {
 		if (a_out[i].ai)
 			evutil_freeaddrinfo(a_out[i].ai);
+	}
+	for (i = 0; i < ARRAY_SIZE(b_out); ++i) {
+		if (b_out[i].ai)
+			evutil_freeaddrinfo(b_out[i].ai);
 	}
 	if (port)
 		evdns_close_server_port(port);

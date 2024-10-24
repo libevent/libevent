@@ -429,6 +429,8 @@ EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);
 EVENT2_EXPORT_SYMBOL
+struct evutil_addrinfo *evutil_dup_addrinfo_(struct evutil_addrinfo *ai);
+EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_addrinfo_append_(struct evutil_addrinfo *first,
     struct evutil_addrinfo *append);
 EVENT2_EXPORT_SYMBOL
