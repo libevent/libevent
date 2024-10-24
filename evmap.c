@@ -95,6 +95,17 @@ hashsocket(struct event_map_entry *e)
 	 * matter.  Our hashtable implementation really likes low-order bits,
 	 * though, so let's do the rotate-and-add trick. */
 	unsigned h = (unsigned) e->fd;
+	/* That current formula with rotate-and-add is code smell as it's strictly
+	 * only valid if the low 2 bits of the file descriptor are zero.
+	 * If that's guaranteed, then the formula should be simplified:
+	 * `EVUTIL_ASSERT(0 == h << 30); h += h >> 2;`
+	 * If that's not guaranteed, and if the low 2 bits aren't meaningful,
+	 * then the formula should erase those 2 bits:
+	 * `h = h >> 2; h += h << 2;`
+	 * Finally, if that's not guaranteed, and if the low 2 bits matter,
+	 * then the formula should not perform any addition, but only a rotation:
+	 * `h = (h >> 2) | (h << 30);`
+	*/
 	h += (h >> 2) | (h << 30);
 	return h;
 }
