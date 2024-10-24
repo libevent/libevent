@@ -98,7 +98,7 @@ hashsocket(struct event_map_entry *e)
 	/* That current formula with rotate-and-add is code smell as it's strictly
 	 * only valid if the low 2 bits of the file descriptor are zero.
 	 * If that's guaranteed, then the formula should be simplified:
-	 * `h += h >> 2;`
+	 * `EVUTIL_ASSERT(0 == h << 30); h += h >> 2;`
 	 * If that's not guaranteed, and if the low 2 bits aren't meaningful,
 	 * then the formula should erase those 2 bits:
 	 * `h = h >> 2; h += h << 2;`
