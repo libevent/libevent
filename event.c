@@ -1505,12 +1505,17 @@ common_timeout_callback(evutil_socket_t fd, short what, void *arg)
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	gettime(base, &now);
 	while (1) {
+		int was_active;
 		ev = TAILQ_FIRST(&ctl->events);
 		if (!ev || ev->ev_timeout.tv_sec > now.tv_sec ||
 		    (ev->ev_timeout.tv_sec == now.tv_sec &&
 			(ev->ev_timeout.tv_usec&MICROSECONDS_MASK) > now.tv_usec))
 			break;
-		event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
+		was_active = ev->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER);
+		if (!was_active)
+			event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
+		else
+			event_queue_remove_timeout(base, ev);
 		event_active_nolock_(ev, EV_TIMEOUT, 1);
 	}
 	if (ev)
@@ -3272,14 +3277,18 @@ timeout_process(struct event_base *base)
 	gettime(base, &now);
 
 	while ((ev = min_heap_top_(&base->timeheap))) {
+		int was_active = ev->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER);
+
 		if (evutil_timercmp(&ev->ev_timeout, &now, >))
 			break;
 
-		/* delete this event from the I/O queues */
-		event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
+		if (!was_active)
+			event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
+		else
+			event_queue_remove_timeout(base, ev);
 
-		event_debug(("timeout_process: event: %p, call %p",
-			 (void *)ev, (void *)ev->ev_callback));
+		event_debug(("timeout_process: event: %p, call %p (was active: %i)",
+			 (void *)ev, (void *)ev->ev_callback, was_active));
 		event_active_nolock_(ev, EV_TIMEOUT, 1);
 	}
 }
