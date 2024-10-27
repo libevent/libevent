@@ -1219,7 +1219,7 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 
 	sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
-		TT_BLATHER("Not support ipv6, skip ipv6 test.");
+		tt_skip();
 		goto end;
 	}
 	evutil_closesocket(sockfd);
