@@ -1220,7 +1220,6 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 	sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
 		tt_skip();
-		goto end;
 	}
 	evutil_closesocket(sockfd);
 
