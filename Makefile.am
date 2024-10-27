@@ -70,7 +70,7 @@ VERSION_INFO = 1:0:0
 #  2.1.8-stable--     2.1        6:2:0 (ABI changed slightly)
 #
 # For Libevent 2.2:
-#  2.2.0-alpha --     2.2        1:0:0
+#  2.2.1-alpha --     2.2        1:0:0
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.
@@ -101,8 +101,9 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
-	epoll_sub.c \
 	bufferevent_ssl.c \
+	epoll_sub.c \
+	PrivacyInfo.xcprivacy \
 	test/regress_ssl.c
 
 CMAKE_FILES = \
@@ -135,6 +136,8 @@ DOCUMENTATION_FILES = \
 EXTRA_DIST = \
 	ChangeLog-1.4 \
 	ChangeLog-2.0 \
+	ChangeLog-2.1 \
+	ChangeLog \
 	Doxyfile \
 	LICENSE \
 	autogen.sh \
@@ -229,6 +232,9 @@ endif
 if SIGNAL_SUPPORT
 SYS_SRC += signal.c
 endif
+if SIGNALFD_SUPPORT
+SYS_SRC += signalfd.c
+endif
 
 BUILT_SOURCES += include/event2/event-config.h
 
@@ -259,6 +265,8 @@ EXTRAS_SRC =					\
 	evdns.c					\
 	event_tagging.c				\
 	evrpc.c					\
+	sha1.c					\
+	ws.c					\
 	http.c
 
 if BUILD_WITH_NO_UNDEFINED
@@ -315,6 +323,7 @@ noinst_HEADERS +=				\
 	bufferevent-internal.h		\
 	changelist-internal.h		\
 	compat/sys/queue.h			\
+	compat/sys/tree.h			\
 	defer-internal.h			\
 	epolltable-internal.h		\
 	evbuffer-internal.h			\
@@ -338,6 +347,7 @@ noinst_HEADERS +=				\
 	util-internal.h				\
 	openssl-compat.h			\
 	mbedtls-compat.h			\
+	sha1.h						\
 	ssl-compat.h			    \
 	wepoll.h
 

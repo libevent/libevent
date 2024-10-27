@@ -49,6 +49,8 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "util-internal.h"
+
 #include "event2/util.h"
 #include "event2/event.h"
 #include "event2/event_compat.h"
@@ -280,26 +282,23 @@ test_bufferevent_zlib(void *arg)
 	char buffer[8333];
 	z_stream *z_input, *z_output;
 	int i, r;
-	evutil_socket_t pair[2] = {-1, -1};
+	evutil_socket_t pair[2] = {EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET};
 	(void)arg;
 
 	infilter_calls = outfilter_calls = readcb_finished = writecb_finished
 	    = errorcb_invoked = 0;
 
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1) {
 		tt_abort_perror("socketpair");
 	}
-
-	evutil_make_socket_nonblocking(pair[0]);
-	evutil_make_socket_nonblocking(pair[1]);
 
 	bev1 = bufferevent_socket_new(NULL, pair[0], 0);
 	bev2 = bufferevent_socket_new(NULL, pair[1], 0);
 
-	z_output = mm_calloc(sizeof(*z_output), 1);
+	z_output = mm_calloc(1, sizeof(*z_output));
 	r = deflateInit(z_output, Z_DEFAULT_COMPRESSION);
 	tt_int_op(r, ==, Z_OK);
-	z_input = mm_calloc(sizeof(*z_input), 1);
+	z_input = mm_calloc(1, sizeof(*z_input));
 	r = inflateInit(z_input);
 	tt_int_op(r, ==, Z_OK);
 
@@ -308,6 +307,8 @@ test_bufferevent_zlib(void *arg)
 	    BEV_OPT_CLOSE_ON_FREE, zlib_deflate_free, z_output);
 	bev2 = bufferevent_filter_new(bev2, zlib_input_filter,
 	    NULL, BEV_OPT_CLOSE_ON_FREE, zlib_inflate_free, z_input);
+	tt_ptr_op(bev1, !=, NULL);
+	tt_ptr_op(bev2, !=, NULL);
 	bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
 	bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
 

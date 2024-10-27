@@ -485,8 +485,8 @@ bufferevent_socket_set_conn_address_(struct bufferevent *bev, struct sockaddr *a
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 
 #ifdef EVENT__DISABLE_THREAD_SUPPORT
-#define BEV_LOCK(b) EVUTIL_NIL_STMT_
-#define BEV_UNLOCK(b) EVUTIL_NIL_STMT_
+#define BEV_LOCK(b) (void)(b)
+#define BEV_UNLOCK(b) (void)(b)
 #else
 /** Internal: Grab the lock (if any) on a bufferevent */
 #define BEV_LOCK(b) do {						\

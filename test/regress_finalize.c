@@ -130,6 +130,7 @@ test_fin_cb_invoked(void *arg)
 	/* Okay, now add but don't have it become active, and make sure *that*
 	 * works. */
 	ev = evtimer_new(base, timer_callback, &ev_called);
+	tt_assert(ev);
 	event_add(ev, &ten_sec);
 	event_free_finalize(0, ev, event_finalize_callback_1);
 
@@ -141,6 +142,7 @@ test_fin_cb_invoked(void *arg)
 
 	/* Now try adding and deleting after finalizing. */
 	ev = evtimer_new(base, timer_callback, &ev_called);
+	tt_assert(ev);
 	evtimer_assign(&ev2, base, timer_callback, &ev_called);
 	event_add(ev, &ten_sec);
 	event_free_finalize(0, ev, event_finalize_callback_1);

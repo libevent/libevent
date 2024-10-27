@@ -28,7 +28,7 @@
  * Mon 03/10/2003 - Modified by Davide Libenzi <davidel@xmailserver.org>
  *
  *     Added chain event propagation to improve the sensitivity of
- *     the measure respect to the event loop efficency.
+ *     the measure respect to the event loop efficiency.
  *
  *
  */

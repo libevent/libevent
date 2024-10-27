@@ -183,6 +183,9 @@ unsigned long bufferevent_get_openssl_error(struct bufferevent *bev);
 #endif
 #if defined(EVENT__HAVE_MBEDTLS) || defined(EVENT_IN_DOXYGEN_)
 struct mbedtls_ssl_context;
+struct mbedtls_ssl_config;
+typedef struct mbedtls_ssl_context mbedtls_dyncontext;
+
 /**
    Create a new SSL bufferevent to send its data over another bufferevent.
 
@@ -198,7 +201,7 @@ EVENT2_EXPORT_SYMBOL
 struct bufferevent *
 bufferevent_mbedtls_filter_new(struct event_base *base,
     struct bufferevent *underlying,
-    struct mbedtls_ssl_context *ssl,
+    mbedtls_dyncontext *ssl,
     enum bufferevent_ssl_state state,
     int options);
 
@@ -216,7 +219,7 @@ EVENT2_EXPORT_SYMBOL
 struct bufferevent *
 bufferevent_mbedtls_socket_new(struct event_base *base,
     evutil_socket_t fd,
-    struct mbedtls_ssl_context *ssl,
+    mbedtls_dyncontext *ssl,
     enum bufferevent_ssl_state state,
     int options);
 
@@ -249,9 +252,19 @@ bufferevent_mbedtls_get_ssl(struct bufferevent *bufev);
 EVENT2_EXPORT_SYMBOL
 int bufferevent_mbedtls_renegotiate(struct bufferevent *bev);
 
-/** Return the most recent OpenSSL error reported on an SSL bufferevent. */
+/** Return the most recent MbedTLS error reported on an SSL bufferevent. */
 EVENT2_EXPORT_SYMBOL
 unsigned long bufferevent_get_mbedtls_error(struct bufferevent *bev);
+
+/** Create a new heap-based MbedTLS context for use it in bufferevent_mbedtls_* functions */
+EVENT2_EXPORT_SYMBOL
+mbedtls_dyncontext *
+bufferevent_mbedtls_dyncontext_new(struct mbedtls_ssl_config *conf);
+
+/** Deallocate heap-based MbedTLS context */
+EVENT2_EXPORT_SYMBOL
+void
+bufferevent_mbedtls_dyncontext_free(mbedtls_dyncontext *ctx);
 
 #endif
 

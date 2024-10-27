@@ -74,12 +74,12 @@ evthread_set_id_callback(unsigned long (*id_fn)(void))
 	evthread_id_fn_ = id_fn;
 }
 
-struct evthread_lock_callbacks *evthread_get_lock_callbacks()
+struct evthread_lock_callbacks *evthread_get_lock_callbacks(void)
 {
 	return evthread_lock_debugging_enabled_
 	    ? &original_lock_fns_ : &evthread_lock_fns_;
 }
-struct evthread_condition_callbacks *evthread_get_condition_callbacks()
+struct evthread_condition_callbacks *evthread_get_condition_callbacks(void)
 {
 	return evthread_lock_debugging_enabled_
 	    ? &original_cond_fns_ : &evthread_cond_fns_;
@@ -105,7 +105,7 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	if (!cbs) {
 		if (target->alloc)
 			event_warnx("Trying to disable lock functions after "
-			    "they have been set up will probaby not work.");
+			    "they have been set up will probably not work.");
 		memset(target, 0, sizeof(evthread_lock_fns_));
 		return 0;
 	}
@@ -148,7 +148,7 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	if (!cbs) {
 		if (target->alloc_condition)
 			event_warnx("Trying to disable condition functions "
-			    "after they have been set up will probaby not "
+			    "after they have been set up will probably not "
 			    "work.");
 		memset(target, 0, sizeof(evthread_cond_fns_));
 		return 0;
@@ -402,8 +402,9 @@ evthread_setup_global_lock_(void *lock_, unsigned locktype, int enable_locks)
 	} else {
 		/* Case 4: Fill in a debug lock with a real lock */
 		struct debug_lock *lock = lock_ ? lock_ : debug_lock_alloc(locktype);
-		EVUTIL_ASSERT(enable_locks &&
-		              evthread_lock_debugging_enabled_);
+		if (!lock)
+			return NULL;
+		EVUTIL_ASSERT(enable_locks && evthread_lock_debugging_enabled_);
 		EVUTIL_ASSERT(lock->locktype == locktype);
 		if (!lock->lock) {
 			lock->lock = original_lock_fns_.alloc(

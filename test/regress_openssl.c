@@ -103,7 +103,7 @@ ssl_getcert(EVP_PKEY *key)
 	now += 3600;
 	X509_time_adj(X509_getm_notAfter(x509), 0, &now);
 	X509_set_pubkey(x509, key);
-	tt_assert(0 != X509_sign(x509, key, EVP_sha1()));
+	tt_assert(0 != X509_sign(x509, key, EVP_sha256()));
 
 	return x509;
 end:
@@ -122,6 +122,15 @@ get_ssl_ctx(void)
 	the_ssl_ctx = SSL_CTX_new(SSLv23_method());
 	if (!the_ssl_ctx)
 		return NULL;
+
+#ifdef SSL_OP_ALLOW_CLIENT_RENEGOTIATION
+	/*
+	 * OpenSSL 3 disables client renegotiation by default. Enable it if
+	 * the option is defined.
+	 */
+	SSL_CTX_set_options(the_ssl_ctx, SSL_OP_ALLOW_CLIENT_RENEGOTIATION);
+#endif
+
 	if (disable_tls_11_and_12) {
 #ifdef SSL_OP_NO_TLSv1_2
 		SSL_CTX_set_options(the_ssl_ctx, SSL_OP_NO_TLSv1_2);
@@ -130,15 +139,26 @@ get_ssl_ctx(void)
 		SSL_CTX_set_options(the_ssl_ctx, SSL_OP_NO_TLSv1_1);
 #endif
 	}
+	if (disable_tls_13) {
+#ifdef SSL_OP_NO_TLSv1_3
+		SSL_CTX_set_options(the_ssl_ctx, SSL_OP_NO_TLSv1_3);
+#endif
+	}
 	return the_ssl_ctx;
 }
 
 void
 init_ssl(void)
 {
+	static int initialized;
+	if (initialized)
+		return;
+	initialized = 1;
+
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) &&      \
 		LIBRESSL_VERSION_NUMBER < 0x20700000L)
+	/* NOTE: you should destroy every global objects to avoid leaks, see lsan.supp */
 	SSL_library_init();
 	ERR_load_crypto_strings();
 	SSL_load_error_strings();
@@ -163,7 +183,7 @@ ssl_test_setup(const struct testcase_t *testcase)
 	the_cert = ssl_getcert(the_key);
 	EVUTIL_ASSERT(the_cert);
 
-	disable_tls_11_and_12 = 0;
+	disable_tls_11_and_12 = disable_tls_13 = 0;
 
 	return basic_test_setup(testcase);
 }

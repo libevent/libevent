@@ -402,7 +402,7 @@ static void
 usage(struct testgroup_t *groups, int list_groups)
 {
 	puts("Options are:");
-	puts("  --verbose");
+	puts("  -v, --verbose");
 	puts("  --quiet");
 	puts("  --terse");
 	puts("  --no-fork");
@@ -496,7 +496,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 			} else if (!strcmp(v[i], "--quiet")) {
 				opt_verbosity = -1;
 				verbosity_flag = "--quiet";
-			} else if (!strcmp(v[i], "--verbose")) {
+			} else if (!strcmp(v[i], "-v") || !strcmp(v[i], "--verbose")) {
 				opt_verbosity = 2;
 				verbosity_flag = "--verbose";
 			} else if (!strcmp(v[i], "--terse")) {
@@ -550,7 +550,8 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 		struct testgroup_t *group = &groups[i];
 		for (j = 0; group->cases[j].name; ++j) {
 			struct testcase_t *testcase = &group->cases[j];
-			int attempts = (testcase->flags & TT_RETRIABLE) ? opt_retries : 0;
+			int retriable = testcase->flags & TT_RETRIABLE;
+			int attempts = retriable ? opt_retries : 0;
 			int test_ret_err;
 
 			if (!(testcase->flags & TT_ENABLED_))
@@ -563,7 +564,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					break;
 				if (!attempts--)
 					break;
-				printf("\n  [RETRYING %s (attempts left %i, delay %i sec)]\n", testcase->name, attempts, opt_retries_delay);
+				printf("\n  [RETRYING %s%s (attempts left %i, delay %i sec)]\n", group->prefix, testcase->name, attempts, opt_retries_delay);
 #ifdef _WIN32
 				Sleep(opt_retries_delay * 1000);
 #else
@@ -574,7 +575,11 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 			switch (test_ret_err) {
 				case OK:   ++n_ok;      break;
 				case SKIP: ++n_skipped; break;
-				default:   ++n_bad;     break;
+				default:
+					printf("\n  [FAILED %s%s (%i retries)]\n",
+						group->prefix, testcase->name, retriable ? opt_retries : 0);
+					++n_bad;
+					break;
 			}
 		}
 	}

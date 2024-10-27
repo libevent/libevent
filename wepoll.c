@@ -31,7 +31,14 @@
 
 #define WEPOLL_EXPORT
 
+#ifndef _WIN32_WINNT
+/* Minimum required for SetFileCompletionNotificationModes() */
+#define _WIN32_WINNT 0x0600
+#endif
+#define WIN32_LEAN_AND_MEAN
+
 #include <stdint.h>
+#include "event-internal.h"
 
 enum EPOLL_EVENTS {
   EPOLLIN      = (int) (1U <<  0),
@@ -112,20 +119,10 @@ WEPOLL_EXPORT int epoll_wait(HANDLE ephnd,
 #define WEPOLL_INTERNAL static
 #define WEPOLL_INTERNAL_VAR static
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreserved-id-macro"
 #endif
-
-#ifdef _WIN32_WINNT
-#undef _WIN32_WINNT
-#endif
-
-#define _WIN32_WINNT 0x0600
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -479,7 +476,7 @@ WEPOLL_INTERNAL ts_tree_node_t* port_state_to_handle_tree_node(
  * "destroy" returns, the calling thread may assume that no other threads have
  * a reference to the lock.
  *
- * Attemmpting to lock or destroy a lock after reflock_unref_and_destroy() has
+ * Attempting to lock or destroy a lock after reflock_unref_and_destroy() has
  * been called is invalid and results in undefined behavior. Therefore the user
  * should use another lock to guarantee that this can't happen.
  */
@@ -961,7 +958,7 @@ static poll_group_t* poll_group__new(port_state_t* port_state) {
   HANDLE iocp_handle = port_get_iocp_handle(port_state);
   queue_t* poll_group_queue = port_get_poll_group_queue(port_state);
 
-  poll_group_t* poll_group = malloc(sizeof *poll_group);
+  poll_group_t* poll_group = mm_malloc(sizeof *poll_group);
   if (poll_group == NULL)
     return_set_error(NULL, ERROR_NOT_ENOUGH_MEMORY);
 
@@ -972,7 +969,7 @@ static poll_group_t* poll_group__new(port_state_t* port_state) {
 
   if (afd_create_helper_handle(iocp_handle, &poll_group->afd_helper_handle) <
       0) {
-    free(poll_group);
+    mm_free(poll_group);
     return NULL;
   }
 
@@ -985,7 +982,7 @@ void poll_group_delete(poll_group_t* poll_group) {
   assert(poll_group->group_size == 0);
   CloseHandle(poll_group->afd_helper_handle);
   queue_remove(&poll_group->queue_node);
-  free(poll_group);
+  mm_free(poll_group);
 }
 
 poll_group_t* poll_group_from_queue_node(queue_node_t* queue_node) {
@@ -1067,7 +1064,7 @@ typedef struct port_state {
 } port_state_t;
 
 static port_state_t* port__alloc(void) {
-  port_state_t* port_state = malloc(sizeof *port_state);
+  port_state_t* port_state = mm_malloc(sizeof *port_state);
   if (port_state == NULL)
     return_set_error(NULL, ERROR_NOT_ENOUGH_MEMORY);
 
@@ -1076,7 +1073,7 @@ static port_state_t* port__alloc(void) {
 
 static void port__free(port_state_t* port) {
   assert(port != NULL);
-  free(port);
+  mm_free(port);
 }
 
 static HANDLE port__create_iocp(void) {
@@ -1262,7 +1259,7 @@ int port_wait(port_state_t* port_state,
   if ((size_t) maxevents <= array_count(stack_iocp_events)) {
     iocp_events = stack_iocp_events;
   } else if ((iocp_events =
-                  malloc((size_t) maxevents * sizeof *iocp_events)) == NULL) {
+                  mm_malloc((size_t) maxevents * sizeof *iocp_events)) == NULL) {
     iocp_events = stack_iocp_events;
     maxevents = array_count(stack_iocp_events);
   }
@@ -1311,7 +1308,7 @@ int port_wait(port_state_t* port_state,
   LeaveCriticalSection(&port_state->lock);
 
   if (iocp_events != stack_iocp_events)
-    free(iocp_events);
+    mm_free(iocp_events);
 
   if (result >= 0)
     return result;
@@ -1614,14 +1611,14 @@ typedef struct sock_state {
 } sock_state_t;
 
 static inline sock_state_t* sock__alloc(void) {
-  sock_state_t* sock_state = malloc(sizeof *sock_state);
+  sock_state_t* sock_state = mm_malloc(sizeof *sock_state);
   if (sock_state == NULL)
     return_set_error(NULL, ERROR_NOT_ENOUGH_MEMORY);
   return sock_state;
 }
 
 static inline void sock__free(sock_state_t* sock_state) {
-  free(sock_state);
+  mm_free(sock_state);
 }
 
 static int sock__cancel_poll(sock_state_t* sock_state) {
@@ -1880,7 +1877,7 @@ int sock_feed_event(port_state_t* port_state,
   if (epoll_events == 0)
     return 0;
 
-  /* If the the socket has the EPOLLONESHOT flag set, unmonitor all events,
+  /* If the socket has the EPOLLONESHOT flag set, unmonitor all events,
    * even EPOLLERR and EPOLLHUP. But always keep looking for closed sockets. */
   if (sock_state->user_events & EPOLLONESHOT)
     sock_state->user_events = 0;

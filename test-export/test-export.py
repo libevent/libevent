@@ -26,10 +26,7 @@ else:
 
 
 def exec_cmd(cmd, silent):
-    if silent:
-        p = subprocess.Popen(cmd, stdout=FNULL, stderr=FNULL, shell=True)
-    else:
-        p = subprocess.Popen(cmd, shell=True)
+    p = subprocess.Popen(cmd, shell=True)
     p.communicate()
     return p.poll()
 
@@ -47,17 +44,31 @@ def link_and_run(link, code):
     Returns:
         Returns 0 if links and runs successfully, otherwise 1.
     """
-    exec_cmd("cmake --build . --target clean", True)
+    exec_cmd("cmake --build . -v --target clean", True)
     arch = ''
+    vcpkg = ''
+    openssldir = ''
+    mbedtlsdir = ''
     if platform.system() == "Windows":
         arch = '-A x64'
-    cmd = 'cmake .. %s -DEVENT__LINK_COMPONENT=%s -DEVENT__CODE_COMPONENT=%s' % (
-        arch, link, code)
+        vcpkg_root = os.environ.get('VCPKG_ROOT')
+        if vcpkg_root is not None:
+            vcpkg = f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_root}/scripts/buildsystems/vcpkg.cmake"
+    elif platform.system() == "Darwin":
+        openssldir = '-DOPENSSL_ROOT_DIR=/opt/homebrew/opt/openssl'
+        mbedtlsdir = '-DMBEDTLS_ROOT_DIR=/opt/homebrew/opt/mbedtls@2'
+    cmd = f"cmake .." \
+          f" {arch}" \
+          f" {vcpkg}" \
+          f" -DEVENT__LINK_COMPONENT={link}" \
+          f" -DEVENT__CODE_COMPONENT={code}" \
+          f" {openssldir}" \
+          f" {mbedtlsdir}"
     if link_type == "static":
         cmd = "".join([cmd, " -DLIBEVENT_STATIC_LINK=1"])
     r = exec_cmd(cmd, True)
     if r == 0:
-        r = exec_cmd('cmake --build .', True)
+        r = exec_cmd('cmake --build . -v', True)
         if r == 0:
             r = exec_cmd('ctest', True)
     if r != 0:
@@ -112,18 +123,6 @@ def test_group():
         testcase("mbedtls", "pthreads", 1)
 
 
-def config_restore():
-    if os.path.isfile("tempconfig") and not os.path.isfile("LibeventConfig.cmake"):
-        os.rename("tempconfig", "LibeventConfig.cmake")
-
-
-def config_backup():
-    if os.path.isfile("tempconfig"):
-        os.remove("tempconfig")
-    if os.path.isfile("LibeventConfig.cmake"):
-        os.rename("LibeventConfig.cmake", "tempconfig")
-
-
 shutil.rmtree(os.path.join(script_dir, "build"), ignore_errors=True)
 
 
@@ -161,7 +160,6 @@ print("[test-export] use %s library" % link_type)
 # Test for build tree.
 print("[test-export] test for build tree")
 dllpath = os.path.join(working_dir, "bin", "Debug")
-config_restore()
 os.environ["CMAKE_PREFIX_PATH"] = working_dir
 export_dll(dllpath)
 run_test_group()
@@ -176,9 +174,8 @@ if platform.system() == "Windows":
     dllpath = os.path.join(prefix, "lib")
 else:
     prefix = "/usr/local"
-exec_cmd('cmake -DCMAKE_INSTALL_PREFIX="%s" ..' % prefix, True)
-exec_cmd('cmake --build . --target install', True)
-config_backup()
+exec_cmd('cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % prefix, True)
+exec_cmd('cmake --build . -v --target install', True)
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(prefix, "lib/cmake/libevent")
 export_dll(dllpath)
 run_test_group()
@@ -189,18 +186,16 @@ del os.environ["CMAKE_PREFIX_PATH"]
 # into a temporary directory. Same as above, remove LibeventConfig.cmake from
 # build directory to avoid confusion when using find_package().
 print("[test-export] test for install tree(in non-system-wide path)")
-exec_cmd("cmake --build . --target uninstall", True)
+exec_cmd("cmake --build . -v --target uninstall", True)
 tempdir = tempfile.TemporaryDirectory()
-cmd = 'cmake -DCMAKE_INSTALL_PREFIX="%s" ..' % tempdir.name
+cmd = 'cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % tempdir.name
 exec_cmd(cmd, True)
-exec_cmd("cmake --build . --target install", True)
-config_backup()
+exec_cmd("cmake --build . -v --target install", True)
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(tempdir.name, "lib/cmake/libevent")
 dllpath = os.path.join(tempdir.name, "lib")
 export_dll(dllpath)
 run_test_group()
 unexport_dll(dllpath)
 del os.environ["CMAKE_PREFIX_PATH"]
-config_restore()
 
 print("[test-export] all testcases have run successfully")

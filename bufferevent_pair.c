@@ -56,8 +56,6 @@ static inline struct bufferevent_pair *
 upcast(struct bufferevent *bev)
 {
 	struct bufferevent_pair *bev_p;
-	if (!BEV_IS_PAIR(bev))
-		return NULL;
 	bev_p = EVUTIL_UPCAST(bev, struct bufferevent_pair, bev.bev);
 	EVUTIL_ASSERT(BEV_IS_PAIR(&bev_p->bev.bev));
 	return bev_p;
@@ -289,7 +287,7 @@ be_pair_destruct(struct bufferevent *bev)
 	 * bufferevent_free(bev1) # refcnt == 0 -> unlink
 	 * bufferevent_free(bev2) # refcnt == 0 -> unlink
 	 *
-	 * event_base_free() -> finilizers -> EVTHREAD_FREE_LOCK(bev1->lock)
+	 * event_base_free() -> finalizers -> EVTHREAD_FREE_LOCK(bev1->lock)
 	 *                                 -> BEV_LOCK(bev2->lock) <-- already freed
 	 *
 	 * Where bev1 == pair[0], bev2 == pair[1].
@@ -341,10 +339,9 @@ bufferevent_pair_get_partner(struct bufferevent *bev)
 {
 	struct bufferevent_pair *bev_p;
 	struct bufferevent *partner = NULL;
-	bev_p = upcast(bev);
-	if (! bev_p)
+	if (!BEV_IS_PAIR(bev))
 		return NULL;
-
+	bev_p = upcast(bev);
 	incref_and_lock(bev);
 	if (bev_p->partner)
 		partner = downcast(bev_p->partner);

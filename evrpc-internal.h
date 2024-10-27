@@ -39,7 +39,7 @@ struct evrpc_hook {
 	TAILQ_ENTRY(evrpc_hook) next;
 
 	/* returns EVRPC_TERMINATE; if the rpc should be aborted.
-	 * a hook is is allowed to rewrite the evbuffer
+	 * a hook is allowed to rewrite the evbuffer
 	 */
 	int (*process)(void *, struct evhttp_request *,
 	    struct evbuffer *, void *);
@@ -118,7 +118,7 @@ struct evrpc_hook_meta {
 };
 
 /* allows association of meta data with a request */
-static void evrpc_hook_associate_meta_(struct evrpc_hook_meta **pctx,
+static int evrpc_hook_associate_meta_(struct evrpc_hook_meta **pctx,
     struct evhttp_connection *evcon);
 
 /* creates a new meta data store */

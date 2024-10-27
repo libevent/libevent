@@ -1,0 +1,181 @@
+---
+name: upstream
+
+on:
+  push:
+    branches:
+      - master
+
+permissions: read-all
+
+jobs:
+  coverage-job:
+    permissions:
+      checks: write  # for coverallsapp/github-action to create new checks
+      contents: read  # for actions/checkout to fetch code
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          persist-credentials: false
+      - name: Cache
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        with:
+          path: build
+          key: ${{ matrix.os }}-coverage-v2
+
+      - name: Install Depends
+        run: sudo apt install zlib1g-dev libssl-dev build-essential lcov libmbedtls-dev
+
+      - name: Build
+        shell: bash
+        run: |
+            export JOBS=20
+            mkdir -p build
+            cd build
+            cmake .. -DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -DEVENT__DISABLE_OPENSSL=OFF
+            make -j $JOBS
+
+      - name: Test
+        shell: bash
+        run: |
+            export CTEST_PARALLEL_LEVEL=$JOBS
+            export CTEST_OUTPUT_ON_FAILURE=1
+            cd build
+            make verify_coverage
+
+      - name: Coveralls GitHub Action
+        uses: coverallsapp/github-action@643bc377ffa44ace6394b2b5d0d3950076de9f63 # v2.3.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./build/coverage.info.cleaned
+
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: failure()
+        with:
+          name: coverage-build
+          path: build
+  abi-job:
+    permissions:
+      contents: write # for Git to git push
+    # ABI check is broken [1].
+    #   [1]: https://github.com/libevent/libevent/issues/1463
+    if: "false"
+    runs-on: ubuntu-22.04
+    ## TODO: use docker image, but for now this is not possible without hacks
+    ## due to even public registry require some authentication:
+    ## - https://github.com/orgs/community/discussions/25689
+    #container: docker.pkg.github.com/azat/docker-images/lvc-debian
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          persist-credentials: false
+      - name: Install Dependencies
+        run:
+          sudo apt install
+            abi-tracker
+            abi-monitor
+            abi-dumper
+            abi-compliance-checker
+            pkgdiff
+            vtable-dumper
+
+      # FIXME: clone git repo or report to debian
+      - name: Patch abi-compliance-checker to avoid endless loop
+        run: sudo patch /usr/bin/abi-compliance-checker < extra/abi-check/debian.patch
+
+      - name: Generate
+        shell: bash
+        run: |
+          ./extra/abi-check/abi_check.sh
+        env:
+          ABI_CHECK_ROOT: /tmp/le-abi-root
+
+      - name: Deploy
+        env:
+          LIBEVENT_DEPLOY_ABI_PRI: ${{ secrets.LIBEVENT_DEPLOY_ABI_PRI }}
+          OWNER_NAME: ${{ github.event.repository.owner.name }}
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          [[ -n $LIBEVENT_DEPLOY_ABI_PRI ]] || exit 0
+
+          mkdir -p ~/.ssh
+          echo "$LIBEVENT_DEPLOY_ABI_PRI" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+          short_commit_id="${COMMIT_ID:0:7}"
+
+          cd /tmp/le-abi-root/work/abi-check
+          git init
+          git config --local user.name "Libevent Github Robot"
+          git config --local user.email "robot@libevent.org"
+          git add -f .
+          git commit -m "Update ABI/API backward compatibility report (libevent/libevent@$short_commit_id)"
+          git push -f git@github.com:"$OWNER_NAME"/abi master
+
+      # XXX: requires container-id for docker
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: failure()
+        with:
+          name: build
+          path: /tmp/le-abi-root
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: build
+          path: /tmp/le-abi-root/work/abi-check
+
+  doxygen-job:
+    permissions:
+      contents: write  # for Git to git push
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          persist-credentials: false
+      - name: Install Depends
+        run: |
+          sudo apt install doxygen libmbedtls-dev
+
+      - name: Generate Doxygen
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake -DEVENT__DOXYGEN=ON -DEVENT__DISABLE_OPENSSL=OFF ..
+          make doxygen
+
+      - name: Deploy Documentation
+        env:
+          LIBEVENT_DEPLOY_PRI: ${{ secrets.LIBEVENT_DEPLOY_PRI }}
+          OWNER_NAME: ${{ github.event.repository.owner.name }}
+          COMMIT_ID: ${{ github.sha }}
+        run: |
+          [[ -n $LIBEVENT_DEPLOY_PRI ]] || exit 0
+
+          mkdir -p ~/.ssh
+          echo "$LIBEVENT_DEPLOY_PRI" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+          short_commit_id="${COMMIT_ID:0:7}"
+
+          cd ./build/doxygen/html
+          git init
+          git config --local user.name "Libevent Github Robot"
+          git config --local user.email "robot@libevent.org"
+          git add -f .
+          git commit -m "Update documentation (libevent/libevent@$short_commit_id)"
+          git push -f git@github.com:"$OWNER_NAME"/doc master
+
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: failure()
+        with:
+          name: doxygen-build
+          path: build

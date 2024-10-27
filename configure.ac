@@ -6,7 +6,7 @@ dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
 AC_PREREQ([2.67])
-AC_INIT(libevent,2.2.0-alpha-dev)
+AC_INIT(libevent,2.2.1-alpha-dev)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -20,7 +20,8 @@ dnl make compilation quiet unless V=1 is used
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02020001, [Numeric representation of the version])
+dnl The last number is development version or not.
+AC_DEFINE(NUMERIC_VERSION, 0x02020100, [Numeric representation of the version])
 
 dnl Try and get a full POSIX environment on obscure systems
 AC_USE_SYSTEM_EXTENSIONS
@@ -41,8 +42,8 @@ AC_ARG_ENABLE([gcc-warnings],
 
 AC_ARG_ENABLE([gcc-hardening],
      AS_HELP_STRING([--enable-gcc-hardening, enable compiler security checks]),
-[if test x$enableval = xyes; then
-    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
+[if test "$enableval" = "yes"; then
+    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=3 -fstack-protector-all"
     CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
     CFLAGS="$CFLAGS --param ssp-buffer-size=1"
 fi])
@@ -55,10 +56,10 @@ AC_ARG_ENABLE([malloc-replacement],
     [], [enable_malloc_replacement=yes])
 AC_ARG_ENABLE([openssl],
      AS_HELP_STRING([--disable-openssl, disable support for openssl encryption]),
-    [], [enable_openssl=yes])
+    [], [enable_openssl=auto])
 AC_ARG_ENABLE([mbedtls],
      AS_HELP_STRING([--disable-mbedtls, disable support for mbedtls encryption]),
-    [], [enable_mbedtls=yes])
+    [], [enable_mbedtls=auto])
 AC_ARG_ENABLE([debug-mode],
      AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
     [], [enable_debug_mode=yes])
@@ -94,7 +95,7 @@ dnl Checks for libraries.
 AC_SEARCH_LIBS([inet_ntoa], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([inet_aton], [resolv])
-if test "x$enable_clock_gettime" = "xyes"; then
+if test "$enable_clock_gettime" = "yes"; then
   AC_SEARCH_LIBS([clock_gettime], [rt])
   AC_CHECK_FUNCS([clock_gettime])
 fi
@@ -147,7 +148,7 @@ die horribly
 
 AC_CHECK_HEADERS([zlib.h])
 
-if test "x$ac_cv_header_zlib_h" = "xyes"; then
+if test "$ac_cv_header_zlib_h" = "yes"; then
 dnl Determine if we have zlib for regression tests
 dnl Don't put this one in LIBS
 save_LIBS="$LIBS"
@@ -164,7 +165,7 @@ fi
 AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" = "yes"])
 
 dnl See if we have openssl.  This doesn't go in LIBS either.
-if test "$bwin32" = true; then
+if test "$bwin32" = "true"; then
   EV_LIB_WS32=-lws2_32
   EV_LIB_GDI=-lgdi32
 else
@@ -181,7 +182,7 @@ LIBEVENT_OPENSSL
 LIBEVENT_MBEDTLS
 
 dnl Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
 
 case "${host_os}" in
     linux*) ;;
@@ -193,23 +194,8 @@ case "${host_os}" in
         ])
 esac
 
-if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
-	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/queue.h>
-#ifdef TAILQ_FOREACH
- yes
-#endif
-],	[AC_MSG_RESULT(yes)
-	 AC_DEFINE(HAVE_TAILQFOREACH, 1,
-		[Define if TAILQ_FOREACH is defined in <sys/queue.h>])],
-	AC_MSG_RESULT(no)
-	)
-fi
-
 dnl if we have sys/time.h, check for timer* macros
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
+if test "$ac_cv_header_sys_time_h" = "yes"; then
 
 AC_MSG_CHECKING(for timeradd in sys/time.h)
 AC_EGREP_CPP(yes, [
@@ -218,16 +204,6 @@ AC_EGREP_CPP(yes, [
      yes
     #endif],
     [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERADD, 1, [Define if timeradd is defined in <sys/time.h>])],
-    [AC_MSG_RESULT(no)]
-)
-
-AC_MSG_CHECKING(for timercmp in sys/time.h)
-AC_EGREP_CPP(yes, [
-    #include <sys/time.h>
-    #ifdef timercmp
-     yes
-    #endif],
-    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCMP, 1,[Define if timercmp is defined in <sys/time.h>])],
     [AC_MSG_RESULT(no)]
 )
 
@@ -252,43 +228,38 @@ AC_EGREP_CPP(yes, [
 )
 fi
 
-if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
+if test "$ac_cv_header_sys_sysctl_h" = "yes"; then
 	AC_CHECK_DECLS([CTL_KERN, KERN_ARND], [], [],
 	   [[#include <sys/types.h>
 	     #include <sys/sysctl.h>]]
 	)
 fi
 
-AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
-AM_CONDITIONAL(BUILD_CYGWIN, test x$cygwin = xtrue)
-AM_CONDITIONAL(BUILD_MIDIPIX, test x$midipix = xtrue)
+AM_CONDITIONAL(BUILD_WIN32, test "$bwin32" = "true")
+AM_CONDITIONAL(BUILD_CYGWIN, test "$cygwin" = "true")
+AM_CONDITIONAL(BUILD_MIDIPIX, test "$midipix" = "true")
 AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue || test x$midipix = xtrue)
 
-if test x$bwin32 = xtrue; then
+if test "$bwin32" = "true"; then
   AC_CHECK_LIB([ws2_32], [main])
+  AC_CHECK_LIB([iphlpapi], [GetAdaptersAddresses])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_addrandom eventfd epoll_create1 fcntl getegid geteuid getifaddrs gettimeofday issetugid mach_absolute_time mmap nanosleep pipe pipe2 putenv sendfile setenv setrlimit sigaction signal strsignal strlcpy strsep strtok_r strtoll sysctl timerfd_create umask unsetenv usleep getrandom ])
+AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_stir epoll_create1 epoll_pwait2 eventfd fcntl getegid geteuid getifaddrs getrandom gettimeofday issetugid mach_absolute_time mmap mmap64 nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal socketpair strlcpy strsep strsignal strtok_r strtoll sysctl timerfd_create umask unsetenv usleep])
 
-AS_IF([test x$bwin32 = xtrue],
+AS_IF([test "$bwin32" = "true"],
   AC_CHECK_FUNCS(_gmtime64_s, , [AC_CHECK_FUNCS(_gmtime64)])
 )
 
-AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
+AM_CONDITIONAL(STRLCPY_IMPL, [test "$ac_cv_func_strlcpy" = "no"])
 
-m4_define([funcstochk],
-  [getnameinfo
-  getprotobynumber
-  getservbyname
-  inet_ntop
-  inet_pton]
-)
+m4_define([funcstochk], [getnameinfo getprotobynumber getservbyname inet_ntop inet_pton])
 
-AS_IF([test x$bwin32 = xtrue],
+AS_IF([test "$bwin32" = "true"],
   [AX_CHECK_DECLS_EX([funcstochk getaddrinfo],
     [#ifdef _WIN32
     #include <winsock2.h>
@@ -396,32 +367,32 @@ yes
 
 needsignal=no
 haveselect=no
-if test x$bwin32 != xtrue; then
+if test "$bwin32" != "true"; then
     AC_CHECK_FUNCS(select, [haveselect=yes], )
-    if test "x$haveselect" = "xyes" ; then
+    if test "$haveselect" = "yes" ; then
  	needsignal=yes
     fi
 fi
-AM_CONDITIONAL(SELECT_BACKEND, [test "x$haveselect" = "xyes"])
+AM_CONDITIONAL(SELECT_BACKEND, [test "$haveselect" = "yes"])
 
 havepoll=no
 AC_CHECK_FUNCS(poll, [havepoll=yes], )
-if test "x$havepoll" = "xyes" ; then
+if test "$havepoll" = "yes" ; then
 	needsignal=yes
 fi
-AM_CONDITIONAL(POLL_BACKEND, [test "x$havepoll" = "xyes"])
+AM_CONDITIONAL(POLL_BACKEND, [test "$havepoll" = "yes"])
 
 havedevpoll=no
-if test "x$ac_cv_header_sys_devpoll_h" = "xyes"; then
+if test "$ac_cv_header_sys_devpoll_h" = "yes"; then
 	AC_DEFINE(HAVE_DEVPOLL, 1,
 		    [Define if /dev/poll is available])
 fi
-AM_CONDITIONAL(DEVPOLL_BACKEND, [test "x$ac_cv_header_sys_devpoll_h" = "xyes"])
+AM_CONDITIONAL(DEVPOLL_BACKEND, [test "$ac_cv_header_sys_devpoll_h" = "yes"])
 
 havekqueue=no
-if test "x$ac_cv_header_sys_event_h" = "xyes"; then
+if test "$ac_cv_header_sys_event_h" = "yes"; then
 	AC_CHECK_FUNCS(kqueue, [havekqueue=yes], )
-	if test "x$havekqueue" = "xyes" ; then
+	if test "$havekqueue" = "yes" ; then
 		AC_MSG_CHECKING(for working kqueue)
 		AC_RUN_IFELSE(
       [AC_LANG_PROGRAM([
@@ -483,18 +454,18 @@ if test "x$ac_cv_header_sys_event_h" = "xyes"; then
     )
 	fi
 fi
-AM_CONDITIONAL(KQUEUE_BACKEND, [test "x$havekqueue" = "xyes"])
+AM_CONDITIONAL(KQUEUE_BACKEND, [test "$havekqueue" = "yes"])
 
 haveepollsyscall=no
 haveepoll=no
 AC_CHECK_FUNCS(epoll_ctl, [haveepoll=yes], )
-if test "x$haveepoll" = "xyes" ; then
+if test "$haveepoll" = "yes" ; then
 	AC_DEFINE(HAVE_EPOLL, 1,
 		[Define if your system supports the epoll system calls])
 	needsignal=yes
 fi
-if test "x$ac_cv_header_sys_epoll_h" = "xyes"; then
-	if test "x$haveepoll" = "xno" ; then
+if test "$ac_cv_header_sys_epoll_h" = "yes"; then
+	if test "$haveepoll" = "no" ; then
 		AC_MSG_CHECKING(for epoll system call)
 		AC_RUN_IFELSE(
       [AC_LANG_PROGRAM([[
@@ -527,28 +498,29 @@ epoll_create(int size)
     )
 	fi
 fi
-AM_CONDITIONAL(EPOLL_BACKEND, [test "x$haveepoll" = "xyes"])
+AM_CONDITIONAL(EPOLL_BACKEND, [test "$haveepoll" = "yes"])
 
 haveeventports=no
 AC_CHECK_FUNCS(port_create, [haveeventports=yes], )
-if test "x$haveeventports" = "xyes" ; then
+if test "$haveeventports" = "yes" ; then
 	AC_DEFINE(HAVE_EVENT_PORTS, 1,
 		[Define if your system supports event ports])
 	needsignal=yes
 fi
-AM_CONDITIONAL(EVPORT_BACKEND, [test "x$haveeventports" = "xyes"])
+AM_CONDITIONAL(EVPORT_BACKEND, [test "$haveeventports" = "yes"])
 
 havewepoll=no
-if test "x$bwin32" = "xtrue"; then
+if test "$bwin32" = "true"; then
 	needsignal=yes
-  if test "x$cygwin" = "xfalse"; then
+  if test "$cygwin" = "false"; then
     havewepoll=yes
     AC_DEFINE(HAVE_WEPOLL, 1,
       [Define if your system supports the wepoll module])
   fi
 fi
-AM_CONDITIONAL(WEPOLL_BACKEND, [test "x$havewepoll" = "xyes"])
-AM_CONDITIONAL(SIGNAL_SUPPORT, [test "x$needsignal" = "xyes"])
+AM_CONDITIONAL(WEPOLL_BACKEND, [test "$havewepoll" = "yes"])
+AM_CONDITIONAL(SIGNAL_SUPPORT, [test "$needsignal" = "yes"])
+AM_CONDITIONAL(SIGNALFD_SUPPORT, [test "$ac_cv_header_sys_signalfd_h" = "yes"])
 
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
@@ -686,50 +658,40 @@ AC_COMPILE_IFELSE(
 
 dnl check if we can compile with pthreads
 have_pthreads=no
-if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
-  ACX_PTHREAD([
-	AC_DEFINE(HAVE_PTHREADS, 1,
-		[Define if we have pthreads on this system])
-	have_pthreads=yes])
+if test "$bwin32" != "true" && test "$enable_thread_support" != "no"; then
+  AX_PTHREAD([
+    AC_DEFINE([HAVE_PTHREADS], [1], [Define if we have pthreads on this system])
+    have_pthreads=yes
+  ])
   CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-  AC_CHECK_SIZEOF(pthread_t, ,
-     [AC_INCLUDES_DEFAULT()
-      #include <pthread.h> ]
-  )
-
+  AC_CHECK_SIZEOF([pthread_t], [], [AC_INCLUDES_DEFAULT() #include <pthread.h> ])
   AC_CHECK_FUNCS([pthread_mutexattr_setprotocol])
 fi
 AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 dnl check if we should compile locking into the library
-if test x$enable_thread_support = xno; then
+if test "$enable_thread_support" = "no"; then
    AC_DEFINE(DISABLE_THREAD_SUPPORT, 1,
 	[Define if libevent should not be compiled with thread support])
 fi
 
 dnl check if we should hard-code the mm functions.
-if test x$enable_malloc_replacement = xno; then
+if test "$enable_malloc_replacement" = "no"; then
   AC_DEFINE(DISABLE_MM_REPLACEMENT, 1,
         [Define if libevent should not allow replacing the mm functions])
 fi
 
 dnl check if we should hard-code debugging out
-if test x$enable_debug_mode = xno; then
+if test "$enable_debug_mode" = "no"; then
   AC_DEFINE(DISABLE_DEBUG_MODE, 1,
         [Define if libevent should build without support for a debug mode])
 fi
 
 dnl check if we should enable verbose debugging
-if test x$enable_verbose_debug = xyes; then
+if test "$enable_verbose_debug" = "yes"; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
-
-dnl check if we have and should use OpenSSL
-AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
-
-# check if we have and should use mbedtls
-AM_CONDITIONAL(MBEDTLS, [test "$enable_mbedtls" != "no" && test "$have_mbedtls" = "yes"])
 
 dnl enable some warnings by default
 AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"],[],[-Werror])
@@ -740,7 +702,7 @@ dnl See 52eb4951302554dd696d6a0120ad5d3f6cffb7bb.
 AX_CHECK_COMPILE_FLAG([-fno-strict-aliasing], [CFLAGS="$CFLAGS -fno-strict-aliasing"],[],[-Werror])
 
 dnl Add warnings which we use in development but not for releases.
-if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
+if test "$enable_gcc_warnings" != "no" && test "$GCC" = "yes"; then
 
   dnl -W is the same as -Wextra
   AX_CHECK_COMPILE_FLAG([-W], [CFLAGS="$CFLAGS -W"],[],[-Werror])
@@ -766,23 +728,29 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
   AX_CHECK_COMPILE_FLAG([-Wwrite-strings],[CFLAGS="$CFLAGS -Wwrite-strings"],[],[-Werror])
 
   dnl Convert warnings into errors
-  if test x$enable_gcc_warnings = xyes; then
+  if test "$enable_gcc_warnings" = "yes"; then
     AX_CHECK_COMPILE_FLAG([-Werror], [CFLAGS="$CFLAGS -Werror"])
   fi
 
-  dnl Disable warnings for unused paramaters
-  AX_CHECK_COMPILE_FLAG([-Wno-unused-parameter], [CFLAGS="$CFLAGS -Wno-unused-parameter"],[],[-Werror])
-  AX_CHECK_COMPILE_FLAG([-Wno-void-pointer-to-enum-cast], [CFLAGS="$CFLAGS -Wno-void-pointer-to-enum-cast"],[],[-Werror])
+  dnl Disable warnings for unused parameters
+  AX_CHECK_COMPILE_FLAG([-Wunused-parameter], [CFLAGS="$CFLAGS -Wno-unused-parameter"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wvoid-pointer-to-enum-cast], [CFLAGS="$CFLAGS -Wno-void-pointer-to-enum-cast"],[],[-Werror])
 
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
   #if !defined(__clang__)
   #error
   #endif])], have_clang=yes, have_clang=no)
 
-  if test x$have_clang = xyes; then
-    dnl Disable unused-function warnings. These trigger for minheap-internal.h.
-    AX_CHECK_COMPILE_FLAG([-Wno-unused-function], [CFLAGS="$CFLAGS -Wno-unused-function"],[],[-Werror])
+   dnl Disable unused-function warnings. These trigger for minheap-internal.h.
+   AX_CHECK_COMPILE_FLAG([-Wno-unused-function], [CFLAGS="$CFLAGS -Wno-unused-function"],[],[-Werror])
 
+   dnl Disable unknown pragmas warnings.
+   AX_CHECK_COMPILE_FLAG([-Wno-pragmas], [CFLAGS="$CFLAGS -Wno-pragmas"],[],[-Werror])
+
+   dnl Disable Variable Length Array
+   AX_CHECK_COMPILE_FLAG([-Wvla], [CFLAGS="$CFLAGS -Wvla"],[],[-Werror])
+
+  if test "$have_clang" = "yes"; then
     case "$host_os" in
       darwin*)
         dnl Clang on macOS emits warnings for each directory specified which
@@ -843,7 +811,7 @@ if test "$GCC" = yes && test "$enable_function_sections" = yes ; then
                     dnl We have to do this invocation manually so that we can
                     dnl get the output of conftest.err to make sure it doesn't
                     dnl mention gc-sections.
-		    if test "X$cross_compiling" = "Xyes" || grep gc-sections conftest.err ; then
+		    if test "$cross_compiling" = "yes" || grep gc-sections conftest.err ; then
 			libevent_cv_gc_sections_runs=no
 		    else
 			libevent_cv_gc_sections_runs=no
@@ -867,6 +835,13 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
+dnl Allow additional flags from a containing package such as NTP
+AC_SUBST([LIBEVENT_CFLAGS])
+AC_SUBST([LIBEVENT_CPPFLAGS])
+AC_SUBST([LIBEVENT_LDFLAGS])
+
+AC_C_BIGENDIAN([CFLAGS="$CFLAGS -DBIG_ENDIAN"], [CFLAGS="$CFLAGS -DLITTLE_ENDIAN"])
+
 dnl Doxygen support
 DX_HTML_FEATURE(ON)
 DX_MAN_FEATURE(OFF)
@@ -880,6 +855,12 @@ DX_INIT_DOXYGEN([libevent], [${top_srcdir}/Doxyfile], [doxygen])
 
 AM_CONDITIONAL([ENABLE_DOXYGEN], [test "$DX_FLAG_doc" = "1"])
 AM_CONDITIONAL([ENABLE_DOXYGEN_MAN], [test "$DX_FLAG_man" = "1"])
+
+dnl autotools uses the same pkg-config templates as cmake, and in cmake we have
+dnl CMAKE_DEBUG_POSTFIX, so define it to empty value to simply replace it in
+dnl *.pc.in
+CMAKE_DEBUG_POSTFIX=""
+AC_SUBST([CMAKE_DEBUG_POSTFIX])
 
 AC_CONFIG_FILES([Makefile libevent.pc libevent_mbedtls.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
 AC_OUTPUT

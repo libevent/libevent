@@ -5,6 +5,7 @@ AC_DEFUN([LIBEVENT_OPENSSL], [
 m4_ifndef([PKG_PROG_PKG_CONFIG], [AC_MSG_ERROR([PKG_PROG_PKG_CONFIG not found. Please install pkg-config and re-run autogen.sh])])
 
 PKG_PROG_PKG_CONFIG([0.15.0])
+AC_PROG_GREP
 
 case "$host_os" in
     darwin*)
@@ -14,6 +15,12 @@ case "$host_os" in
     AC_CHECK_PROG([BREW],brew, brew)
     if test x$BREW = xbrew; then
         openssl_prefix=$($BREW --prefix openssl 2>/dev/null)
+        dnl CI workers has only openssl@1.1,
+        dnl while default is openssl@3, see
+        dnl https://github.com/Homebrew/brew/issues/12879
+        if ! test -d $openssl_prefix; then
+            openssl_prefix=$($BREW --prefix $($BREW list | $GREP -m1 openssl) 2>/dev/null)
+        fi
         if test x$openssl_prefix != x; then
             OPENSSL_LIBS=`$PKG_CONFIG --libs openssl 2>/dev/null`
             case "$OPENSSL_LIBS" in
@@ -34,7 +41,7 @@ case "$host_os" in
 esac
 
 case "$enable_openssl" in
- yes)
+ auto|yes)
     have_openssl=no
     case "$PKG_CONFIG" in
      '')
@@ -69,23 +76,25 @@ case "$enable_openssl" in
 	done
 	;;
     esac
+    AC_MSG_NOTICE([OPENSSL_LIBS is $OPENSSL_LIBS])
+    AC_MSG_NOTICE([OPENSSL_INCS is $OPENSSL_INCS])
     CPPFLAGS_SAVE=$CPPFLAGS
     CPPFLAGS="$CPPFLAGS $OPENSSL_INCS"
     AC_CHECK_HEADERS([openssl/ssl.h], [], [have_openssl=no])
     CPPFLAGS=$CPPFLAGS_SAVE
     AC_SUBST(OPENSSL_INCS)
     AC_SUBST(OPENSSL_LIBS)
-    case "$have_openssl" in
-     yes)  AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl]) ;;
-     *) AC_MSG_ERROR([OpenSSL could not be found. You should add the directory \
-     containing 'openssl.pc' to the 'PKG_CONFIG_PATH' environment variable, set \
-     'CFLAGS' and 'LDFLAGS' directly, or use '--disable-openssl' to disable \
-     support for OpenSSL encryption])
-	;;
-    esac
+    if test "$have_openssl" = "yes" ; then
+        AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])
+    elif test "$enable_openssl" = "yes" ; then
+        AC_MSG_ERROR([OpenSSL could not be found. You should add the directory \
+            containing 'openssl.pc' to the 'PKG_CONFIG_PATH' environment variable, set \
+            'CFLAGS' and 'LDFLAGS' directly, or use '--disable-openssl' to disable \
+            support for OpenSSL encryption])
+    fi
     ;;
 esac
 
 dnl check if we have and should use OpenSSL
-AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
+AM_CONDITIONAL(OPENSSL, [test "$have_openssl" = "yes"])
 ])

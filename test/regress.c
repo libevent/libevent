@@ -391,7 +391,7 @@ test_simpleclose_rw(void *ptr)
 {
 	/* Test that a close of FD is detected as a read and as a write. */
 	struct event_base *base = event_base_new();
-	evutil_socket_t pair1[2]={-1,-1}, pair2[2] = {-1, -1};
+	evutil_socket_t pair1[2]={EVUTIL_INVALID_SOCKET,EVUTIL_INVALID_SOCKET}, pair2[2] = {EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET};
 	evutil_socket_t *to_close[2];
 	struct event *rev=NULL, *wev=NULL, *closeev=NULL;
 	struct timeval tv;
@@ -433,6 +433,9 @@ test_simpleclose_rw(void *ptr)
 	TT_BLATHER(("Waiting for read on %d", (int)pair1[1]));
 	wev = event_new(base, pair2[1], EV_WRITE, record_event_cb,
 	    &got_write_on_close);
+	tt_assert(closeev);
+	tt_assert(rev);
+	tt_assert(wev);
 	TT_BLATHER(("Waiting for write on %d", (int)pair2[1]));
 	tv.tv_sec = 0;
 	tv.tv_usec = 100*1000; /* Close pair1[0] after a little while, and make
@@ -1026,97 +1029,6 @@ test_fork(void)
 		evutil_closesocket(child_pair[1]);
 }
 
-#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
-static void* del_wait_thread(void *arg)
-{
-	struct timeval tv_start, tv_end;
-
-	evutil_gettimeofday(&tv_start, NULL);
-	event_dispatch();
-	evutil_gettimeofday(&tv_end, NULL);
-
-	test_timeval_diff_eq(&tv_start, &tv_end, 300);
-
-	end:
-	return NULL;
-}
-
-static void
-del_wait_cb(evutil_socket_t fd, short event, void *arg)
-{
-	struct timeval delay = { 0, 300*1000 };
-	TT_BLATHER(("Sleeping: %i", test_ok));
-	evutil_usleep_(&delay);
-	++test_ok;
-}
-
-static void
-test_del_wait(void)
-{
-	struct event ev;
-	THREAD_T thread;
-
-	setup_test("event_del will wait: ");
-
-	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
-	event_add(&ev, NULL);
-
-	THREAD_START(thread, del_wait_thread, NULL);
-
-	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-		tt_fail_perror("write");
-	}
-
-	{
-		struct timeval delay = { 0, 30*1000 };
-		evutil_usleep_(&delay);
-	}
-
-	{
-		struct timeval tv_start, tv_end;
-		evutil_gettimeofday(&tv_start, NULL);
-		event_del(&ev);
-		evutil_gettimeofday(&tv_end, NULL);
-		test_timeval_diff_eq(&tv_start, &tv_end, 270);
-	}
-
-	THREAD_JOIN(thread);
-
-	tt_int_op(test_ok, ==, 1);
-
-	end:
-	;
-}
-
-static void null_cb(evutil_socket_t fd, short what, void *arg) {}
-static void* test_del_notify_thread(void *arg)
-{
-	event_dispatch();
-	return NULL;
-}
-static void
-test_del_notify(void)
-{
-	struct event ev;
-	THREAD_T thread;
-
-	test_ok = 1;
-
-	event_set(&ev, -1, EV_READ, null_cb, &ev);
-	event_add(&ev, NULL);
-
-	THREAD_START(thread, test_del_notify_thread, NULL);
-
-	{
-		struct timeval delay = { 0, 1000 };
-		evutil_usleep_(&delay);
-	}
-
-	event_del(&ev);
-	THREAD_JOIN(thread);
-}
-#endif
-
 static void
 signal_cb_sa(int sig)
 {
@@ -1174,6 +1086,37 @@ test_simplesignal(void)
 	test_simplesignal_impl(1);
 }
 
+/* signal_free_in_callback */
+static void
+signal_cb_free_event(evutil_socket_t fd, short event, void *arg)
+{
+	struct event *ev = arg;
+	event_free(ev);
+	++test_ok;
+}
+static void
+test_signal_free_in_callback(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+
+	ev = evsignal_new(base, SIGUSR1, signal_cb_free_event, event_self_cbarg());
+	evsignal_add(ev, NULL);
+
+	kill(getpid(), SIGUSR1);
+	kill(getpid(), SIGUSR1);
+	test_ok = 0;
+
+	event_base_loop(base, 0);
+	tt_int_op(test_ok, ==, 1);
+	test_ok = 0;
+	return;
+
+end:
+	;
+}
+
 static void
 test_multiplesignal(void)
 {
@@ -1220,6 +1163,23 @@ test_immediatesignal(void)
 }
 
 static void
+test_signal_timeout(void)
+{
+	struct event ev;
+	struct timeval tv = { 0, 10 };
+
+	test_ok = 0;
+	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
+	tt_int_op(evsignal_add(&ev, &tv), ==, 0);
+	event_loop(EVLOOP_ONCE);
+	evsignal_del(&ev);
+	tt_int_op(test_ok, ==, 1);
+
+end:
+	cleanup_test();
+}
+
+static void
 test_signal_dealloc(void)
 {
 	/* make sure that evsignal_event is event_del'ed and pipe closed */
@@ -1260,6 +1220,9 @@ test_signal_pipeloss(void)
  * make two bases to catch signals, use both of them.  this only works
  * for event mechanisms that use our signal pipe trick.	 kqueue handles
  * signals internally, and all interested kqueues get all the signals.
+ * This is not expected to work with signalfd - having more than one
+ * descriptor in attempt to accept the same signal (or intersecting sets
+ * of signals) is not the thing signalfd() was designed for.
  */
 static void
 test_signal_switchbase(void)
@@ -1267,9 +1230,16 @@ test_signal_switchbase(void)
 	struct event ev1, ev2;
 	struct event_base *base1, *base2;
 	int is_kqueue;
-	test_ok = 0;
 	base1 = event_init();
 	base2 = event_init();
+
+	test_ok = 1;
+	if (!strcmp(event_base_get_signal_method(base1), "signalfd_signal") ||
+	    !strcmp(event_base_get_signal_method(base2), "signalfd_signal")) {
+		tt_skip();
+	}
+	test_ok = 0;
+
 	is_kqueue = !strcmp(event_get_method(),"kqueue");
 	evsignal_set(&ev1, SIGUSR1, signal_cb, &ev1);
 	evsignal_set(&ev2, SIGUSR1, signal_cb, &ev2);
@@ -1427,7 +1397,104 @@ test_signal_while_processing(void)
 	cleanup_test();
 	return;
 }
+#endif // \_WIN32
+
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+
+static THREAD_FN
+del_wait_thread(void *arg)
+{
+	struct timeval tv_start, tv_end;
+
+	evutil_gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	evutil_gettimeofday(&tv_end, NULL);
+
+	test_timeval_diff_eq(&tv_start, &tv_end, 300);
+
+	end:
+	THREAD_RETURN();
+}
+
+static void
+del_wait_cb(evutil_socket_t fd, short event, void *arg)
+{
+	struct timeval delay = { 0, 300*1000 };
+	TT_BLATHER(("Sleeping: %i", test_ok));
+	evutil_usleep_(&delay);
+	++test_ok;
+}
+
+static void
+test_del_wait(void)
+{
+	struct event ev;
+	THREAD_T thread;
+
+	setup_test("event_del will wait: ");
+
+	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
+	event_add(&ev, NULL);
+
+	THREAD_START(thread, del_wait_thread, NULL);
+
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
+
+	{
+		struct timeval delay = { 0, 30*1000 };
+		evutil_usleep_(&delay);
+	}
+
+	{
+		struct timeval tv_start, tv_end;
+		evutil_gettimeofday(&tv_start, NULL);
+		event_del(&ev);
+		evutil_gettimeofday(&tv_end, NULL);
+		test_timeval_diff_eq(&tv_start, &tv_end, 270);
+	}
+
+	THREAD_JOIN(thread);
+
+	tt_int_op(test_ok, ==, 1);
+
+	end:
+	;
+}
+
+static void null_cb(evutil_socket_t fd, short what, void *arg) {}
+
+static THREAD_FN
+test_del_notify_thread(void *arg)
+{
+	event_dispatch();
+	THREAD_RETURN();
+}
+
+static void
+test_del_notify(void)
+{
+	struct event ev;
+	THREAD_T thread;
+
+	test_ok = 1;
+
+	event_set(&ev, -1, EV_READ, null_cb, &ev);
+	event_add(&ev, NULL);
+
+	THREAD_START(thread, test_del_notify_thread, NULL);
+
+	{
+		struct timeval delay = { 0, 1000 };
+		evutil_usleep_(&delay);
+	}
+
+	event_del(&ev);
+	THREAD_JOIN(thread);
+}
 #endif
+
 
 static void
 test_free_active_base(void *ptr)
@@ -1863,6 +1930,8 @@ test_active_later(void *ptr)
 	struct timeval qsec = {0, 100000};
 	ev1 = event_new(data->base, data->pair[0], EV_READ|EV_PERSIST, read_and_drain_cb, NULL);
 	ev2 = event_new(data->base, data->pair[1], EV_WRITE|EV_PERSIST, write_a_byte_cb, NULL);
+	tt_assert(ev1);
+	tt_assert(ev2);
 	event_assign(&ev3, data->base, -1, 0, activate_other_event_cb, &ev4);
 	event_assign(&ev4, data->base, -1, 0, activate_other_event_cb, &ev3);
 	event_add(ev1, NULL);
@@ -1968,6 +2037,11 @@ test_event_remove_timeout(void *ptr)
 	ev[3] = evtimer_new(base, send_a_byte_cb, &data->pair[1]);
 	ev[4] = evtimer_new(base, send_a_byte_cb, &data->pair[1]);
 	tt_assert(base);
+	tt_assert(ev[0]);
+	tt_assert(ev[1]);
+	tt_assert(ev[2]);
+	tt_assert(ev[3]);
+	tt_assert(ev[4]);
 	event_add(ev[2], &ms25); /* remove timers */
 	event_add(ev[4], &ms40); /* write to test if timer re-activates */
 	event_add(ev[0], &ms75); /* read */
@@ -1988,6 +2062,58 @@ end:
 	event_free(ev[3]);
 	event_free(ev[4]);
 }
+
+/* del_timeout_notify */
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+static THREAD_FN
+event_base_dispatch_threadcb(void *arg)
+{
+	event_base_dispatch(arg);
+	THREAD_RETURN();
+}
+
+/* Regression test for the case when removing active event with EV_TIMEOUT does
+ * not notifies the base properly like it should */
+static void
+test_del_timeout_notify(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+	struct timeval start_tv, now_tv;
+	THREAD_T thread;
+
+	ev = event_new(base, -1, EV_PERSIST, null_cb, NULL);
+	{
+		struct timeval tv;
+		tv.tv_sec = 5;
+		tv.tv_usec = 0;
+		event_add(ev, &tv);
+	}
+
+	THREAD_START(thread, event_base_dispatch_threadcb, base);
+
+	/* FIXME: let's consider that 1 second is enough for the OS to spawn the
+	 * thread and enter event loop */
+	{
+		struct timeval delay = { 1, 0 };
+		evutil_usleep_(&delay);
+	}
+
+	evutil_gettimeofday(&start_tv, NULL);
+	event_del(ev);
+	THREAD_JOIN(thread);
+
+	evutil_gettimeofday(&now_tv, NULL);
+	/* Let's consider that 1 second is enough to notify the base thread */
+	tt_int_op(timeval_msec_diff(&start_tv, &now_tv), <, 1000);
+
+	event_base_assert_ok_(base);
+
+end:
+	event_free(ev);
+}
+#endif
 
 static void
 test_event_base_new(void *ptr)
@@ -2072,6 +2198,8 @@ test_loopexit_multiple(void)
 	setup_test("Loop Multiple exit: ");
 
 	base = event_base_new();
+
+	tt_assert(base);
 
 	tv.tv_usec = 200*1000;
 	tv.tv_sec = 0;
@@ -2969,6 +3097,8 @@ test_dup_fd(void *arg)
 
 	ev1 = event_new(base, fd, EV_READ|EV_PERSIST, dfd_cb, &ev1_got);
 	ev2 = event_new(base, dfd, EV_READ|EV_PERSIST, dfd_cb, &ev2_got);
+	tt_assert(ev1);
+	tt_assert(ev2);
 	ev1_got = ev2_got = 0;
 	event_add(ev1, NULL);
 	event_add(ev2, NULL);
@@ -2994,6 +3124,7 @@ test_dup_fd(void *arg)
 	tt_int_op(dup2(fd, dfd), ==, dfd);
 	event_free(ev2);
 	ev2 = event_new(base, dfd, EV_WRITE|EV_PERSIST, dfd_cb, &ev2_got);
+	tt_assert(ev2);
 	event_add(ev2, NULL);
 	ev1_got = ev2_got = 0;
 	event_base_loop(base, EVLOOP_ONCE);
@@ -3116,6 +3247,7 @@ test_many_events(void *arg)
 		called[i] = 0;
 		ev[i] = event_new(base, sock[i], EV_WRITE|evflags,
 		    many_event_cb, &called[i]);
+		tt_assert(ev[i]);
 		event_add(ev[i], NULL);
 		if (one_at_a_time)
 			event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
@@ -3229,6 +3361,7 @@ test_event_foreach(void *arg)
 		visited[i].count = 0;
 		visited[i].ev = NULL;
 		ev[i] = event_new(base, -1, 0, timeout_cb, &visited[i]);
+		tt_assert(ev[i]);
 	}
 
 	tt_int_op(-1, ==, event_base_foreach_event(NULL, foreach_count_cb, NULL));
@@ -3580,9 +3713,10 @@ struct testcase_t main_testcases[] = {
 	LEGACY(fork, TT_ISOLATED),
 #endif
 
-#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
+	BASIC(del_timeout_notify, TT_NEED_THREADS|TT_FORK|TT_NEED_BASE),
 #endif
 
 	END_OF_TESTCASES
@@ -3610,11 +3744,13 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(multiplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(immediatesignal, TT_ISOLATED),
 	LEGACY(signal_dealloc, TT_ISOLATED),
+	LEGACY(signal_timeout, TT_ISOLATED),
 	LEGACY(signal_pipeloss, TT_ISOLATED),
 	LEGACY(signal_switchbase, TT_ISOLATED|TT_NO_LOGS),
 	LEGACY(signal_restore, TT_ISOLATED),
 	LEGACY(signal_assert, TT_ISOLATED),
 	LEGACY(signal_while_processing, TT_ISOLATED),
+	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE|RETRY_ON_DARWIN),
 #endif
 	END_OF_TESTCASES
 };

@@ -8,9 +8,6 @@ includedir=@includedir@
 Name: libevent_core
 Description: libevent_core
 Version: @VERSION@
-Requires:
-Conflicts:
-Libs: -L${libdir} -levent_core
+Libs: -L${libdir} -levent_core@CMAKE_DEBUG_POSTFIX@
 Libs.private: @LIBS@
 Cflags: -I${includedir}
-

@@ -24,16 +24,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _WIN32
+#ifndef _WIN32_WINNT
+/* Minimum required for InitializeCriticalSectionAndSpinCount */
+#define _WIN32_WINNT 0x0403
+#endif
+#endif
+
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
 #include <sys/types.h>
 
 #ifdef _WIN32
-#ifndef _WIN32_WINNT
-/* Minimum required for InitializeCriticalSectionAndSpinCount */
-#define _WIN32_WINNT 0x0403
-#endif
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
@@ -217,10 +220,8 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 {
 	struct evconnlistener *listener;
 	evutil_socket_t fd;
-	int on = 1;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
 	int socktype = SOCK_STREAM | EVUTIL_SOCK_NONBLOCK;
-	int support_keepalive = 1;
 
 	if (backlog == 0)
 		return NULL;
@@ -232,24 +233,42 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	if (fd == -1)
 		return NULL;
 
-#if defined(_WIN32) && defined(EVENT__HAVE_AFUNIX_H)
-	if (family == AF_UNIX && evutil_check_working_afunix_()) {
-		/* AF_UNIX socket can't set SO_KEEPALIVE option on Win10.
-		 * Avoid 10042 error.  */
-		support_keepalive = 0;
-	}
-#endif
-	if (support_keepalive) {
-		if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0)
+	/*
+	 * We do not bother about TCP keep-alive on Unix sockets, because the
+	 * chances of a network failure here are only of theoretical nature.
+	 */
+	if (family != AF_UNIX) {
+		/* TODO(panjf2000): make this TCP keep-alive value configurable */
+		if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 			goto err;
 	}
 
 	if (flags & LEV_OPT_REUSEABLE) {
+		if (family == AF_UNIX) {
+			/* Despite the fact that SO_REUSEADDR can be set on a Unix domain socket
+			 * via setsockopt() without reporting an error, SO_REUSEADDR is actually
+			 * not supported for sockets of AF_UNIX.
+			 * Instead of confusing the callers by allowing this option to be set and
+			 * failing the subsequent bind() on the same socket, it's better to fail here.
+			 */
+			evutil_closesocket(fd);
+			return NULL;
+		}
 		if (evutil_make_listen_socket_reuseable(fd) < 0)
 			goto err;
 	}
 
 	if (flags & LEV_OPT_REUSEABLE_PORT) {
+		if (family == AF_UNIX) {
+			/* Despite the fact that SO_REUSEPORT can be set on a Unix domain socket
+			 * via setsockopt() without reporting an error, SO_REUSEPORT is actually
+			 * not supported for sockets of AF_UNIX.
+			 * Instead of confusing the callers by allowing this option to be set and
+			 * failing the subsequent bind() on the same socket, it's better to fail here.
+			 */
+			evutil_closesocket(fd);
+			return NULL;
+		}
 		if (evutil_make_listen_socket_reuseable_port(fd) < 0)
 			goto err;
 	}
@@ -264,6 +283,11 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 			goto err;
 	}
 
+	if (flags & LEV_OPT_BIND_IPV4_AND_IPV6) {
+		if (evutil_make_listen_socket_not_ipv6only(fd) < 0)
+			goto err;
+	}
+
 	if (sa) {
 		if (bind(fd, sa, socklen)<0)
 			goto err;
@@ -275,8 +299,13 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 
 	return listener;
 err:
-	evutil_closesocket(fd);
-	return NULL;
+	{
+		int saved_errno = EVUTIL_SOCKET_ERROR();
+		evutil_closesocket(fd);
+		if (saved_errno)
+			EVUTIL_SET_SOCKET_ERROR(saved_errno);
+		return NULL;
+	}
 }
 
 void
@@ -433,10 +462,8 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		++lev->refcnt;
 		cb = lev->cb;
 		user_data = lev->user_data;
-		UNLOCK(lev);
 		cb(lev, new_fd, (struct sockaddr*)&ss, (int)socklen,
 		    user_data);
-		LOCK(lev);
 		if (lev->refcnt == 1) {
 			int freed = listener_decref_and_unlock(lev);
 			EVUTIL_ASSERT(freed);
@@ -458,9 +485,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		++lev->refcnt;
 		errorcb = lev->errorcb;
 		user_data = lev->user_data;
-		UNLOCK(lev);
 		errorcb(lev, user_data);
-		LOCK(lev);
 		listener_decref_and_unlock(lev);
 	} else {
 		event_sock_warn(fd, "Error from accept() call");
@@ -902,8 +927,11 @@ evconnlistener_new_async(struct event_base *base,
 	return &lev->base;
 
 err_free_accepting:
+	for (i = 0; i < lev->n_accepting; ++i) {
+		if (lev->accepting[i])
+			free_and_unlock_accepting_socket(lev->accepting[i]);
+	}
 	mm_free(lev->accepting);
-	/* XXXX free the other elements. */
 err_delete_lock:
 	EVTHREAD_FREE_LOCK(lev->base.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 err_free_lev:

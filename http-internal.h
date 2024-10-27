@@ -124,9 +124,16 @@ struct evhttp_cb {
 /* both the http server as well as the rpc system need to queue connections */
 TAILQ_HEAD(evconq, evhttp_connection);
 
+/* WebSockets connections */
+TAILQ_HEAD(evwsq, evws_connection);
+
 /* each bound socket is stored in one of these */
 struct evhttp_bound_socket {
 	TAILQ_ENTRY(evhttp_bound_socket) next;
+
+	struct evhttp *http;
+	struct bufferevent* (*bevcb)(struct event_base *, void *);
+	void *bevcbarg;
 
 	struct evconnlistener *listener;
 };
@@ -147,8 +154,10 @@ struct evhttp {
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
 
-	/* All live connections on this host. */
+	/* All live HTTP connections on this host. */
 	struct evconq connections;
+	/* All live WebSockets sessions on this host. */
+	struct evwsq ws_sessions;
 	int connection_max;
 	int connection_cnt;
 
@@ -216,6 +225,8 @@ void evhttp_start_write_(struct evhttp_connection *);
 /* response sending HTML the data in the buffer */
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
 void evhttp_send_page_(struct evhttp_request *, struct evbuffer *);
+
+struct bufferevent * evhttp_start_ws_(struct evhttp_request *req);
 
 /* [] has been stripped */
 #define _EVHTTP_URI_HOST_HAS_BRACKETS 0x02

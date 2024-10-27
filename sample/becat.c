@@ -30,6 +30,7 @@
 #else /* _WIN32 */
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <unistd.h>
 #endif /* !_WIN32 */
@@ -67,6 +68,7 @@ struct options
 		int read; /* seconds */
 		int write; /* seconds */
 	} timeout;
+	int tcp_keepalive_timeout; /* seconds */
 
 	struct {
 		int listen:1;
@@ -188,6 +190,10 @@ static void ssl_ctx_free(struct ssl_context *ssl)
 static int ssl_load_key(struct ssl_context *ssl)
 {
 	int err = 1;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+	ssl->pkey = EVP_RSA_gen(4096);
+	err = ssl->pkey == NULL;
+#else
 	BIGNUM *bn;
 	RSA *key;
 
@@ -205,6 +211,7 @@ static int ssl_load_key(struct ssl_context *ssl)
 	err = 0;
 err:
 	BN_free(bn);
+#endif
 	return err;
 }
 static int ssl_load_cert(struct ssl_context *ssl)
@@ -269,9 +276,11 @@ static void print_usage(FILE *out, const char *name)
 		"  -s   Specify source address to use (*does* affect -l, unlike ncat)\n"
 		"  -l   Bind and listen for incoming connections\n"
 		"  -k   Accept multiple connections in listen mode\n"
+		"  -K   TCP_KEEPALIVE timeout\n"
 		"  -S   Connect or listen with SSL\n"
 		"  -t   read timeout\n"
 		"  -T   write timeout\n"
+		"  -b   read buffer size\n"
 		"\n"
 		"  -v   Increase verbosity\n"
 		"  -h   Print usage\n"
@@ -286,18 +295,19 @@ static struct options parse_opts(int argc, char **argv)
 	o.src.port = o.dst.port = 10024;
 	o.max_read = -1;
 
-	while ((opt = getopt(argc, argv, "p:s:R:t:" "lkSvh")) != -1) {
+	while ((opt = getopt(argc, argv, "p:s:b:t:T:K:" "lkSvh")) != -1) {
 		switch (opt) {
 			case 'p': o.src.port    = atoi(optarg); break;
 			case 's': o.src.address = strdup("127.1"); break;
-			case 'R': o.max_read    = atoi(optarg); break;
+			case 'b': o.max_read    = atoi(optarg); break;
 
 			case 't': o.timeout.read  = atoi(optarg); break;
 			case 'T': o.timeout.write = atoi(optarg); break;
+			case 'K': o.tcp_keepalive_timeout = atoi(optarg); break;
 
-			case 'l': o.extra.listen = 1; break;
-			case 'k': o.extra.keep   = 1; break;
-			case 'S': o.extra.ssl    = 1; break;
+			case 'l': o.extra.listen |= 1; break;
+			case 'k': o.extra.keep   |= 1; break;
+			case 'S': o.extra.ssl    |= 1; break;
 
 			/**
 			 * TODO: implement other bits:
@@ -317,15 +327,15 @@ static struct options parse_opts(int argc, char **argv)
 		}
 	}
 
-	if ((argc-optind) > 1) {
+	if ((argc-optind) > 0) {
 		o.dst.address = strdup(argv[optind]);
 		++optind;
 	}
-	if ((argc-optind) > 1) {
-		o.dst.port = atoi(optarg);
+	if ((argc-optind) > 0) {
+		o.dst.port = atoi(argv[optind]);
 		++optind;
 	}
-	if ((argc-optind) > 1) {
+	if ((argc-optind) > 0) {
 		print_usage(stderr, argv[0]);
 		exit(1);
 	}
@@ -338,15 +348,12 @@ static struct options parse_opts(int argc, char **argv)
 	return o;
 }
 
-#ifndef EVENT__HAVE_STRSIGNAL
-static inline const char* strsignal(evutil_socket_t sig) { return "Signal"; }
-#endif
 static void do_term(evutil_socket_t sig, short events, void *arg)
 {
 	struct event_base *base = arg;
 	event_base_loopexit(base, NULL);
-	fprintf(stderr, "%s(" EV_SOCK_FMT "), Terminating\n",
-		strsignal(sig), EV_SOCK_ARG(sig));
+	fprintf(stderr, "%s signal received. Terminating\n",
+		evutil_strsignal(EV_SOCK_ARG(sig)));
 }
 
 static ev_socklen_t
@@ -386,8 +393,12 @@ static void be_ssl_errors(struct bufferevent *bev)
 	while ((err = bufferevent_get_openssl_error(bev))) {
 		const char *msg = ERR_reason_error_string(err);
 		const char *lib = ERR_lib_error_string(err);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+		error("ssl/err=%d/%s in %s\n", err, msg, lib);
+#else
 		const char *func = ERR_func_error_string(err);
 		error("ssl/err=%d/%s in %s %s\n", err, msg, lib, func);
+#endif
 	}
 }
 static int event_cb_(struct bufferevent *bev, short what, int ssl, int stop)
@@ -445,6 +456,8 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	info("Accepting %s (fd=%d)\n",
 		evutil_format_sockaddr_port_(sa, buffer, sizeof(buffer)-1), fd);
+	if (evutil_set_tcp_keepalive(fd, 1, ctx->opts->tcp_keepalive_timeout))
+		goto err;
 
 	bev = be_new(ctx, base, fd);
 	if (!bev) {
@@ -563,10 +576,18 @@ int main(int argc, char **argv)
 		}
 		info("Listening on %s\n",
 			evutil_format_sockaddr_port_(sa, buffer, sizeof(buffer)-1));
+
 		listener = evconnlistener_new_bind(base, accept_cb, &ctx, flags, -1, sa, ss_len);
 		if (!listener) {
 			error("Cannot listen\n");
 			goto err;
+		}
+
+		if (o.tcp_keepalive_timeout) {
+			evutil_socket_t fd = evconnlistener_get_fd(listener);
+			if (evutil_set_tcp_keepalive(fd, 1, o.tcp_keepalive_timeout)) {
+				goto err;
+			}
 		}
 	} else {
 		ss_len = make_address(&ss, o.dst.address, o.dst.port);
@@ -597,6 +618,11 @@ int main(int argc, char **argv)
 		if (bufferevent_socket_connect(bev, sa, ss_len)) {
 			info("Connection failed\n");
 			goto err;
+		}
+		{
+			evutil_socket_t fd = bufferevent_getfd(bev);
+			if (evutil_set_tcp_keepalive(fd, 1, o.tcp_keepalive_timeout))
+				goto err;
 		}
 	}
 

@@ -258,6 +258,8 @@ send_document_cb(struct evhttp_request *req, void *arg)
 #ifdef _WIN32
 		dirlen = strlen(whole_path);
 		pattern = malloc(dirlen+3);
+		if (!pattern)
+			goto err;
 		memcpy(pattern, whole_path, dirlen);
 		pattern[dirlen] = '\\';
 		pattern[dirlen+1] = '*';
@@ -390,11 +392,12 @@ parse_opts(int argc, char **argv)
 }
 
 static void
-do_term(int sig, short events, void *arg)
+do_term(evutil_socket_t sig, short events, void *arg)
 {
 	struct event_base *base = arg;
 	event_base_loopbreak(base);
-	fprintf(stderr, "Got %i, Terminating\n", sig);
+	fprintf(stderr, "%s signal received. Terminating\n",
+		evutil_strsignal(EV_SOCK_ARG(sig)));
 }
 
 static int

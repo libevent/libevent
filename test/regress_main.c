@@ -111,7 +111,7 @@ timeval_msec_diff(const struct timeval *start, const struct timeval *end)
 /* Code to wrap up old legacy test cases that used setup() and cleanup().
  *
  * Not all of the tests designated "legacy" are ones that used setup() and
- * cleanup(), of course.  A test is legacy it it uses setup()/cleanup(), OR
+ * cleanup(), of course.  A test is legacy if it uses setup()/cleanup(), OR
  * if it wants to find its event base/socketpair in global variables (ugh),
  * OR if it wants to communicate success/failure through test_ok.
  */
@@ -144,27 +144,34 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 		return (-1);
 	if (write(fd, data, datalen) != (int)datalen) {
 		close(fd);
+		unlink(tmpfilename);
 		return (-1);
 	}
 	lseek(fd, 0, SEEK_SET);
-	/* remove it from the file system */
-	unlink(tmpfilename);
+	*filename_out = strdup(tmpfilename);
 	return (fd);
 #else
 	/* XXXX actually delete the file later */
-	char tmpfilepath[MAX_PATH];
+	WCHAR tmpfilepath[MAX_PATH];
+	WCHAR tmpfilelongpath[MAX_PATH];
+	WCHAR tmpfilewideame[MAX_PATH];
 	char tmpfilename[MAX_PATH];
 	DWORD r, written;
 	int tries = 16;
 	HANDLE h;
-	r = GetTempPathA(MAX_PATH, tmpfilepath);
+	r = GetTempPathW(MAX_PATH, tmpfilepath);
+	if (r > MAX_PATH || r == 0)
+		return (-1);
+	r = GetLongPathNameW(tmpfilepath, tmpfilelongpath, MAX_PATH);
 	if (r > MAX_PATH || r == 0)
 		return (-1);
 	for (; tries > 0; --tries) {
-		r = GetTempFileNameA(tmpfilepath, "LIBEVENT", 0, tmpfilename);
-		if (r == 0)
+		r = GetTempFileNameW(tmpfilelongpath, L"LIBEVENT", 0, tmpfilewideame);
+		if (r == 0) {
+			int err = GetLastError();
 			return (-1);
-		h = CreateFileA(tmpfilename, GENERIC_READ|GENERIC_WRITE,
+		}
+		h = CreateFileW(tmpfilewideame, GENERIC_READ | GENERIC_WRITE,
 		    0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (h != INVALID_HANDLE_VALUE)
 			break;
@@ -172,6 +179,9 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 	if (tries == 0)
 		return (-1);
 	written = 0;
+	WideCharToMultiByte(
+		CP_ACP, 0, tmpfilewideame, MAX_PATH, tmpfilename,
+		MAX_PATH, NULL, NULL);
 	*filename_out = strdup(tmpfilename);
 	WriteFile(h, data, (DWORD)datalen, &written, NULL);
 	/* Closing the fd returned by this function will indeed close h. */
@@ -239,7 +249,7 @@ void *
 basic_test_setup(const struct testcase_t *testcase)
 {
 	struct event_base *base = NULL;
-	evutil_socket_t spair[2] = { -1, -1 };
+	evutil_socket_t spair[2] = { EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET };
 	struct basic_test_data *data = NULL;
 
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
@@ -248,7 +258,15 @@ basic_test_setup(const struct testcase_t *testcase)
 		evthread_flags |= EVTHREAD_PTHREAD_PRIO_INHERIT;
 #endif
 
+#ifdef _WIN32
+	DWORD tid;
+	THREAD_T p;
+	tid = THREAD_SELF();
+	p = (THREAD_T)&tid;
+	thread_setup(p);
+#else
 	thread_setup(THREAD_SELF());
+#endif
 
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
@@ -276,18 +294,8 @@ basic_test_setup(const struct testcase_t *testcase)
 	}
 
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
-		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, spair) == -1) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, spair) == -1) {
 			fprintf(stderr, "%s: socketpair\n", __func__);
-			exit(1);
-		}
-
-		if (evutil_make_socket_nonblocking(spair[0]) == -1) {
-			fprintf(stderr, "fcntl(O_NONBLOCK)");
-			exit(1);
-		}
-
-		if (evutil_make_socket_nonblocking(spair[1]) == -1) {
-			fprintf(stderr, "fcntl(O_NONBLOCK)");
 			exit(1);
 		}
 	}
@@ -444,6 +452,7 @@ struct testgroup_t testgroups[] = {
 	{ "thread/", thread_testcases },
 	{ "listener/", listener_testcases },
 	{ "watch/", watch_testcases },
+	{ "event_timer/", event_timer_testcases },
 #ifdef _WIN32
 	{ "iocp/", iocp_testcases },
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
@@ -532,6 +541,10 @@ main(int argc, const char **argv)
 		return 1;
 
 	libevent_global_shutdown();
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 
 	return 0;
 }

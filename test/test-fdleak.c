@@ -59,7 +59,7 @@
 /* Provide storage for the address, both for the server & the clients */
 static struct sockaddr_in saddr;
 
-/* Number of sucessful requests so far */
+/* Number of successful requests so far */
 static int num_requests;
 
 static void start_client(struct event_base *base);

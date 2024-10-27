@@ -188,7 +188,7 @@ extern "C" {
 #define DNS_QUERY_NO_SEARCH 0x01
 /** Use TCP connections ("virtual circuits") for queries rather than UDP datagrams. */
 #define DNS_QUERY_USEVC 0x02
-/** Ignore trancation flag in responses (don't fallback to TCP connections). */
+/** Ignore truncation flag in responses (don't fallback to TCP connections). */
 #define DNS_QUERY_IGNTC 0x04
 /** Make a separate callback for CNAME in answer */
 #define DNS_CNAME_CALLBACK 0x80
@@ -253,6 +253,9 @@ struct event_base;
 
 /** Flag for evdns_base_new: process resolv.conf.  */
 #define EVDNS_BASE_INITIALIZE_NAMESERVERS 1
+/** Flag for evdns_base_new: disable caching of DNS responses by default
+ * for async resolver. */
+#define EVDNS_BASE_NO_CACHE 0x10
 /** Flag for evdns_base_new: Do not prevent the libevent event loop from
  * exiting when we have no active dns requests. */
 #define EVDNS_BASE_DISABLE_WHEN_INACTIVE 0x8000
@@ -260,6 +263,21 @@ struct event_base;
  * add default nameserver if there are no nameservers in resolv.conf
  * @see DNS_OPTION_NAMESERVERS_NO_DEFAULT */
 #define EVDNS_BASE_NAMESERVERS_NO_DEFAULT 0x10000
+
+/* No errors */
+#define EVDNS_ERROR_NONE 0
+/* Failed to open file */
+#define EVDNS_ERROR_FAILED_TO_OPEN_FILE 1
+/* Failed to stat file */
+#define EVDNS_ERROR_FAILED_TO_STAT_FILE 2
+/* File too large */
+#define EVDNS_ERROR_FILE_TOO_LARGE 3
+/* Out of memory */
+#define EVDNS_ERROR_OUT_OF_MEMORY 4
+/* Short read from file */
+#define EVDNS_ERROR_SHORT_READ_FROM_FILE 5
+/* No nameservers configured */
+#define EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED 6
 
 /**
   Initialize the asynchronous DNS library.
@@ -269,13 +287,14 @@ struct event_base;
   evdns_config_windows_nameservers() on Windows.
 
   @param event_base the event base to associate the dns client with
-  @param initialize_nameservers any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
-    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+  @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
+    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT|
+    EVDNS_BASE_NO_CACHE
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
 EVENT2_EXPORT_SYMBOL
-struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize_nameservers);
+struct evdns_base * evdns_base_new(struct event_base *event_base, int flags);
 
 
 /**
@@ -303,6 +322,29 @@ EVENT2_EXPORT_SYMBOL
 void evdns_base_clear_host_addresses(struct evdns_base *base);
 
 /**
+   Write an entry to the evdns cache
+
+   @param dns_base the evdns base to add the entry to
+   @param nodename the DNS name
+   @param res the address information associated with the DNS name
+   @param ttl the time to live associated with the address information
+ */
+EVENT2_EXPORT_SYMBOL
+void evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_addrinfo *res, int ttl);
+
+/**
+   Lookup an entry from the evdns cache
+
+   @param base the evdns base associated with the cache
+   @param nodename the DNS name for which information is being sought
+   @param hints see man getaddrinfo()
+   @param port used to fill in port numbers in the resulting address list
+   @param res pointer to an evutil_addrinfo struct for result
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_cache_lookup(struct evdns_base *base, const char *nodename, struct evutil_addrinfo *hints, ev_uint16_t port, struct evutil_addrinfo **res);
+
+/**
   Convert a DNS error code to a string.
 
   @param err the DNS error code
@@ -318,7 +360,7 @@ const char *evdns_err_to_string(int err);
   The address should be an IPv4 address in network byte order.
   The type of address is chosen so that it matches in_addr.s_addr.
 
-  @param base the evdns_base to which to add the name server
+  @param base the evdns_base to which to add the name server. base must not be NULL.
   @param address an IP address in network byte order
   @return 0 if successful, or -1 if an error occurred
   @see evdns_base_nameserver_ip_add()
@@ -381,7 +423,7 @@ int evdns_base_resume(struct evdns_base *base);
 
   If no port is specified, it defaults to 53.
 
-  @param base the evdns_base to which to apply this operation
+  @param base the evdns_base to which to apply this operation. base must not be NULL
   @return 0 if successful, or -1 if an error occurred
   @see evdns_base_nameserver_add()
  */
@@ -492,7 +534,7 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
   In case of options without values (use-vc, ingore-tc) val should be an empty
   string or NULL.
 
-  @param base the evdns_base to which to apply this operation
+  @param base the evdns_base to which to apply this operation. base must not be NULL.
   @param option the name of the configuration option to be modified
   @param val the value to be set
   @return 0 if successful, or -1 if an error occurred
@@ -511,11 +553,15 @@ int evdns_base_set_option(struct evdns_base *base, const char *option, const cha
   The following directives are not parsed from the file: sortlist, rotate,
   no-check-names, inet6, debug.
 
-  If this function encounters an error, the possible return values are: 1 =
-  failed to open file, 2 = failed to stat file, 3 = file too large, 4 = out of
-  memory, 5 = short read from file, 6 = no nameservers listed in the file
+  If this function encounters an error, the possible return values are:
+   EVDNS_ERROR_FAILED_TO_OPEN_FILE (1) - failed to open file
+   EVDNS_ERROR_FAILED_TO_STAT_FILE (2) - failed to stat file
+   EVDNS_ERROR_FILE_TOO_LARGE (3) - file too large
+   EVDNS_ERROR_OUT_OF_MEMORY (4) - out of memory
+   EVDNS_ERROR_SHORT_READ_FROM_FILE (5) - short read from file
+   EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED (6) - no nameservers configured.
 
-  @param base the evdns_base to which to apply this operation
+  @param base the evdns_base to which to apply this operation. base must not be NULL.
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
     DNS_OPTION_HOSTSFILE|DNS_OPTIONS_ALL|DNS_OPTION_NAMESERVERS_NO_DEFAULT
   @param filename the path to the resolv.conf file
@@ -757,8 +803,9 @@ struct evdns_getaddrinfo_request;
 /** Make a non-blocking getaddrinfo request using the dns_base in 'dns_base'.
  *
  * If we can answer the request immediately (with an error or not!), then we
- * invoke cb immediately and return NULL.  Otherwise we return
- * an evdns_getaddrinfo_request and invoke cb later.
+ * invoke cb immediately and return NULL. This can happen e.g. if the
+ * requested address is in the hosts file, or cached, or invalid. Otherwise
+ * we return an evdns_getaddrinfo_request and invoke cb later.
  *
  * When the callback is invoked, we pass as its first argument the error code
  * that getaddrinfo would return (or 0 for no error).  As its second argument,
@@ -770,6 +817,12 @@ struct evdns_getaddrinfo_request;
  * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
  * - For ai_socktype, we only handle SOCKTYPE_STREAM, SOCKTYPE_UDP, and 0.
  * - For ai_protocol, we only handle IPPROTO_TCP, IPPROTO_UDP, and 0.
+ * - If we cached a response exclusively for a different address type (e.g.
+ *   PF_INET), we will set addrinfo to NULL (e.g. queried with PF_INET6)
+ * - Cache isn't hit when AI_CANONNAME is set but cached server response
+ *	 doesn't contain CNAME.
+ * - If we can answer immediately (e.g. using hosts file, there is an error
+ *   or when cache is hit), we invoke the call back and return NULL.
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_getaddrinfo_request *evdns_getaddrinfo(
@@ -799,6 +852,18 @@ void evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *req);
 EVENT2_EXPORT_SYMBOL
 int evdns_base_get_nameserver_addr(struct evdns_base *base, int idx,
     struct sockaddr *sa, ev_socklen_t len);
+
+/**
+   Retrieve the fd of the 'idx'th configured nameserver.
+
+   @param base The evdns_base to examine.
+   @param idx The index of the nameserver to get the address of.
+
+   @return the fd value.  On failure, returns
+     -1 if idx is greater than the number of configured nameservers
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_base_get_nameserver_fd(struct evdns_base *base, int idx);
 
 #ifdef __cplusplus
 }

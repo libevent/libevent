@@ -32,7 +32,7 @@
 int event_kq_notify_base_(struct event_base *base);
 
 /** Prepare a kqueue-using event base to receive notifications via an internal
- * EVFILT_USER event.  Return 0 on sucess, -1 on failure.
+ * EVFILT_USER event.  Return 0 on success, -1 on failure.
  */
 int event_kq_add_notify_event_(struct event_base *base);
 

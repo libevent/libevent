@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "tinytest_macros.h"
 #include "util-internal.h"
 
 #ifdef _WIN32
@@ -127,19 +128,16 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 {
 	struct evbuffer_chain *chain;
 	size_t a, w, u;
-	int n = 0;
 	u = a = w = 0;
 
 	chain = buf->first;
 	/* skip empty at start */
 	while (chain && chain->off==0) {
-		++n;
 		a += chain->buffer_len;
 		chain = chain->next;
 	}
 	/* first nonempty chain: stuff at the end only is wasted. */
 	if (chain) {
-		++n;
 		a += chain->buffer_len;
 		u += chain->off;
 		if (chain->next && chain->next->off)
@@ -148,7 +146,6 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 	}
 	/* subsequent nonempty chains */
 	while (chain && chain->off) {
-		++n;
 		a += chain->buffer_len;
 		w += (size_t)chain->misalign;
 		u += chain->off;
@@ -158,7 +155,6 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 	}
 	/* subsequent empty chains */
 	while (chain) {
-		++n;
 		a += chain->buffer_len;
 	}
 	*allocatedp = a;
@@ -707,7 +703,7 @@ test_evbuffer_reserve_many(void *ptr)
 	int fill_first = ptr && !strcmp(ptr, "fill");
 	char *cp1, *cp2;
 
-	/* When reserving the the first chunk, we just allocate it */
+	/* When reserving the first chunk, we just allocate it */
 	n = evbuffer_reserve_space(buf, 128, v, 2);
 	evbuffer_validate(buf);
 	tt_int_op(n, ==, 1);
@@ -1111,6 +1107,49 @@ addfile_test_readcb(evutil_socket_t fd, short what, void *arg)
 	}
 }
 
+/* Without mm replacement malloc(0) will not fail, like it should to make the
+ * evbuffer_file_segment_materialize() fails after mmap() failed */
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+static void
+test_evbuffer_add_file_leak1(void *ptr)
+{
+	struct basic_test_data *testdata = ptr;
+	struct evbuffer *buf = NULL;
+	char *tmpfilename = NULL;
+	int fd;
+
+	(void)testdata;
+
+	fd = regress_make_tmpfile("", 0, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
+	TT_BLATHER(("Temporary path: %s, fd: %i", tmpfilename, fd));
+
+	/* On windows _get_osfhandle(closed fd) leads to crash */
+#ifndef _WIN32
+	/* close fd before usage, so that the fallback with pread() will fail (in
+	 * evbuffer_file_segment_materialize()) */
+	close(fd);
+#endif
+
+	/* mmap(offset=0, length=0) will fail, this is enough */
+	buf = evbuffer_new();
+	tt_assert(evbuffer_add_file(buf, fd, 0, 0) == -1);
+	evbuffer_validate(buf);
+
+end:
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
+	if (buf)
+		evbuffer_free(buf);
+	/* NOTE: file will be closed in evbuffer_add_file() */
+}
+#endif
+
 static void
 test_evbuffer_add_file(void *ptr)
 {
@@ -1199,6 +1238,10 @@ test_evbuffer_add_file(void *ptr)
 	}
 
 	fd = regress_make_tmpfile(data, datalen, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
 
 	if (map_from_offset) {
 		starting_offset = datalen/4 + 1;
@@ -1237,14 +1280,12 @@ test_evbuffer_add_file(void *ptr)
 #if defined(EVENT__HAVE_SENDFILE) && defined(__sun__) && defined(__svr4__)
 	/* We need to use a pair of AF_INET sockets, since Solaris
 	   doesn't support sendfile() over AF_UNIX. */
-	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM, 0, pair) == -1)
+	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1)
 		tt_abort_msg("ersatz_socketpair failed");
 #else
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1)
 		tt_abort_msg("socketpair failed");
 #endif
-	evutil_make_socket_nonblocking(pair[0]);
-	evutil_make_socket_nonblocking(pair[1]);
 
 	tt_assert(fd != -1);
 
@@ -1267,7 +1308,9 @@ test_evbuffer_add_file(void *ptr)
 	    addfile_test_writecb, src);
 	rev = event_new(base, pair[1], EV_READ|EV_PERSIST,
 	    addfile_test_readcb, dest);
-
+	tt_assert(wev);
+	tt_assert(rev);
+	
 	event_add(wev, NULL);
 	event_add(rev, NULL);
 	event_base_dispatch(base);
@@ -1330,9 +1373,16 @@ test_evbuffer_file_segment_add_cleanup_cb(void* ptr)
 	struct evbuffer *evb = NULL;
 	struct evbuffer_file_segment *seg = NULL, *segptr;
 	char const* arg = "token";
+	struct stat st;
 
 	fd = regress_make_tmpfile("file_segment_test_file", 22, &tmpfilename);
-	tt_int_op(fd, >=, 0);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
+
+	fstat(fd, &st);
+	tt_assert(st.st_size == 22);
 
 	evb = evbuffer_new();
 	tt_assert(evb);
@@ -2122,6 +2172,81 @@ end:
 }
 
 static void
+ref_done_cb_with_offset(const void *data, size_t len, void *arg)
+{
+	size_t expected_len = (size_t)arg;
+	if (len != expected_len)
+		TT_FAIL(("%zu != %zu, data: '%s'", len, expected_len, (const char *)data));
+}
+static void
+test_evbuffer_add_reference_with_offset(void* ptr)
+{
+	const char* prefix = "|prefix| ";
+	const char* content1 = "|prefix| If you have found the answer to such a problem";
+	const char *content2 = "|prefix| you ought to write it up for publication";
+
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+	/* -- Knuth's "Notes on the Exercises" from TAOCP */
+	char tmp[16];
+
+	size_t prefix_len = strlen(prefix);
+	size_t len1 = strlen(content1) - prefix_len;
+	size_t len2 = strlen(content2) - prefix_len;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	evbuffer_add_reference_with_offset(buf1, (const void *)content1, prefix_len,
+		len1, ref_done_cb_with_offset, (void *)(len1 + prefix_len));
+	evbuffer_add(buf1, ", ", 2);
+	evbuffer_add_reference_with_offset(buf1, (const void *)content2, prefix_len,
+		len2, ref_done_cb_with_offset, (void *)(len2 + prefix_len));
+	tt_int_op(evbuffer_get_length(buf1), ==, len1 + len2 + 2 /* ", " */);
+
+	/* Make sure we can drain a little from a reference. */
+	tt_int_op(evbuffer_remove(buf1, tmp, 6), ==, 6);
+	tt_mem_op(tmp, ==, "If you", 6);
+	tt_int_op(evbuffer_remove(buf1, tmp, 5), ==, 5);
+	tt_mem_op(tmp, ==, " have", 5);
+
+	/* Make sure that prepending does not meddle with immutable data */
+	tt_int_op(evbuffer_prepend(buf1, "I have ", 7), ==, 0);
+	tt_mem_op(content1, ==, prefix, prefix_len);
+	evbuffer_validate(buf1);
+
+	/* Make sure that when the chunk is over, the callback is invoked. */
+	evbuffer_drain(buf1, 7); /* Remove prepended stuff. */
+	evbuffer_drain(buf1, len1 - 11 - 1); /* remove all but one byte of chunk1 */
+	evbuffer_remove(buf1, tmp, 1);
+	tt_int_op(tmp[0], ==, 'm');
+	evbuffer_validate(buf1);
+
+	/* Drain some of the remaining chunk, then add it to another buffer */
+	evbuffer_drain(buf1, 6); /* Remove the ", you ". */
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+	evbuffer_add(buf2, "I ", 2);
+
+	evbuffer_add_buffer(buf2, buf1);
+	evbuffer_remove(buf2, tmp, 16);
+	tt_mem_op("I ought to write", ==, tmp, 16);
+	evbuffer_drain(buf2, evbuffer_get_length(buf2));
+	evbuffer_validate(buf2);
+
+	/* Now add more stuff to buf1 and make sure that it gets removed on free. */
+	evbuffer_add(buf1, "You shake and shake the ", 24);
+	evbuffer_add_reference(
+		buf1, "ketchup bottle", 14, ref_done_cb, (void *)3333);
+	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 35);
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
+static void
 test_evbuffer_multicast(void *ptr)
 {
 	const char chunk1[] = "If you have found the answer to such a problem";
@@ -2587,6 +2712,11 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	len = strlen(tmpfilecontent);
 	fd = regress_make_tmpfile(tmpfilecontent, len, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
+
 	r = evbuffer_add_file(buf, fd, 0, len);
 	FREEZE_EQ(r, 0, -1);
 
@@ -2827,6 +2957,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "search", test_evbuffer_search, 0, NULL, NULL },
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
+	{ "add_reference_with_offset", test_evbuffer_add_reference_with_offset, 0, NULL, NULL},
 	{ "multicast", test_evbuffer_multicast, 0, NULL, NULL },
 	{ "multicast_drain", test_evbuffer_multicast_drain, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, TT_FORK, NULL, NULL },
@@ -2840,6 +2971,9 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
 	{ "pullup_with_empty", test_evbuffer_pullup_with_empty, 0, NULL, NULL },
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+	{ "add_file_leak1", test_evbuffer_add_file_leak1, TT_NO_LOGS, NULL, NULL },
+#endif
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\

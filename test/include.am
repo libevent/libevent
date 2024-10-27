@@ -28,8 +28,15 @@ TESTPROGRAMS = \
 	test/test-init				\
 	test/test-ratelim				\
 	test/test-time				\
-	test/test-weof \
-	test/regress
+	test/test-weof
+
+if PTHREADS
+if KQUEUE_BACKEND
+TESTPROGRAMS += test/test-kq-collision
+endif
+endif
+
+TESTPROGRAMS += test/regress
 
 if BUILD_REGRESS
 noinst_PROGRAMS += $(TESTPROGRAMS)
@@ -80,6 +87,8 @@ test_runner_changelist: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -c
 test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -T
+test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b "" -S
 
 DISTCLEANFILES += test/regress.gen.c test/regress.gen.h
 
@@ -106,6 +115,15 @@ test_test_ratelim_LDADD = libevent_core.la -lm
 test_test_fdleak_SOURCES = test/test-fdleak.c
 test_test_fdleak_LDADD = libevent_core.la
 
+if PTHREADS
+if KQUEUE_BACKEND
+test_test_kq_collision_SOURCES = test/test-kq-collision.c
+test_test_kq_collision_LDADD = libevent_core.la libevent_pthreads.la
+test_test_kq_collision_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) -Itest
+test_test_kq_collision_LDFLAGS = $(PTHREAD_CFLAGS)
+endif
+endif
+
 test_regress_SOURCES = 				\
 	test/regress.c				\
 	test/regress.gen.c				\
@@ -116,6 +134,7 @@ test_regress_SOURCES = 				\
 	test/regress_et.c				\
 	test/regress_finalize.c				\
 	test/regress_http.c				\
+	test/regress_http.h				\
 	test/regress_listener.c			\
 	test/regress_main.c				\
 	test/regress_minheap.c			\
@@ -124,6 +143,9 @@ test_regress_SOURCES = 				\
 	test/regress_testutils.h			\
 	test/regress_util.c				\
 	test/regress_watch.c				\
+	test/regress_ws.c				\
+	test/regress_ws.h				\
+	test/regress_timer_timeout.c		\
 	test/tinytest.c				\
 	$(regress_thread_SOURCES)		\
 	$(regress_zlib_SOURCES)

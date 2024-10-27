@@ -76,6 +76,21 @@ extern "C" {
 
 #include <time.h>
 
+#ifdef __sun
+#ifdef SO_FLOW_NAME
+/* Since it's impossible to detect the Solaris 11.4 version via OS macros,
+ * so we check the presence of the socket option SO_FLOW_NAME that was first
+ * introduced to Solaris 11.4 and define a custom macro for determining 11.4.
+ *
+ * Note that this might be a false positive if the code is compiled on a system
+ * but run on another system with an older version of Solaris.
+ */
+#define EVENT__SOLARIS_11_4 (1)
+#else
+#define EVENT__SOLARIS_11_4 (0)
+#endif
+#endif
+
 /* Some openbsd autoconf versions get the name of this macro wrong. */
 #if defined(EVENT__SIZEOF_VOID__) && !defined(EVENT__SIZEOF_VOID_P)
 #define EVENT__SIZEOF_VOID_P EVENT__SIZEOF_VOID__
@@ -368,7 +383,7 @@ int evutil_configure_monotonic_time(struct evutil_monotonic_timer *timer,
  * measurements of elapsed time between events even when the system time
  * may be changed.
  *
- * It is not safe to use this funtion on the same timer from multiple
+ * It is not safe to use this function on the same timer from multiple
  * threads.
  */
 EVENT2_EXPORT_SYMBOL
@@ -377,9 +392,14 @@ int evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
 
 /** Create two new sockets that are connected to each other.
 
-    On Unix, this simply calls socketpair().  On Windows, it uses the
-    loopback network interface on 127.0.0.1, and only
-    AF_INET,SOCK_STREAM are supported.
+    On Unix, this simply calls socketpair() and creates an unnamed pair of connected sockets
+    in the specified domain, of the specified type, and using the optionally specified protocol.
+
+    On Windows, it will try to use the AF_UNIX to create unix socket pair if available, otherwise
+    it instead uses AF_INET to create socket pair, binding the loopback network interface 127.0.0.1.
+
+    Including the bitwise OR of the EVUTIL_SOCK_NONBLOCK and/or EVUTIL_SOCK_CLOEXEC
+    in the type argument will apply to both file descriptors.
 
     (This may fail on some Windows hosts where firewall software has cleverly
     decided to keep 127.0.0.1 from talking to itself.)
@@ -387,7 +407,7 @@ int evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
     Parameters and return values are as for socketpair()
 */
 EVENT2_EXPORT_SYMBOL
-int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
+int evutil_socketpair(int domain, int type, int protocol, evutil_socket_t sv[2]);
 /** Do platform-specific operations as needed to make a socket nonblocking.
 
     @param sock The socket to make nonblocking
@@ -412,10 +432,13 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 
 /** Do platform-specific operations to make a listener port reusable.
 
-    Specifically, we want to make sure that multiple programs which also
-    set the same socket option will be able to bind, listen at the same time.
+    Specifically, we want to make sure that multiple programs that also
+    set the same socket option will be able to bind, and listen at the
+    same time, for incoming connections/datagrams to be distributed evenly
+    across all of the threads (or processes).
 
-    This is a feature available only to Linux 3.9+
+    This feature is available only on Linux 3.9+, DragonFlyBSD 3.6+,
+    FreeBSD 12.0+, Solaris 11.4, AIX 7.2.5 for now.
 
     @param sock The socket to make reusable
     @return 0 on success, -1 on failure
@@ -429,11 +452,27 @@ int evutil_make_listen_socket_reuseable_port(evutil_socket_t sock);
     sockets is to work in IPv4-mapped mode. In IPv4-mapped mode, it is not possible
     to bind same port from different IPv4 and IPv6 handlers.
 
+    On Windows the default value is instead to only work in IPv6 mode.
+
     @param sock The socket to make in ipv6only working mode
     @return 0 on success, -1 on failure
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_make_listen_socket_ipv6only(evutil_socket_t sock);
+
+/** Set ipv6 only bind socket option to make listener work in both ipv4 and ipv6 sockets.
+
+    According to RFC3493 and most Linux distributions, default value for the
+    sockets is to work in IPv4-mapped mode. In IPv4-mapped mode, it is not possible
+    to bind same port from different IPv4 and IPv6 handlers.
+
+    On Windows the default value is instead to only work in IPv6 mode.
+
+    @param sock The socket to make in ipv6only working mode
+    @return 0 on success, -1 on failure
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_make_listen_socket_not_ipv6only(evutil_socket_t sock);
 
 /** Do platform-specific operations as needed to close a socket upon a
     successful execution of one of the exec*() functions.
@@ -457,17 +496,29 @@ int evutil_closesocket(evutil_socket_t sock);
 
 /** Do platform-specific operations, if possible, to make a tcp listener
  *  socket defer accept()s until there is data to read.
- *  
+ *
  *  Not all platforms support this.  You don't want to do this for every
  *  listener socket: only the ones that implement a protocol where the
  *  client transmits before the server needs to respond.
  *
- *  @param sock The listening socket to to make deferred
+ *  @param sock The listening socket to make deferred
  *  @return 0 on success (whether the operation is supported or not),
  *       -1 on failure
-*/ 
+*/
 EVENT2_EXPORT_SYMBOL
 int evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock);
+
+/** Do platform-specific operations to set/unset TCP keep-alive options
+ * TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on a socket.
+ *
+ *  @param sock The socket to be set TCP keep-alive
+ *  @param on Nonzero value to enable TCP keep-alive, 0 to disable
+ *  @param timeout The timeout in seconds with no activity until
+ * 	   the first keepalive probe is sent
+ *  @return 0 on success, -1 on failure
+*/
+EVENT2_EXPORT_SYMBOL
+int evutil_set_tcp_keepalive(evutil_socket_t sock, int on, int timeout);
 
 #ifdef _WIN32
 /** Return the most recent socket error.  Not idempotent on all platforms. */
@@ -507,14 +558,14 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_socket_error_to_string(errcode) ...
 #define EVUTIL_INVALID_SOCKET -1
 /**@}*/
-#else /** !EVENT_IN_DOXYGEN_ && !_WIN32 */
+#else /* !EVENT_IN_DOXYGEN_ && !_WIN32 */
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
 #define evutil_socket_geterror(sock) (errno)
 #define evutil_socket_error_to_string(errcode) (strerror(errcode))
 #define EVUTIL_INVALID_SOCKET -1
-#endif /** !_WIN32 */
+#endif /* !_WIN32 */
 
 
 /**
@@ -609,7 +660,7 @@ int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 #endif
 ;
 
-/** Replacement for inet_ntop for platforms which lack it. */
+/** Replacement for inet_ntop for platforms which lack it. src must not be NULL. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
 /** Variation of inet_pton that also parses IPv6 scopes. Public for
@@ -618,7 +669,7 @@ const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
 EVENT2_EXPORT_SYMBOL
 int evutil_inet_pton_scope(int af, const char *src, void *dst,
 	unsigned *indexp);
-/** Replacement for inet_pton for platforms which lack it. */
+/** Replacement for inet_pton for platforms which lack it. src must not be NULL. */
 EVENT2_EXPORT_SYMBOL
 int evutil_inet_pton(int af, const char *src, void *dst);
 struct sockaddr;
@@ -626,11 +677,11 @@ struct sockaddr;
 /** Parse an IPv4 or IPv6 address, with optional port, from a string.
 
     Recognized formats are:
-    - [IPv6Address]:port
-    - [IPv6Address]
-    - IPv6Address
-    - IPv4Address:port
-    - IPv4Address
+    - "[IPv6Address]:port"
+    - "[IPv6Address]"
+    - "IPv6Address"
+    - "IPv4Address:port"
+    - "IPv4Address"
 
     If no port is specified, the port in the output is set to 0.
 
@@ -656,7 +707,8 @@ int evutil_sockaddr_cmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
     int include_port);
 
 /** As strcasecmp, but always compares the characters in locale-independent
-    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+    ASCII.  That's useful if you're handling data in ASCII-based protocols. 
+    str1 and str2 must not be NULL.
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_ascii_strcasecmp(const char *str1, const char *str2);
@@ -862,7 +914,6 @@ int evutil_secure_rng_init(void);
 EVENT2_EXPORT_SYMBOL
 int evutil_secure_rng_set_urandom_device_file(char *fname);
 
-#if !defined(EVENT__HAVE_ARC4RANDOM) || defined(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
 /** Seed the random number generator with extra random bytes.
 
     You should almost never need to call this function; it should be
@@ -874,12 +925,14 @@ int evutil_secure_rng_set_urandom_device_file(char *fname);
     contains a fairly large amount of strong entropy.  Doing so is
     notoriously hard: most people who try get it wrong.  Watch out!
 
+    This function does nothing when the system provides arc4random()
+    function because it will provide proper entropy.
+
     @param dat a buffer full of a strong source of random numbers
     @param datlen the number of bytes to read from datlen
  */
 EVENT2_EXPORT_SYMBOL
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
-#endif
 
 #ifdef __cplusplus
 }

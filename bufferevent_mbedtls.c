@@ -24,8 +24,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+/* Mbed-TLS 3.x does not currently expose a function to retrieve
+   the bio parameters from the SSL object. When the above issue has been
+   fixed, remove the MBEDTLS_ALLOW_PRIVATE_ACCESS define and use the
+   appropriate getter function in bufferevent_mbedtls_socket_new rather than
+   accessing the struct fields directly. */
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include "mbedtls-compat.h"
-#include <mbedtls/config.h>
+#include <mbedtls/version.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/error.h>
 
@@ -40,7 +47,7 @@
 #include "mm-internal.h"
 
 struct mbedtls_context {
-	mbedtls_ssl_context *ssl;
+	mbedtls_dyncontext *ssl;
 	mbedtls_net_context net;
 };
 static void *
@@ -58,7 +65,7 @@ mbedtls_context_free(void *ssl, int flags)
 {
 	struct mbedtls_context *ctx = ssl;
 	if (flags & BEV_OPT_CLOSE_ON_FREE)
-		mbedtls_ssl_free(ctx->ssl);
+		bufferevent_mbedtls_dyncontext_free(ctx->ssl);
 	mm_free(ctx);
 }
 static int
@@ -114,8 +121,9 @@ mbedtls_set_ssl_noops(void *ssl)
 {
 }
 static int
-mbedtls_is_ok(int err)
+mbedtls_handshake_is_ok(int err)
 {
+	/* What mbedtls_ssl_handshake() return on success */
 	return err == 0;
 }
 static int
@@ -284,9 +292,6 @@ bufferevent_mbedtls_get_ssl(struct bufferevent *bufev)
 int
 bufferevent_mbedtls_renegotiate(struct bufferevent *bufev)
 {
-	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bufev);
-	if (!bev_ssl)
-		return -1;
 	return bufferevent_ssl_renegotiate_impl(bufev);
 }
 
@@ -302,7 +307,7 @@ bufferevent_get_mbedtls_error(struct bufferevent *bufev)
 static struct le_ssl_ops le_mbedtls_ops = {
 	mbedtls_context_init,
 	mbedtls_context_free,
-	(void (*)(void *))mbedtls_ssl_free,
+	(void (*)(void *))bufferevent_mbedtls_dyncontext_free,
 	mbedtls_context_renegotiate,
 	mbedtls_context_write,
 	mbedtls_context_read,
@@ -313,7 +318,7 @@ static struct le_ssl_ops le_mbedtls_ops = {
 	mbedtls_clear,
 	mbedtls_set_ssl_noops,
 	mbedtls_set_ssl_noops,
-	mbedtls_is_ok,
+	mbedtls_handshake_is_ok,
 	mbedtls_is_want_read,
 	mbedtls_is_want_write,
 	be_mbedtls_get_fd,
@@ -345,7 +350,7 @@ bufferevent_mbedtls_filter_new(struct event_base *base,
 
 err:
 	if (options & BEV_OPT_CLOSE_ON_FREE)
-		mbedtls_ssl_free(ssl);
+		bufferevent_mbedtls_dyncontext_free(ssl);
 	return NULL;
 }
 
@@ -399,4 +404,20 @@ bufferevent_mbedtls_socket_new(struct event_base *base, evutil_socket_t fd,
 	return bev;
 err:
 	return NULL;
+}
+
+mbedtls_dyncontext *
+bufferevent_mbedtls_dyncontext_new(struct mbedtls_ssl_config *conf)
+{
+	mbedtls_dyncontext *ctx = mm_calloc(1, sizeof(*ctx));
+	mbedtls_ssl_init(ctx);
+	mbedtls_ssl_setup(ctx, conf);
+	return ctx;
+}
+
+void
+bufferevent_mbedtls_dyncontext_free(mbedtls_dyncontext *ctx)
+{
+	mbedtls_ssl_free(ctx);
+	mm_free(ctx);
 }

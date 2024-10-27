@@ -935,7 +935,7 @@ test_evutil_rand(void *arg)
 	char buf1[32];
 	char buf2[32];
 	int counts[256];
-	int i, j, k, n=0;
+	int i, j, k;
 	struct evutil_weakrand_state seed = { 12346789U };
 
 	memset(buf2, 0, sizeof(buf2));
@@ -956,7 +956,6 @@ test_evutil_rand(void *arg)
 			memset(buf1, 0, sizeof(buf1));
 			evutil_secure_rng_get_bytes(buf1 + startpoint,
 			    endpoint-startpoint);
-			n += endpoint - startpoint;
 			for (j=0; j<32; ++j) {
 				if (j >= startpoint && j < endpoint) {
 					buf2[j] |= buf1[j];
@@ -982,8 +981,6 @@ test_evutil_rand(void *arg)
 		tt_int_op(0, <=, r);
 		tt_int_op(r, <, 9999);
 	}
-
-	/* for (i=0;i<256;++i) { printf("%3d %2d\n", i, counts[i]); } */
 end:
 	;
 }
@@ -1004,6 +1001,15 @@ test_evutil_getaddrinfo(void *arg)
 	struct evutil_addrinfo *ai = NULL, *a;
 	struct evutil_addrinfo hints;
 	int r;
+
+	/* Try NULL hint (win32 bug) */
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evutil_getaddrinfo("www.google.com", NULL, NULL, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
 
 	/* Try using it as a pton. */
 	memset(&hints, 0, sizeof(hints));
@@ -1104,7 +1110,7 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
 	r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
-	tt_int_op(r, ==, EVUTIL_EAI_NONAME);
+	tt_int_op(r,==,EVUTIL_EAI_NONAME);
 	tt_ptr_op(ai, ==, NULL);
 
 	/* Try symbolic service names wit AI_NUMERICSERV */
@@ -1113,7 +1119,8 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = EVUTIL_AI_NUMERICSERV;
 	r = evutil_getaddrinfo("1.2.3.4", "http", &hints, &ai);
-	tt_int_op(r,==,EVUTIL_EAI_NONAME);
+	if (r != EVUTIL_EAI_SERVICE && r != EVUTIL_EAI_NONAME)
+		tt_fail_msg("error is neither EAI_SERVICE nor EAI_NONAME\n");
 
 	/* Try symbolic service names */
 	memset(&hints, 0, sizeof(hints));
@@ -1303,19 +1310,36 @@ test_event_calloc(void *arg)
 	mm_free(p);
 	p = NULL;
 
-	/* mm_calloc() should set errno = ENOMEM and return NULL
-	 * in case of potential overflow. */
-	errno = 0;
-	p = mm_calloc(EV_SIZE_MAX/2, EV_SIZE_MAX/2 + 8);
-	tt_assert(p == NULL);
-	tt_int_op(errno, ==, ENOMEM);
-
  end:
 	errno = 0;
 	if (p)
 		mm_free(p);
+}
 
-	return;
+static void
+test_event_calloc_enomem(void *arg)
+{
+	void *p = NULL;
+
+	/* mm_calloc() should set errno = ENOMEM and return NULL
+	 * in case of potential overflow. */
+	errno = 0;
+#if defined(__clang__)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Walloc-size-larger-than="
+#endif
+	/* Requires allocator_may_return_null=1 for sanitizers */
+	p = mm_calloc(EV_SIZE_MAX, EV_SIZE_MAX);
+#if defined(__clang__)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+	tt_ptr_op(p, ==, NULL);
+	tt_int_op(errno, ==, ENOMEM);
+
+ end:
+	;
 }
 
 static void
@@ -1677,7 +1701,7 @@ test_evutil_socketpair_create(void *arg)
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_RAW, 0, fd), == , -1);
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 1, fd), == , -1);
 
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(EVENT__HAVE_SOCKETPAIR)
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 0, fd), == , -1);
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_DGRAM, 0, fd), == , -1);
 	socketpair_init(fd);
@@ -1707,7 +1731,7 @@ test_evutil_win_socketpair(void *arg)
 	struct basic_test_data *data = arg;
 	const int inet = strstr(data->setup_data, "inet") != NULL;
 	int family = inet ? AF_INET : AF_UNIX;
-	evutil_socket_t fd[2] = { -1, -1 };
+	evutil_socket_t fd[2] = { EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET };
 	int r;
 	int type;
 	ev_socklen_t typelen;
@@ -1841,6 +1865,7 @@ struct testcase_t util_testcases[] = {
 #endif
 	{ "mm_malloc", test_event_malloc, 0, NULL, NULL },
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
+	{ "mm_calloc_enomem", test_event_calloc_enomem, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
 	{ "usleep", test_evutil_usleep, TT_RETRIABLE, NULL, NULL },
 	{ "monotonic_res", test_evutil_monotonic_res, 0, &basic_setup, (void*)"" },

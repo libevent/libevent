@@ -53,7 +53,7 @@ int
 evutil_secure_rng_init(void)
 {
 	/* call arc4random() now to force it to self-initialize */
-	(void) arc4random();
+	(void)! arc4random();
 	return 0;
 }
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
@@ -78,7 +78,7 @@ ev_arc4random_buf(void *buf, size_t n)
 	unsigned char *b = buf;
 
 #if defined(EVENT__HAVE_ARC4RANDOM_BUF)
-	/* OSX 10.7 introducd arc4random_buf, so if you build your program
+	/* OSX 10.7 introduced arc4random_buf, so if you build your program
 	 * there, you'll get surprised when older versions of OSX fail to run.
 	 * To solve this, we can check whether the function pointer is set,
 	 * and fall back otherwise.  (OSX does this using some linker
@@ -190,14 +190,16 @@ evutil_secure_rng_get_bytes(void *buf, size_t n)
 	ev_arc4random_buf(buf, n);
 }
 
-#if !defined(EVENT__HAVE_ARC4RANDOM) || defined(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
 void
 evutil_secure_rng_add_bytes(const char *buf, size_t n)
 {
+#if !defined(EVENT__HAVE_ARC4RANDOM)
 	arc4random_addrandom((unsigned char*)buf,
 	    n>(size_t)INT_MAX ? INT_MAX : (int)n);
-}
+#elif defined(EVENT__HAVE_ARC4RANDOM_STIR)
+    arc4random_stir();
 #endif
+}
 
 void
 evutil_free_secure_rng_globals_(void)

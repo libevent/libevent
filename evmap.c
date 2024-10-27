@@ -95,7 +95,7 @@ hashsocket(struct event_map_entry *e)
 	 * matter.  Our hashtable implementation really likes low-order bits,
 	 * though, so let's do the rotate-and-add trick. */
 	unsigned h = (unsigned) e->fd;
-	h += (h >> 2) | (h << 30);
+	h = (h >> 2) | (h << 30);
 	return h;
 }
 
@@ -465,7 +465,7 @@ evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 	    base->evsigsel->fdinfo_len);
 
 	if (LIST_EMPTY(&ctx->events)) {
-		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
+		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, ev)
 		    == -1)
 			return (-1);
 	}
@@ -643,7 +643,8 @@ evmap_signal_reinit_iter_fn(struct event_base *base,
 	int *result = arg;
 
 	if (!LIST_EMPTY(&ctx->events)) {
-		if (evsel->add(base, signum, 0, EV_SIGNAL, NULL) == -1)
+		if (evsel->add(base, signum, 1, EV_SIGNAL,
+			       LIST_FIRST(&ctx->events)) == -1)
 			*result = -1;
 	}
 	return 0;
@@ -913,7 +914,7 @@ event_changelist_del_(struct event_base *base, evutil_socket_t fd, short old, sh
 	   "add, delete, dispatch" is not the same as "no-op, dispatch", we
 	   want the no-op behavior.
 
-	   If we have a no-op item, we could remove it it from the list
+	   If we have a no-op item, we could remove it from the list
 	   entirely, but really there's not much point: skipping the no-op
 	   change when we do the dispatch later is far cheaper than rejuggling
 	   the array now.

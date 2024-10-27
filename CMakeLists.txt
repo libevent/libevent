@@ -19,10 +19,16 @@
 #       start libevent.sln
 #
 
-cmake_minimum_required(VERSION 3.1.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
+if (POLICY CMP0042)
+    cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default.
+endif()
 if (POLICY CMP0054)
     cmake_policy(SET CMP0054 NEW)
+endif()
+if (POLICY CMP0068)
+    cmake_policy(SET CMP0068 NEW) # RPATH settings on macOS do not affect install_name.
 endif()
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
@@ -34,8 +40,17 @@ endif()
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
         CACHE STRING "Set build type to Debug or Release (default Release)" FORCE)
+    message(STATUS "Set CMAKE_BUILD_TYPE to Release (default)")
 endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+
+# Usually it is OK to define it unconditionally, but the problem is that we use
+# CMAKE_DEBUG_POSTFIX in *.pc.in
+if (CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
+    if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
+        set(CMAKE_DEBUG_POSTFIX d)
+    endif()
+endif()
 
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
     "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
@@ -85,7 +100,8 @@ set(EVENT_ABI_LIBVERSION_AGE       0)
 # equals to RELEASE in Makefile.am
 set(EVENT_PACKAGE_RELEASE 2.2)
 
-set(EVENT_NUMERIC_VERSION 0x02020001)
+# The last number is development version or not.
+set(EVENT_NUMERIC_VERSION 0x02020100)
 
 # only a subset of names can be used, defaults to "beta"
 set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE})
@@ -125,11 +141,13 @@ option(EVENT__DISABLE_MM_REPLACEMENT
 option(EVENT__DISABLE_THREAD_SUPPORT
     "Define if libevent should not be compiled with thread support" OFF)
 
-option(EVENT__DISABLE_OPENSSL
-    "Define if libevent should build without support for OpenSSL encryption" OFF)
+set(EVENT__DISABLE_OPENSSL AUTO CACHE STRING
+    "OpenSSL library support: AUTO (use if present), ON (ignore), OFF (require presence)")
+set_property(CACHE EVENT__DISABLE_OPENSSL PROPERTY STRINGS AUTO ON OFF)
 
-option(EVENT__DISABLE_MBEDTLS
-    "Define if libevent should build without support for mbed TLS encryption" OFF)
+set(EVENT__DISABLE_MBEDTLS AUTO CACHE STRING
+    "Mbed TLS library support: AUTO (use if present), ON (ignore), OFF (require presence)")
+set_property(CACHE EVENT__DISABLE_MBEDTLS PROPERTY STRINGS AUTO ON OFF)
 
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
@@ -167,6 +185,29 @@ endif()
 if (NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
+
+include(GNUInstallDirs)
+
+# The RPATH to be used when installing, but only if it's not a system directory
+#
+# Refs: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
+macro(Configure_RPATH)
+    # NOTE: that CMAKE_INSTALL_FULL_LIBDIR not always normalized correctly, i.e.:
+    # - "///" -> "/"
+    # - "/////usr///" -> "//usr"
+    # So it should be normalized again.
+    get_filename_component(CMAKE_INSTALL_LIBDIR_NORMALIZED "${CMAKE_INSTALL_FULL_LIBDIR}" REALPATH)
+    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR_NORMALIZED}" isSystemDir)
+
+    if(DEFINED CMAKE_INSTALL_RPATH)
+        message(STATUS "CMAKE_INSTALL_RPATH already set")
+    elseif("${isSystemDir}" STREQUAL "-1")
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR_NORMALIZED}")
+    else()
+        message(STATUS "Detected install to system directory")
+    endif()
+endmacro()
+Configure_RPATH()
 
 if (EVENT__ENABLE_VERBOSE_DEBUG)
     add_definitions(-DUSE_DEBUG=1)
@@ -273,10 +314,9 @@ if (${GNUC})
     option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
     option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
 
-    set(GCC_V ${CMAKE_C_COMPILER_VERSION})
-
     list(APPEND __FLAGS
          -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
+         -Wundef
 
          -fno-strict-aliasing # gcc 2.9.5+
          -Wmissing-prototypes
@@ -296,12 +336,18 @@ if (${GNUC})
 
          -Wwrite-strings
 
-         # we use this hack in tests
-         -Wno-void-pointer-to-enum-cast
+         # Disable unused-function warnings. These trigger for minheap-internal.h.
+         -Wno-unused-function
+
+         -Wno-pragmas
+
+         -Wvla
     )
 
     if (${CLANG})
-        list(APPEND __FLAGS -Wno-unused-function)
+        list(APPEND __FLAGS
+             # we use this hack in tests
+             -Wno-void-pointer-to-enum-cast)
     endif()
 
     if (EVENT__DISABLE_GCC_WARNINGS)
@@ -316,7 +362,7 @@ if (${GNUC})
              -Wstack-protector
              "--param ssp-buffer-size=1")
 
-        add_definitions(-D_FORTIFY_SOURCE=2)
+        add_definitions(-D_FORTIFY_SOURCE=3)
     endif()
 
     if (EVENT__ENABLE_GCC_FUNCTION_SECTIONS)
@@ -374,7 +420,6 @@ if (NOT DEFINED _GNU_SOURCE)
 endif()
 
 if (_GNU_SOURCE)
-    add_definitions(-D_GNU_SOURCE=1)
     set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 endif()
 
@@ -421,12 +466,14 @@ else()
         sys/ioctl.h
         sys/mman.h
         sys/queue.h
+        sys/tree.h
         sys/select.h
         sys/sendfile.h
         sys/uio.h
         sys/wait.h
         sys/resource.h
         sys/timerfd.h
+        sys/signalfd.h
         netinet/in.h
         netinet/in6.h
         netinet/tcp.h
@@ -460,24 +507,24 @@ unset(FILES_TO_CHECK)
 # Check if functions exist
 list(APPEND SYMBOLS_TO_CHECK
     getaddrinfo
+    gethostbyname
     getnameinfo
     getprotobynumber
     getservbyname
-    gethostbyname
+    gettimeofday
     inet_ntop
     inet_pton
-    gettimeofday
+    nanosleep
+    putenv
     signal
-    strtoll
+    socketpair
     strlcpy
     strsep
     strtok_r
-    timerclear
-    timercmp
-    timerisset
+    strtoll
     timeradd
-    nanosleep
-    putenv
+    timerclear
+    timerisset
     umask
 )
 if (NOT EVENT__DISABLE_CLOCK_GETTIME)
@@ -486,63 +533,73 @@ endif()
 
 if (WIN32)
     list(APPEND SYMBOLS_TO_CHECK
-        _gmtime64_s
         _gmtime64
+        _gmtime64_s
     )
 else()
     list(APPEND SYMBOLS_TO_CHECK
-        getifaddrs
-        select
-        epoll_create
-        epoll_create1
-        epoll_ctl
-        eventfd
-        poll
-        port_create
-        kqueue
-        fcntl
-        mmap
-        pipe
-        pipe2
-        sendfile
-        sigaction
-        strsignal
-        sysctl
         accept4
         arc4random
         arc4random_buf
-        arc4random_addrandom
-        getrandom
+        arc4random_stir
+        epoll_create
+        epoll_create1
+        epoll_ctl
+        epoll_pwait2
+        eventfd
+        fcntl
         getegid
         geteuid
-        issetugid
-        usleep
-        timerfd_create
-        setenv
-        unsetenv
-        setrlimit
         gethostbyname_r
+        getifaddrs
+        getrandom
+        issetugid
+        kqueue
+        mmap
+        mmap64
+        pipe
+        pipe2
+        poll
+        port_create
+        pread
+        select
+        sendfile
+        setenv
+        setrlimit
+        sigaction
+        strsignal
+        sysctl
+        timerfd_create
+        unsetenv
+        usleep
     )
     if (APPLE)
         list(APPEND SYMBOLS_TO_CHECK mach_absolute_time)
     endif()
 endif()
 
+set(PTHREADS_AVAILABLE OFF)
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     if (WIN32)
         list(APPEND SRC_CORE evthread_win32.c)
+    elseif(ANDROID)
+        # pthreads is built in to bionic
+        set(EVENT__HAVE_PTHREADS 1)
+        CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
+        list(APPEND SYMBOLS_TO_CHECK pthread_mutexattr_setprotocol)
+        set(PTHREADS_AVAILABLE ON)
     else()
         find_package(Threads REQUIRED)
         if (NOT CMAKE_USE_PTHREADS_INIT)
             message(FATAL_ERROR
                     "Failed to find Pthreads, set EVENT__DISABLE_THREAD_SUPPORT to disable")
         endif()
+        set(PTHREADS_AVAILABLE ON)
 
         set(EVENT__HAVE_PTHREADS 1)
-        list(APPEND LIB_APPS ${CMAKE_THREAD_LIBS_INIT})
-
         # for CHECK_SYMBOLS_EXIST()
         list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+        list(APPEND LIB_APPS Threads::Threads)
 
         CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
         list(APPEND SYMBOLS_TO_CHECK pthread_mutexattr_setprotocol)
@@ -553,6 +610,7 @@ list(APPEND CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES} stdio.h)
 CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${CMAKE_EXTRA_INCLUDE_FILES}" "EVENT")
 unset(SYMBOLS_TO_CHECK)
 set(EVENT__HAVE_EPOLL ${EVENT__HAVE_EPOLL_CREATE})
+set(EVENT__HAVE_SIGNALFD ${EVENT__HAVE_SYS_SIGNALFD_H})
 if(WIN32 AND NOT CYGWIN)
     set(EVENT__HAVE_WEPOLL 1)
 endif()
@@ -618,7 +676,6 @@ endif()
 CHECK_SYMBOL_EXISTS("__func__"     "" EVENT__HAVE___func__)
 CHECK_SYMBOL_EXISTS("__FUNCTION__" "" EVENT__HAVE___FUNCTION__)
 
-CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
 CHECK_CONST_EXISTS(CTL_KERN sys/sysctl.h EVENT__HAVE_DECL_CTL_KERN)
 CHECK_CONST_EXISTS(KERN_ARND sys/sysctl.h EVENT__HAVE_DECL_KERN_ARND)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
@@ -627,10 +684,7 @@ CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
 
 CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZE_T)
 if(NOT EVENT__SIZEOF_SIZE_T)
-  set(EVENT__size_t "unsigned")
   set(EVENT__SIZEOF_SIZE_T ${EVENT__SIZEOF_UNSIGNED})
-else()
-    set(EVENT__size_t size_t)
 endif()
 
 CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T LANGUAGE C)
@@ -647,13 +701,10 @@ CHECK_TYPE_SIZE("SSIZE_T" EVENT__SIZEOF_SSIZE_T_UPPER LANGUAGE C)
 
 if (EVENT__SIZEOF_SSIZE_T_LOWER)
     set(EVENT__ssize_t "ssize_t")
-    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_SSIZE_T_LOWER})
 elseif (EVENT__SIZEOF_SSIZE_T_UPPER)
     set(EVENT__ssize_t "SSIZE_T")
-    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_SSIZE_T_UPPER})
 else()
     set(EVENT__ssize_t "int")
-    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
 endif()
 
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
@@ -669,10 +720,6 @@ if(NOT EVENT__SIZEOF_PID_T)
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
 else()
 	set(EVENT__SIZEOF_PID_T EVENT__SIZEOF_PID_T)
-endif()
-
-if(EVENT__HAVE_CLOCK_GETTIME)
-  set(EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1)
 endif()
 
 # we're just getting lazy now.
@@ -692,8 +739,13 @@ CHECK_TYPE_SIZE("time_t" EVENT__SIZEOF_TIME_T)
 
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
-    if ((CMAKE_CROSSCOMPILING OR APPLE) AND NOT EVENT__FORCE_KQUEUE_CHECK)
-        message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
+    if (CMAKE_CROSSCOMPILING AND NOT EVENT__FORCE_KQUEUE_CHECK)
+        message(WARNING "Cannot check if kqueue works with pipes when crosscompiling.
+            Use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires running a test program on the cross compilation target)")
+        set(EVENT__HAVE_WORKING_KQUEUE 1)
+    elseif (APPLE AND NOT EVENT__FORCE_KQUEUE_CHECK)
+        message(WARNING "Cannot check if kqueue works with pipes on macOS.
+            Use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires running a test program).")
         set(EVENT__HAVE_WORKING_KQUEUE 1)
     else()
         message(STATUS "Checking if kqueue works with pipes...")
@@ -737,15 +789,6 @@ else()
 endif()
 
 CHECK_TYPE_SIZE("struct in6_addr" EVENT__HAVE_STRUCT_IN6_ADDR)
-if(EVENT__HAVE_STRUCT_IN6_ADDR)
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
-            s6_addr16 "${SOCKADDR_HEADERS}"
-            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
-
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
-            s6_addr32 "${SOCKADDR_HEADERS}"
-            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
-endif()
 
 CHECK_TYPE_SIZE("sa_family_t" EVENT__HAVE_SA_FAMILY_T)
 CHECK_TYPE_SIZE("struct sockaddr_in6" EVENT__HAVE_STRUCT_SOCKADDR_IN6)
@@ -794,8 +837,11 @@ set(HDR_PRIVATE
     ratelim-internal.h
     strlcpy-internal.h
     util-internal.h
+    openssl-compat.h
     evconfig-private.h
-    compat/sys/queue.h)
+    sha1.h
+    compat/sys/queue.h
+    compat/sys/tree.h)
 
 set(HDR_COMPAT
     include/evdns.h
@@ -829,6 +875,7 @@ set(HDR_PUBLIC
     include/event2/tag_compat.h
     include/event2/thread.h
     include/event2/util.h
+    include/event2/ws.h
     include/event2/visibility.h
     ${PROJECT_BINARY_DIR}/include/event2/event-config.h)
 
@@ -871,6 +918,10 @@ if(EVENT__HAVE_EPOLL)
     list(APPEND SRC_CORE epoll.c)
 endif()
 
+if(EVENT__HAVE_SIGNALFD)
+    list(APPEND SRC_CORE signalfd.c)
+endif()
+
 if(EVENT__HAVE_WEPOLL)
     list(APPEND SRC_CORE
         epoll.c
@@ -881,7 +932,7 @@ if(EVENT__HAVE_EVENT_PORTS)
     list(APPEND SRC_CORE evport.c)
 endif()
 
-if (NOT EVENT__DISABLE_OPENSSL)
+if (EVENT__DISABLE_OPENSSL STREQUAL "OFF" OR EVENT__DISABLE_OPENSSL STREQUAL "AUTO")
     # only if OPENSSL_ROOT_DIR is not set yet
     if (BREW AND NOT OPENSSL_ROOT_DIR AND NOT "$ENV{OPENSSL_ROOT_DIR}")
         execute_process(COMMAND ${BREW} --prefix openssl
@@ -896,33 +947,61 @@ if (NOT EVENT__DISABLE_OPENSSL)
         endif()
     endif()
 
-    find_package(OpenSSL REQUIRED)
+    find_package(OpenSSL)
 
-    set(EVENT__HAVE_OPENSSL 1)
+    if (OPENSSL_FOUND)
+        set(EVENT__HAVE_OPENSSL 1)
+        set(OPENSSL_TARGETS OpenSSL::SSL)
 
-    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
+        message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+        message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
 
-    include_directories(${OPENSSL_INCLUDE_DIR})
-
-    list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
-    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
+        list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
+        list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+        list(APPEND LIB_APPS ${OPENSSL_TARGETS})
+    elseif (EVENT__DISABLE_OPENSSL STREQUAL "OFF")
+        message(FATAL_ERROR "OpenSSL required, but not found.")
+    endif()
+elseif (EVENT__DISABLE_OPENSSL STREQUAL "ON")
+    message(STATUS "Disable OpenSSL support")
+else()
+    message(FATAL_ERROR "EVENT__DISABLE_OPENSSL must be set to one of: AUTO, ON or OFF")
 endif()
 
-if (NOT EVENT__DISABLE_MBEDTLS)
-    find_package(MbedTLS REQUIRED)
+if (EVENT__DISABLE_MBEDTLS STREQUAL "OFF" OR EVENT__DISABLE_MBEDTLS STREQUAL "AUTO")
+    # only if MBEDTLS_ROOT_DIR is not set yet
+    if (BREW AND NOT MBEDTLS_ROOT_DIR AND NOT "$ENV{MBEDTLS_ROOT_DIR}")
+        execute_process(COMMAND ${BREW} --prefix mbedtls
+            OUTPUT_VARIABLE BREW_MBEDTLS_PREFIX
+            RESULT_VARIABLE BREW_MBEDTLS_RESULT
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if (BREW_MBEDTLS_RESULT EQUAL 0)
+            message(STATUS "Set MBEDTLS_ROOT_DIR=${BREW_MBEDTLS_PREFIX} (from brew)")
+            set(MBEDTLS_ROOT_DIR "${BREW_MBEDTLS_PREFIX}" CACHE PATH "")
+        endif()
+    endif()
 
-    set(EVENT__HAVE_MBEDTLS 1)
+    find_package(MbedTLS)
 
-    message(STATUS "mbed TLS include: ${MBEDTLS_INCLUDE_DIR}")
-    message(STATUS "mbed TLS lib: ${MBEDTLS_LIBRARIES}")
+    if (MBEDTLS_FOUND)
+        set(EVENT__HAVE_MBEDTLS 1)
+        set(MBEDTLS_TARGETS MbedTLS::mbedtls MbedTLS::mbedcrypto MbedTLS::mbedx509)
 
-    include_directories(${MBEDTLS_INCLUDE_DIR})
+        message(STATUS "mbed TLS include: ${MBEDTLS_INCLUDE_DIR}")
+        message(STATUS "mbed TLS lib: ${MBEDTLS_LIBRARIES}")
 
-    list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
-    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_APPS ${MBEDTLS_LIBRARIES})
+        list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
+        list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+        list(APPEND LIB_APPS ${MBEDTLS_TARGETS})
+    elseif (EVENT__DISABLE_MBEDTLS STREQUAL "OFF")
+        message(FATAL_ERROR "MbedTLS required, but not found.")
+    endif()
+elseif (EVENT__DISABLE_MBEDTLS STREQUAL "ON")
+    message(STATUS "Disable MbedTLS support")
+else()
+    message(FATAL_ERROR "EVENT__DISABLE_MBEDTLS must be set to one of: AUTO, ON or OFF")
 endif()
 
 if (NOT EVENT__DISABLE_TESTS)
@@ -930,10 +1009,8 @@ if (NOT EVENT__DISABLE_TESTS)
     find_package(ZLIB)
 
     if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
-        include_directories(${ZLIB_INCLUDE_DIRS})
-
         set(EVENT__HAVE_LIBZ 1)
-        list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
+        list(APPEND LIB_APPS ZLIB::ZLIB)
     endif()
 endif()
 
@@ -941,8 +1018,21 @@ set(SRC_EXTRA
     event_tagging.c
     http.c
     evdns.c
+    ws.c
+    sha1.c
     evrpc.c)
 
+if(${CMAKE_VERSION} VERSION_LESS "3.20")
+  include(TestBigEndian)
+  TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+  if(IS_BIG_ENDIAN)
+    set(CMAKE_C_BYTE_ORDER BIG_ENDIAN)
+  else()
+    set(CMAKE_C_BYTE_ORDER LITTLE_ENDIAN)
+  endif()
+endif()
+set_source_files_properties(sha1.c PROPERTIES COMPILE_FLAGS
+    -D${CMAKE_C_BYTE_ORDER}=1)
 add_definitions(-DHAVE_CONFIG_H)
 
 # We use BEFORE here so we don't accidentally look in system directories
@@ -960,8 +1050,7 @@ if(WIN32)
 
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
 
-    set(EVENT__DNS_USE_FTIME_FOR_ID 1)
-    set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt)
+    set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt iphlpapi)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
@@ -1007,27 +1096,32 @@ add_event_library(event_extra
     INNER_LIBRARIES event_core
     SOURCES ${SRC_EXTRA})
 
-if (NOT EVENT__DISABLE_OPENSSL)
+if (EVENT__HAVE_OPENSSL)
     add_event_library(event_openssl
         INNER_LIBRARIES event_core
-        OUTER_INCLUDES ${OPENSSL_INCLUDE_DIR}
-        LIBRARIES ${OPENSSL_LIBRARIES}
+        LIBRARIES ${OPENSSL_TARGETS}
         SOURCES ${SRC_OPENSSL})
 endif()
 
-if (NOT EVENT__DISABLE_MBEDTLS)
+if (EVENT__HAVE_MBEDTLS)
     add_event_library(event_mbedtls
         INNER_LIBRARIES event_core
-        OUTER_INCLUDES ${MBEDTLS_INCLUDE_DIR}
-        LIBRARIES ${MBEDTLS_LIBRARIES}
+        LIBRARIES ${MBEDTLS_TARGETS}
         SOURCES ${SRC_MBEDTLS})
 endif()
 
 if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads
-        INNER_LIBRARIES event_core
-        SOURCES ${SRC_PTHREADS})
+    if(ANDROID)
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            SOURCES ${SRC_PTHREADS})
+    else()
+        add_event_library(event_pthreads
+            INNER_LIBRARIES event_core
+            LIBRARIES Threads::Threads
+            SOURCES ${SRC_PTHREADS})
+    endif()
 endif()
 
 # library exists for historical reasons; it contains the contents of
@@ -1089,7 +1183,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
         target_link_libraries(watch-timing m)
     endif()
 
-    if (NOT EVENT__DISABLE_OPENSSL)
+    if (EVENT__HAVE_OPENSSL)
         add_sample_prog(event_openssl https-client
                         sample/https-client.c
                         sample/openssl_hostname_validation.c
@@ -1099,7 +1193,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
         add_sample_prog(event_openssl becat sample/becat.c ${WIN32_GETOPT})
     endif()
 
-    if (NOT EVENT__DISABLE_MBEDTLS)
+    if (EVENT__HAVE_MBEDTLS)
         add_sample_prog(event_mbedtls https-client-mbedtls
                 sample/https-client.c)
         target_compile_definitions(https-client-mbedtls PRIVATE USE_MBEDTLS)
@@ -1109,6 +1203,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
 
     set(SAMPLES_WOPT
         dns-example
+        ws-chat-server
         http-server
     )
     foreach (SAMPLE ${SAMPLES_WOPT})
@@ -1148,6 +1243,7 @@ macro(add_test_prog prog)
                           event_extra
                           ${ARGN})
 endmacro()
+
 if (NOT EVENT__DISABLE_TESTS)
     #
     # Generate Regress tests.
@@ -1192,6 +1288,7 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_et.c
                  test/regress_finalize.c
                  test/regress_http.c
+                 test/regress_http.h
                  test/regress_listener.c
                  test/regress_main.c
                  test/regress_minheap.c
@@ -1200,6 +1297,9 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_testutils.h
                  test/regress_util.c
                  test/regress_watch.c
+                 test/regress_timer_timeout.c
+                 test/regress_ws.c
+                 test/regress_ws.h
                  test/tinytest.c)
 
             if (WIN32)
@@ -1215,11 +1315,11 @@ if (NOT EVENT__DISABLE_TESTS)
                 list(APPEND SRC_REGRESS test/regress_zlib.c)
             endif()
 
-            if (NOT EVENT__DISABLE_OPENSSL)
+            if (EVENT__HAVE_OPENSSL)
                 list(APPEND SRC_REGRESS test/regress_openssl.c)
             endif()
 
-            if (NOT EVENT__DISABLE_MBEDTLS)
+            if (EVENT__HAVE_MBEDTLS)
                 list(APPEND SRC_REGRESS test/regress_mbedtls.c)
             endif()
 
@@ -1230,13 +1330,13 @@ if (NOT EVENT__DISABLE_TESTS)
                                   ${LIB_PLATFORM}
                                   event_core
                                   event_extra)
-            if (NOT EVENT__DISABLE_OPENSSL)
+            if (EVENT__HAVE_OPENSSL)
                 target_link_libraries(regress event_openssl)
             endif()
-            if (NOT EVENT__DISABLE_MBEDTLS)
+            if (EVENT__HAVE_MBEDTLS)
                 target_link_libraries(regress event_mbedtls)
             endif()
-            if (CMAKE_USE_PTHREADS_INIT)
+            if (PTHREADS_AVAILABLE)
                 target_link_libraries(regress event_pthreads)
             endif()
         else()
@@ -1283,6 +1383,12 @@ if (NOT EVENT__DISABLE_TESTS)
         test-dumpevents
         test-ratelim
     )
+
+    if(PTHREADS_AVAILABLE AND EVENT__HAVE_KQUEUE)
+        add_test_prog(test-kq-collision event_pthreads)
+        list(APPEND ALL_TESTPROGS test-kq-collision)
+        add_test(test-test-kq-collision ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-kq-collision)
+    endif()
 
     #
     # We run all tests with the different backends turned on one at a time.
@@ -1407,6 +1513,7 @@ if (NOT EVENT__DISABLE_TESTS)
         else()
             add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
         endif()
+        add_backend_test(signalfd_${BACKEND} "${BACKEND_ENV_VARS};EVENT_USE_SIGNALFD=1")
     endforeach()
 
     #
@@ -1540,22 +1647,13 @@ endif()
 #
 
 set(EVENT_INSTALL_CMAKE_DIR
-    "${CMAKE_INSTALL_PREFIX}/lib/cmake/libevent")
+    "${CMAKE_INSTALL_LIBDIR}/cmake/libevent")
 
 export(PACKAGE libevent)
 
-function(gen_package_config forinstall)
-    if(${forinstall})
-        set(CONFIG_FOR_INSTALL_TREE 1)
-        set(dir "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}")
-    else()
-        set(CONFIG_FOR_INSTALL_TREE 0)
-        set(dir "${PROJECT_BINARY_DIR}")
-    endif()
-    configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
-                "${dir}/LibeventConfig.cmake"
-                @ONLY)
-endfunction()
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+    "${PROJECT_BINARY_DIR}/LibeventConfig.cmake"
+    @ONLY)
 
 # Generate the config file for the build-tree.
 set(EVENT__INCLUDE_DIRS
@@ -1566,11 +1664,6 @@ set(LIBEVENT_INCLUDE_DIRS
     ${EVENT__INCLUDE_DIRS}
     CACHE PATH "Libevent include directories")
 
-gen_package_config(0)
-
-# Generate the config file for the installation tree.
-gen_package_config(1)
-
 # Generate version info for both build-tree and install-tree.
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
                ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
@@ -1578,17 +1671,17 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
 
 # Install compat headers
 install(FILES ${HDR_COMPAT}
-        DESTINATION "include"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
         COMPONENT dev)
 
 # Install public headers
 install(FILES ${HDR_PUBLIC}
-        DESTINATION "include/event2"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/event2"
         COMPONENT dev)
 
 # Install the configs.
 install(FILES
-        ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
+        ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
         ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
@@ -1611,7 +1704,7 @@ endif()
 # Install the scripts.
 install(PROGRAMS
        ${CMAKE_CURRENT_SOURCE_DIR}/event_rpcgen.py
-       DESTINATION "bin"
+       DESTINATION "${CMAKE_INSTALL_BINDIR}"
        COMPONENT runtime)
 
 # Create documents with doxygen.
@@ -1652,11 +1745,15 @@ message(STATUS "CMAKE_SYSTEM_NAME:        ${CMAKE_SYSTEM_NAME}")
 message(STATUS "CMAKE_SYSTEM_VERSION:     ${CMAKE_SYSTEM_VERSION}")
 message(STATUS "CMAKE_SYSTEM_PROCESSOR:   ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "CMAKE_SKIP_RPATH:         ${CMAKE_SKIP_RPATH}")
+message(STATUS "CMAKE_SKIP_INSTALL_RPATH: ${CMAKE_SKIP_INSTALL_RPATH}")
+message(STATUS "CMAKE_INSTALL_RPATH:      ${CMAKE_INSTALL_RPATH}")
 message(STATUS "CMAKE_VERBOSE_MAKEFILE:   ${CMAKE_VERBOSE_MAKEFILE}")
 message(STATUS "CMAKE_C_FLAGS:            ${CMAKE_C_FLAGS}")
 message(STATUS "CMAKE_BUILD_TYPE:         ${CMAKE_BUILD_TYPE}")
-message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMPILER_ID}, clang ${CLANG}, GNUC ${GNUC})")
+message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMPILER_ID}, clang ${CLANG}, GNUC ${GNUC}, version ${CMAKE_C_COMPILER_VERSION})")
 message(STATUS "CMAKE_AR:                 ${CMAKE_AR}")
 message(STATUS "CMAKE_RANLIB:             ${CMAKE_RANLIB}")
+message(STATUS "CMAKE_INSTALL_PREFIX:     ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_DEBUG_POSTFIX:      ${CMAKE_DEBUG_POSTFIX}")
 message(STATUS "")
 

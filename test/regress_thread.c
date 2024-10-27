@@ -192,9 +192,11 @@ thread_basic(void *arg)
 		/* This piggybacks on the th_notify_fd weirdly, and looks
 		 * inside libevent internals.  Not a good idea in non-testing
 		 * code! */
+		tt_assert(sigchld_event);
 		notification_event = event_new(base,
 		    base->th_notify_fd[0], EV_READ|EV_PERSIST, notify_fd_cb,
 		    NULL);
+		tt_assert(notification_event);
 		event_add(sigchld_event, NULL);
 		event_add(notification_event, NULL);
 

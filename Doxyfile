@@ -81,6 +81,7 @@ INPUT                  = \
         $(SRCDIR)/include/event2/tag.h \
         $(SRCDIR)/include/event2/tag_compat.h \
         $(SRCDIR)/include/event2/thread.h \
+        $(SRCDIR)/include/event2/ws.h  \
         $(SRCDIR)/include/event2/util.h  \
         $(SRCDIR)/include/event2/watch.h
 

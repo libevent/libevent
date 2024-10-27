@@ -8,9 +8,8 @@ includedir=@includedir@
 Name: libevent_openssl
 Description: libevent_openssl adds openssl-based TLS support to libevent
 Version: @VERSION@
-Requires: libevent
-Conflicts:
-Libs: -L${libdir} -levent_openssl
-Libs.private: @LIBS@ @OPENSSL_LIBS@
-Cflags: -I${includedir} @OPENSSL_INCS@
-
+Requires: libevent_core
+Requires.private: libssl
+Libs: -L${libdir} -levent_openssl@CMAKE_DEBUG_POSTFIX@
+Libs.private: @LIBS@
+Cflags: -I${includedir}

@@ -3,7 +3,7 @@ dnl mbedtls support
 AC_DEFUN([LIBEVENT_MBEDTLS], [
 
 case "$enable_mbedtls" in
- yes)
+ auto|yes)
     case "$have_mbedtls" in
      yes) ;;
      *)
@@ -18,7 +18,6 @@ case "$enable_mbedtls" in
                    [have_mbedtls=no],
                    [-lmbedtls -lmbedcrypto -lmbedx509 $EV_LIB_GDI $EV_LIB_WS32])
     LIBS="$save_LIBS"
-    test "$have_mbedtls" = "yes" && break
     esac
     CPPFLAGS_SAVE=$CPPFLAGS
     CPPFLAGS="$CPPFLAGS $MBEDTLS_INCS"
@@ -26,12 +25,16 @@ case "$enable_mbedtls" in
     CPPFLAGS=$CPPFLAGS_SAVE
     AC_SUBST(MBEDTLS_INCS)
     AC_SUBST(MBEDTLS_LIBS)
-    case "$have_mbedtls" in
-     yes)  AC_DEFINE(HAVE_MBEDTLS, 1, [Define if the system has mbedtls]) ;;
-    esac
+    if test "$have_mbedtls" = "yes" ; then
+        AC_DEFINE(HAVE_MBEDTLS, 1, [Define if the system has mbedtls])
+    elif test "$enable_mbedtls" = "yes" ; then
+        AC_MSG_ERROR([MBedTLS could not be found. You should add the directories \
+                      containing mbedtls/ssl.h and libmbedtls to the appropriate \
+                      compiler and linker search paths.])
+    fi
     ;;
 esac
 
 # check if we have and should use mbedtls
-AM_CONDITIONAL(MBEDTLS, [test "$enable_mbedtls" != "no" && test "$have_mbedtls" = "yes"])
+AM_CONDITIONAL(MBEDTLS, [test "$have_mbedtls" = "yes"])
 ])

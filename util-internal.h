@@ -75,7 +75,7 @@ extern "C" {
 #define inline EVENT__inline
 #endif
 
-/* Define to appropriate substitute if compiler doesnt have __func__ */
+/* Define to appropriate substitute if compiler doesn't have __func__ */
 #if defined(EVENT__HAVE___func__)
 # ifndef __func__
 #  define __func__ __func__
@@ -293,6 +293,8 @@ void evutil_rtrim_lws_(char *);
  */
 int evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode);
 
+ev_off_t evutil_fd_filesize(evutil_socket_t fd);
+
 EVENT2_EXPORT_SYMBOL
 int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
@@ -305,7 +307,7 @@ int evutil_socket_finished_connecting_(evutil_socket_t fd);
 
 #ifdef EVENT__HAVE_AFUNIX_H
 EVENT2_EXPORT_SYMBOL
-int evutil_check_working_afunix_();
+int evutil_check_working_afunix_(void);
 #endif
 
 EVENT2_EXPORT_SYMBOL
@@ -356,7 +358,7 @@ ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t
 #endif
 
 #if EVUTIL_HAS_ATTRIBUTE(fallthrough)
-#define EVUTIL_FALLTHROUGH __attribute__((fallthrough))
+#define EVUTIL_FALLTHROUGH ; __attribute__((fallthrough))
 #else
 #define EVUTIL_FALLTHROUGH /* fallthrough */
 #endif
@@ -417,9 +419,17 @@ typedef void (*evdns_getaddrinfo_cancel_fn)(
 EVENT2_EXPORT_SYMBOL
 void evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn);
 
+/* Customization point to override "/etc/resolv.conf" */
+EVENT2_EXPORT_SYMBOL
+void evutil_set_resolvconf_filename_(const char *filename);
+EVENT2_EXPORT_SYMBOL
+const char *evutil_resolvconf_filename_(void);
+
 EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);
+EVENT2_EXPORT_SYMBOL
+struct evutil_addrinfo *evutil_dup_addrinfo_(struct evutil_addrinfo *ai);
 EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_addrinfo_append_(struct evutil_addrinfo *first,
     struct evutil_addrinfo *append);
@@ -468,7 +478,7 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
 #ifndef EV_SIZE_FMT
-#if EV_WINDOWS
+#if defined(_MSC_VER) && _MSC_VER < 1400
 #define EV_U64_FMT "%I64u"
 #define EV_I64_FMT "%I64d"
 #define EV_I64_ARG(x) ((__int64)(x))
@@ -511,6 +521,11 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #define EV_SSIZE_ARG(x) EV_I64_ARG(x)
 #endif
 #endif
+
+/* Either a mapping for strsignal() or snprintf("%d", sig)
+ * NOTE: MT-Unsafe*/
+EVENT2_EXPORT_SYMBOL
+const char * evutil_strsignal(int sig);
 
 EVENT2_EXPORT_SYMBOL
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
@@ -555,6 +570,12 @@ int evutil_v4addr_is_local_(const struct in_addr *in);
  * link-local, multicast, or unspecified address. */
 EVENT2_EXPORT_SYMBOL
 int evutil_v6addr_is_local_(const struct in6_addr *in);
+
+/** As strcasestr, but always searching substring in locale-independent
+    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+ */
+EVENT2_EXPORT_SYMBOL
+const char* evutil_ascii_strcasestr(const char* s, const char *find);
 
 #ifdef __cplusplus
 }

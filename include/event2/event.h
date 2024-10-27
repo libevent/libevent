@@ -326,7 +326,7 @@ void event_enable_debug_mode(void);
  * longer be considered as assigned. When debugging mode is not enabled, does
  * nothing.
  *
- * This function must only be called on a non-added event.
+ * This function must only be called on a non-added event. The parameter must not be NULL.
  *
  * @see event_enable_debug_mode()
  */
@@ -364,7 +364,7 @@ int event_reinit(struct event_base *base);
   event_base_loopexit().
 
   @param base the event_base structure returned by event_base_new() or
-     event_base_new_with_config()
+     event_base_new_with_config(). base must not be NULL.
   @return 0 if successful, -1 if an error occurred, or 1 if we exited because
      no events were pending or active.
   @see event_base_loop()
@@ -382,6 +382,18 @@ EVENT2_EXPORT_SYMBOL
 const char *event_base_get_method(const struct event_base *eb);
 
 /**
+ Get the kernel signal handling mechanism used by Libevent.
+
+ @param eb the event_base structure returned by event_base_new()
+ @return a string identifying the kernel signal handling mechanism,
+   which is "signal" for traditional UNIX signal handlers,
+   "kqueue_signal" for kqueue(2)-based method on *BSD and macOS,
+   and "signalfd_signal" for Linux-only signalfd(2)-based method.
+ */
+EVENT2_EXPORT_SYMBOL
+const char *event_base_get_signal_method(const struct event_base *eb);
+
+/**
    Gets all event notification mechanisms supported by Libevent.
 
    This functions returns the event mechanism in order preferred by
@@ -396,7 +408,7 @@ const char *event_base_get_method(const struct event_base *eb);
 EVENT2_EXPORT_SYMBOL
 const char **event_get_supported_methods(void);
 
-/** Query the current monotonic time from a the timer for a struct
+/** Query the current monotonic time from the timer for a struct
  * event_base.
  */
 EVENT2_EXPORT_SYMBOL
@@ -542,6 +554,8 @@ enum event_base_config_flag {
 	    If this flag is set then bufferevent_socket_new() and
 	    evconn_listener_new() will use IOCP-backed implementations
 	    instead of the usual select-based one on Windows.
+
+	    Note: it is experimental feature, and has some bugs.
 	 */
 	EVENT_BASE_FLAG_STARTUP_IOCP = 0x04,
 	/** Instead of checking the current time every time the event loop is
@@ -584,6 +598,12 @@ enum event_base_config_flag {
 	    epoll and if you do not have EVENT_BASE_FLAG_PRECISE_TIMER enabled.
 	 */
 	EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD = 0x40,
+
+	/** Use signalfd(2) to handle signals over sigaction/signal.
+	 *
+	 * But note, that in some edge cases signalfd() may works differently.
+	 */
+	EVENT_BASE_FLAG_USE_SIGNALFD = 0x80,
 };
 
 /**
@@ -1265,7 +1285,7 @@ int event_remove_timer(struct event *ev);
   event has already executed or has never been added the call will have no
   effect.
 
-  @param ev an event struct to be removed from the working set
+  @param ev an event struct to be removed from the working set. ev must not be NULL.
   @return 0 if successful, or -1 if an error occurred
   @see event_add()
  */
@@ -1296,6 +1316,9 @@ int event_del_block(struct event *ev);
 
   One common use in multithreaded programs is to wake the thread running
   event_base_loop() from another thread.
+
+  If event_active() is called on the same event more than once before the 
+  event is run, the flags are OR'd with the flags passed in previous calls.
 
   @param ev an event to make active.
   @param res a set of flags to pass to the event's callback.
@@ -1340,7 +1363,7 @@ struct event *event_base_get_running_event(struct event_base *base);
     uninitialized memory.  Thus, it should ONLY be used to distinguish an
     initialized event from zero.
 
-  @param ev an event structure to be tested
+  @param ev an event structure to be tested. ev must not be NULL.
   @return 1 if the structure might be initialized, or 0 if it has not been
           initialized
  */

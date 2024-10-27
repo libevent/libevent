@@ -512,11 +512,16 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 }
 
 
-/* OSX 10.6 and FreeBSD 8.1 add support for EVFILT_USER, which we can use
- * to wake up the event loop from another thread. */
+/* OSX 10.6, FreeBSD 8.1, DragonFlyBSD 4.0 and NetBSD 10.0 added support for EVFILT_USER,
+ * which we can use to wake up the event loop from another thread. */
 
-/* Magic number we use for our filter ID. */
-#define NOTIFY_IDENT 42
+/* Magic number we use for our filter ID.
+ *
+ * This is a made-up value, so it can be any integer within the range of type uintptr_t,
+ * it's used in conjunction with filter as a (ident, filter) pair to identify a event entry.
+ * We use 0 for consistency with other mainstream networking libraries.
+ */
+#define NOTIFY_IDENT 0
 
 int
 event_kq_add_notify_event_(struct event_base *base)
