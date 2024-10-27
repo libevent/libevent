@@ -2267,6 +2267,34 @@ http_dispatcher_test(void *arg)
 /* test unix socket */
 #include <sys/un.h>
 
+static int http_connect_unixsocket(const char *path) {
+	struct sockaddr_un local;
+	struct stat st;
+	int fd;
+	socklen_t socklen = sizeof(local);
+
+	local.sun_family = AF_UNIX;
+	strcpy(local.sun_path, path);
+
+	if (stat(path, &st) != 0 || !S_ISSOCK(st.st_mode)) {
+		return EVUTIL_INVALID_SOCKET;
+	}
+
+	fd = evutil_socket_(AF_UNIX,
+	    EVUTIL_SOCK_CLOEXEC | EVUTIL_SOCK_NONBLOCK | SOCK_STREAM, 0);
+	if (fd == EVUTIL_INVALID_SOCKET)
+		return EVUTIL_INVALID_SOCKET;
+
+	if (connect(fd, (struct sockaddr *)&local, socklen) < 0) {
+		perror("connect");
+		event_debug(("errno:%d (EBADF:%d,ENOTSOCK:%d,ECONNREFUSED:%d,EFAULT:%d)", errno, EBADF, ENOTSOCK, ECONNREFUSED, EFAULT));
+		close(fd);
+		return EVUTIL_INVALID_SOCKET;
+	}
+
+	return fd;
+}
+
 /* Should this be part of the libevent library itself? */
 static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 {
@@ -2311,15 +2339,17 @@ static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 	return 0;
 }
 
-static void http_unix_socket_test(void *arg)
+
+static void http_unix_socket_test_(struct basic_test_data *data, int preexisting)
 {
-	struct basic_test_data *data = arg;
 	struct evhttp_uri *uri = NULL;
+	struct bufferevent *bev = NULL;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
 	struct evhttp *myhttp;
 	char tmp_sock_path[512];
 	char uri_loc[1024];
+	int clientfd = EVUTIL_INVALID_SOCKET;
 
 	// Avoid overlap with parallel runs
 	evutil_snprintf(tmp_sock_path, sizeof(tmp_sock_path), "/tmp/eventtmp.%i.sock", getpid());
@@ -2333,7 +2363,14 @@ static void http_unix_socket_test(void *arg)
 	uri = evhttp_uri_parse_with_flags(uri_loc, EVHTTP_URI_UNIX_SOCKET);
 	tt_assert(uri);
 
-	evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
+	if(!preexisting) {
+		evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
+	} else {
+		clientfd = http_connect_unixsocket(tmp_sock_path);
+		tt_int_op(clientfd,!=,EVUTIL_INVALID_SOCKET);
+		bev = create_bev(data->base, clientfd, 0x00, BEV_OPT_CLOSE_ON_FREE);
+		evcon = evhttp_connection_base_bufferevent_unix_new(data->base, bev, evhttp_uri_get_unixsocket(uri));
+	}
 	tt_assert(evcon);
 	/*
 	 * At this point, we want to schedule an HTTP GET request
@@ -2351,6 +2388,11 @@ static void http_unix_socket_test(void *arg)
 
 	event_base_dispatch(data->base);
 
+//	tt_int_op(bufferevent_getfd(bev),==,EVUTIL_INVALID_SOCKET);
+	if(preexisting) {
+		tt_int_op(bufferevent_getfd(bev),!=,EVUTIL_INVALID_SOCKET);
+	}
+
  end:
 	if (evcon)
 		evhttp_connection_free(evcon);
@@ -2362,6 +2404,18 @@ static void http_unix_socket_test(void *arg)
 	/* Does mkstemp() succeed? */
 	if (!strstr(tmp_sock_path, "XXXXXX"))
 		unlink(tmp_sock_path);
+}
+
+static void http_unix_socket_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	http_unix_socket_test_(data, 0);
+}
+
+static void http_unix_socket_preexist_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	http_unix_socket_test_(data, 1);
 }
 #endif
 
@@ -6047,6 +6101,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(virtual_host),
 #ifndef _WIN32
 	HTTP(unix_socket),
+	HTTP(unix_socket_preexist),
 #endif
 	HTTP(post),
 	HTTP(put),
