@@ -2267,7 +2267,8 @@ http_dispatcher_test(void *arg)
 /* test unix socket */
 #include <sys/un.h>
 
-static int http_connect_unixsocket(const char *path) {
+static evutil_socket_t
+http_connect_unixsocket(const char *path) {
 	struct sockaddr_un local;
 	struct stat st;
 	int fd;
@@ -2296,7 +2297,8 @@ static int http_connect_unixsocket(const char *path) {
 }
 
 /* Should this be part of the libevent library itself? */
-static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
+static int
+evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 {
 	struct sockaddr_un local;
 	struct stat st;
@@ -2349,7 +2351,7 @@ static void http_unix_socket_test_(struct basic_test_data *data, int preexisting
 	struct evhttp *myhttp;
 	char tmp_sock_path[512];
 	char uri_loc[1024];
-	int clientfd = EVUTIL_INVALID_SOCKET;
+	evutil_socket_t client_fd = EVUTIL_INVALID_SOCKET;
 
 	// Avoid overlap with parallel runs
 	evutil_snprintf(tmp_sock_path, sizeof(tmp_sock_path), "/tmp/eventtmp.%i.sock", getpid());
@@ -2366,9 +2368,9 @@ static void http_unix_socket_test_(struct basic_test_data *data, int preexisting
 	if(!preexisting) {
 		evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
 	} else {
-		clientfd = http_connect_unixsocket(tmp_sock_path);
-		tt_int_op(clientfd,!=,EVUTIL_INVALID_SOCKET);
-		bev = create_bev(data->base, clientfd, 0x00, BEV_OPT_CLOSE_ON_FREE);
+		client_fd = http_connect_unixsocket(tmp_sock_path);
+		tt_int_op(client_fd,!=,EVUTIL_INVALID_SOCKET);
+		bev = create_bev(data->base, client_fd, 0x00, BEV_OPT_CLOSE_ON_FREE);
 		evcon = evhttp_connection_base_bufferevent_unix_new(data->base, bev, evhttp_uri_get_unixsocket(uri));
 	}
 	tt_assert(evcon);
@@ -2388,9 +2390,8 @@ static void http_unix_socket_test_(struct basic_test_data *data, int preexisting
 
 	event_base_dispatch(data->base);
 
-//	tt_int_op(bufferevent_getfd(bev),==,EVUTIL_INVALID_SOCKET);
-	if(preexisting) {
-		tt_int_op(bufferevent_getfd(bev),!=,EVUTIL_INVALID_SOCKET);
+	if (preexisting) {
+		tt_int_op(bufferevent_getfd(bev),==,client_fd);
 	}
 
  end:
@@ -4437,19 +4438,24 @@ http_make_web_server(evutil_socket_t fd, short what, void *arg)
 }
 
 static void
-http_simple_test_impl(void *arg, int ssl, int dirty, const char *uri)
+http_simple_test_impl(void *arg, int ssl, int dirty, int preexisting, const char *uri)
 {
 	struct basic_test_data *data = arg;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
-	struct bufferevent *bev;
+	struct bufferevent *bev = NULL;
 	struct http_server hs = { 0, ssl, NULL, };
 	struct evhttp *http = http_setup(&hs.port, data->base, ssl);
+	evutil_socket_t client_fd = EVUTIL_INVALID_SOCKET;
 
 	exit_base = data->base;
 	test_ok = 0;
 
-	bev = create_bev(data->base, -1, ssl, BEV_OPT_CLOSE_ON_FREE);
+	if(preexisting) {
+		client_fd = http_connect("127.0.0.1", hs.port);
+		tt_int_op(client_fd,!=,EVUTIL_INVALID_SOCKET);
+	}
+	bev = create_bev(data->base, client_fd, ssl, BEV_OPT_CLOSE_ON_FREE);
 #ifdef EVENT__HAVE_OPENSSL
 	bufferevent_openssl_set_allow_dirty_shutdown(bev, dirty);
 #endif
@@ -4460,7 +4466,9 @@ http_simple_test_impl(void *arg, int ssl, int dirty, const char *uri)
 	evcon = evhttp_connection_base_bufferevent_new(
 		data->base, NULL, bev, "127.0.0.1", hs.port);
 	tt_assert(evcon);
-	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+	if (!preexisting) {
+		evhttp_connection_set_local_address(evcon, "127.0.0.1");
+	}
 
 	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 	tt_assert(req);
@@ -4471,6 +4479,10 @@ http_simple_test_impl(void *arg, int ssl, int dirty, const char *uri)
 	event_base_dispatch(data->base);
 	tt_int_op(test_ok, ==, 1);
 
+	if (preexisting) {
+		tt_int_op(bufferevent_getfd(bev),==,client_fd);
+	}
+
  end:
 	if (evcon)
 		evhttp_connection_free(evcon);
@@ -4478,9 +4490,11 @@ http_simple_test_impl(void *arg, int ssl, int dirty, const char *uri)
 		evhttp_free(http);
 }
 static void http_simple_test(void *arg)
-{ http_simple_test_impl(arg, 0, 0, "/test"); }
+{ http_simple_test_impl(arg, 0, 0, 0, "/test"); }
+static void http_simple_preexisting_test(void *arg)
+{ http_simple_test_impl(arg, 0, 0, 1, "/test"); }
 static void http_simple_nonconformant_test(void *arg)
-{ http_simple_test_impl(arg, 0, 0, "/test nonconformant"); }
+{ http_simple_test_impl(arg, 0, 0, 0, "/test nonconformant"); }
 
 static int
 https_bind_ssl_bevcb(struct evhttp *http, ev_uint16_t port, ev_uint16_t *pport, int mask)
@@ -6008,9 +6022,9 @@ static void https_incomplete_test(void *arg)
 static void https_incomplete_timeout_test(void *arg)
 { http_incomplete_test_(arg, 1, HTTP_OPENSSL); }
 static void https_simple_test(void *arg)
-{ http_simple_test_impl(arg, HTTP_OPENSSL, 0, "/test"); }
+{ http_simple_test_impl(arg, HTTP_OPENSSL, 0, 0, "/test"); }
 static void https_simple_dirty_test(void *arg)
-{ http_simple_test_impl(arg, HTTP_OPENSSL, 1, "/test"); }
+{ http_simple_test_impl(arg, HTTP_OPENSSL, 1, 0, "/test"); }
 static void https_connection_retry_conn_address_test(void *arg)
 { http_connection_retry_conn_address_test_impl(arg, HTTP_OPENSSL); }
 static void https_connection_retry_test(void *arg)
@@ -6043,9 +6057,9 @@ static void https_mbedtls_incomplete_test(void *arg)
 static void https_mbedtls_incomplete_timeout_test(void *arg)
 { http_incomplete_test_(arg, 1, HTTP_MBEDTLS); }
 static void https_mbedtls_simple_test(void *arg)
-{ http_simple_test_impl(arg, HTTP_MBEDTLS, 0, "/test"); }
+{ http_simple_test_impl(arg, HTTP_MBEDTLS, 0, 0, "/test"); }
 static void https_mbedtls_simple_dirty_test(void *arg)
-{ http_simple_test_impl(arg, HTTP_MBEDTLS, 1, "/test"); }
+{ http_simple_test_impl(arg, HTTP_MBEDTLS, 1, 0, "/test"); }
 static void https_mbedtls_connection_retry_conn_address_test(void *arg)
 { http_connection_retry_conn_address_test_impl(arg, HTTP_MBEDTLS); }
 static void https_mbedtls_connection_retry_test(void *arg)
@@ -6083,6 +6097,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(basic),
 	HTTP(basic_trailing_space),
 	HTTP(simple),
+	HTTP(simple_preexisting),
 	HTTP(simple_nonconformant),
 
 	HTTP_N(cancel, cancel, 0, BASIC),
