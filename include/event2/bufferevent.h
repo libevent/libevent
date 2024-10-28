@@ -280,7 +280,7 @@ int bufferevent_socket_get_dns_error(struct bufferevent *bev);
 
   NOTE that only socket bufferevents support this function.
 
-  @param base an event_base returned by event_init()
+  @param base an event_base returned by event_base_new()
   @param bufev a bufferevent struct returned by bufferevent_new()
      or bufferevent_socket_new()
   @return 0 if successful, or -1 if an error occurred

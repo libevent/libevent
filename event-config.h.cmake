@@ -53,8 +53,8 @@
 /* Define to 1 if you have the `arc4random_buf' function. */
 #cmakedefine EVENT__HAVE_ARC4RANDOM_BUF 1
 
-/* Define to 1 if you have the `arc4random_addrandom' function. */
-#cmakedefine EVENT__HAVE_ARC4RANDOM_ADDRANDOM 1
+/* Define to 1 if you have the `arc4random_stir' function. */
+#cmakedefine EVENT__HAVE_ARC4RANDOM_STIR 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #cmakedefine EVENT__HAVE_ARPA_INET_H 1

@@ -253,6 +253,9 @@ struct event_base;
 
 /** Flag for evdns_base_new: process resolv.conf.  */
 #define EVDNS_BASE_INITIALIZE_NAMESERVERS 1
+/** Flag for evdns_base_new: disable caching of DNS responses by default
+ * for async resolver. */
+#define EVDNS_BASE_NO_CACHE 0x10
 /** Flag for evdns_base_new: Do not prevent the libevent event loop from
  * exiting when we have no active dns requests. */
 #define EVDNS_BASE_DISABLE_WHEN_INACTIVE 0x8000
@@ -285,7 +288,8 @@ struct event_base;
 
   @param event_base the event base to associate the dns client with
   @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
-    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT|
+    EVDNS_BASE_NO_CACHE
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
@@ -316,6 +320,29 @@ void evdns_base_free(struct evdns_base *base, int fail_requests);
  */
 EVENT2_EXPORT_SYMBOL
 void evdns_base_clear_host_addresses(struct evdns_base *base);
+
+/**
+   Write an entry to the evdns cache
+
+   @param dns_base the evdns base to add the entry to
+   @param nodename the DNS name
+   @param res the address information associated with the DNS name
+   @param ttl the time to live associated with the address information
+ */
+EVENT2_EXPORT_SYMBOL
+void evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_addrinfo *res, int ttl);
+
+/**
+   Lookup an entry from the evdns cache
+
+   @param base the evdns base associated with the cache
+   @param nodename the DNS name for which information is being sought
+   @param hints see man getaddrinfo()
+   @param port used to fill in port numbers in the resulting address list
+   @param res pointer to an evutil_addrinfo struct for result
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_cache_lookup(struct evdns_base *base, const char *nodename, struct evutil_addrinfo *hints, ev_uint16_t port, struct evutil_addrinfo **res);
 
 /**
   Convert a DNS error code to a string.
@@ -776,8 +803,9 @@ struct evdns_getaddrinfo_request;
 /** Make a non-blocking getaddrinfo request using the dns_base in 'dns_base'.
  *
  * If we can answer the request immediately (with an error or not!), then we
- * invoke cb immediately and return NULL.  Otherwise we return
- * an evdns_getaddrinfo_request and invoke cb later.
+ * invoke cb immediately and return NULL. This can happen e.g. if the
+ * requested address is in the hosts file, or cached, or invalid. Otherwise
+ * we return an evdns_getaddrinfo_request and invoke cb later.
  *
  * When the callback is invoked, we pass as its first argument the error code
  * that getaddrinfo would return (or 0 for no error).  As its second argument,
@@ -789,6 +817,12 @@ struct evdns_getaddrinfo_request;
  * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
  * - For ai_socktype, we only handle SOCKTYPE_STREAM, SOCKTYPE_UDP, and 0.
  * - For ai_protocol, we only handle IPPROTO_TCP, IPPROTO_UDP, and 0.
+ * - If we cached a response exclusively for a different address type (e.g.
+ *   PF_INET), we will set addrinfo to NULL (e.g. queried with PF_INET6)
+ * - Cache isn't hit when AI_CANONNAME is set but cached server response
+ *	 doesn't contain CNAME.
+ * - If we can answer immediately (e.g. using hosts file, there is an error
+ *   or when cache is hit), we invoke the call back and return NULL.
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_getaddrinfo_request *evdns_getaddrinfo(

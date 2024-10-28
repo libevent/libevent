@@ -466,6 +466,7 @@ else()
         sys/ioctl.h
         sys/mman.h
         sys/queue.h
+        sys/tree.h
         sys/select.h
         sys/sendfile.h
         sys/uio.h
@@ -539,8 +540,8 @@ else()
     list(APPEND SYMBOLS_TO_CHECK
         accept4
         arc4random
-        arc4random_addrandom
         arc4random_buf
+        arc4random_stir
         epoll_create
         epoll_create1
         epoll_ctl
@@ -840,7 +841,8 @@ set(HDR_PRIVATE
     openssl-compat.h
     evconfig-private.h
     sha1.h
-    compat/sys/queue.h)
+    compat/sys/queue.h
+    compat/sys/tree.h)
 
 set(HDR_COMPAT
     include/evdns.h

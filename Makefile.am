@@ -323,6 +323,7 @@ noinst_HEADERS +=				\
 	bufferevent-internal.h		\
 	changelist-internal.h		\
 	compat/sys/queue.h			\
+	compat/sys/tree.h			\
 	defer-internal.h			\
 	epolltable-internal.h		\
 	evbuffer-internal.h			\

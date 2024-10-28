@@ -95,7 +95,7 @@ hashsocket(struct event_map_entry *e)
 	 * matter.  Our hashtable implementation really likes low-order bits,
 	 * though, so let's do the rotate-and-add trick. */
 	unsigned h = (unsigned) e->fd;
-	h += (h >> 2) | (h << 30);
+	h = (h >> 2) | (h << 30);
 	return h;
 }
 
