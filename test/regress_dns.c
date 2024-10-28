@@ -1219,6 +1219,7 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 
 	sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
 	if (sockfd < 0) {
+		event_warn("socket(AF_INET6) failed. Skipping test.");
 		tt_skip();
 	}
 	evutil_closesocket(sockfd);
@@ -1231,9 +1232,6 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 		}
 	}
 	tt_int_op(ipv6_count, >, 0);
-	if (ipv6_count == 0) {
-		TT_BLATHER(("DNS server without IPv6 address."));
-	}
 
 end:
 	if (dns)
