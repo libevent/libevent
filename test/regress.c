@@ -1061,11 +1061,10 @@ test_simple_signal_impl(int find_reorder)
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = 100000;
-	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
-		goto skip_simplesignal;
+	tt_int_op(setitimer(ITIMER_REAL, &itv, NULL), ==, 0);
 
 	event_dispatch();
- skip_simplesignal:
+end:
 	if (evsignal_del(&ev) == -1)
 		test_ok = 0;
 
@@ -1134,12 +1133,11 @@ test_multiplesignal(void)
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = 100000;
-	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
-		goto skip_simplesignal;
+	tt_int_op(setitimer(ITIMER_REAL, &itv, NULL), ==, 0);
 
 	event_dispatch();
 
- skip_simplesignal:
+end:
 	if (evsignal_del(&ev_one) == -1)
 		test_ok = 0;
 	if (evsignal_del(&ev_two) == -1)
