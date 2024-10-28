@@ -2966,7 +2966,7 @@ event_del_nolock_(struct event *ev, int blocking)
 	 * returns, it will be safe to free the user-supplied argument.
 	 */
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-	if (blocking != EVENT_DEL_NOBLOCK &&
+	while (blocking != EVENT_DEL_NOBLOCK &&
 	    base->current_event == event_to_event_callback(ev) &&
 	    !EVBASE_IN_THREAD(base) &&
 	    (blocking == EVENT_DEL_BLOCK || !(ev->ev_events & EV_FINALIZE))) {

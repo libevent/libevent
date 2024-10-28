@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "test/tinytest_macros.h"
 #include "util-internal.h"
 
 #ifdef _WIN32
@@ -1410,7 +1411,10 @@ del_wait_thread(void *arg)
 	event_dispatch();
 	evutil_gettimeofday(&tv_end, NULL);
 
-	test_timeval_diff_eq(&tv_start, &tv_end, 300);
+	if (arg)
+		test_timeval_diff_eq(&tv_start, &tv_end, 300*11);
+	else
+		test_timeval_diff_eq(&tv_start, &tv_end, 300);
 
 	end:
 	THREAD_RETURN();
@@ -1422,21 +1426,35 @@ del_wait_cb(evutil_socket_t fd, short event, void *arg)
 	struct timeval delay = { 0, 300*1000 };
 	TT_BLATHER(("Sleeping: %i", test_ok));
 	evutil_usleep_(&delay);
+	if (arg)
+	{
+		if (test_ok < 10)
+			event_add(arg, NULL);
+		else
+			event_base_loopbreak(event_get_base(arg));
+	}
 	++test_ok;
 }
 
 static void
-test_del_wait(void)
+test_del_wait_impl(int re_add)
 {
 	struct event ev;
 	THREAD_T thread;
+	struct timeval tv_start, tv_end;
 
 	setup_test("event_del will wait: ");
 
-	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
+	if (re_add)
+		event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, event_self_cbarg());
+	else
+		event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, NULL);
 	event_add(&ev, NULL);
 
-	THREAD_START(thread, del_wait_thread, NULL);
+	if (re_add)
+		THREAD_START(thread, del_wait_thread, &ev);
+	else
+		THREAD_START(thread, del_wait_thread, NULL);
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
@@ -1448,19 +1466,42 @@ test_del_wait(void)
 	}
 
 	{
-		struct timeval tv_start, tv_end;
 		evutil_gettimeofday(&tv_start, NULL);
 		event_del(&ev);
+		/* tt_int_op(event_pending(&ev, EV_READ|EV_TIMEOUT, NULL), ==, 0); */
 		evutil_gettimeofday(&tv_end, NULL);
-		test_timeval_diff_eq(&tv_start, &tv_end, 270);
+		if (re_add)
+			test_timeval_diff_eq(&tv_start, &tv_end, 300*11);
+		else
+			test_timeval_diff_eq(&tv_start, &tv_end, 300);
 	}
 
 	THREAD_JOIN(thread);
 
-	tt_int_op(test_ok, ==, 1);
+	if (re_add)
+	{
+		tt_int_op(test_ok, ==, 11);
+		test_timeval_diff_eq(&tv_start, &tv_end, 300*11);
+	}
+	else
+	{
+		tt_int_op(test_ok, ==, 1);
+		test_timeval_diff_eq(&tv_start, &tv_end, 300);
+	}
 
-	end:
-	;
+end:
+	event_del(&ev);
+}
+
+static void
+test_del_wait(void)
+{
+	test_del_wait_impl(0);
+}
+static void
+test_del_wait_re_add(void)
+{
+	test_del_wait_impl(1);
 }
 
 static void null_cb(evutil_socket_t fd, short what, void *arg) {}
@@ -3715,6 +3756,7 @@ struct testcase_t main_testcases[] = {
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
+	LEGACY(del_wait_re_add, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 	BASIC(del_timeout_notify, TT_NEED_THREADS|TT_FORK|TT_NEED_BASE),
 #endif
