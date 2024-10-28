@@ -53,6 +53,13 @@ sample_https_client_mbedtls_LDADD = libevent.la libevent_mbedtls.la $(MBEDTLS_LI
 sample_https_client_mbedtls_CPPFLAGS = $(AM_CPPFLAGS) $(MBEDTLS_INCS) -DUSE_MBEDTLS
 endif
 
+if PTHREADS
+SAMPLES += sample/http-load-balancer
+sample_http_load_balancer_SOURCES = sample/http-load-balancer.c
+sample_http_load_balancer_LDADD = libevent.la libevent_pthreads.la $(PTHREAD_LIBS) $(PTHREAD_LIBADD)
+sample_http_load_balancer_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS)
+endif
+
 if BUILD_SAMPLES
 noinst_PROGRAMS += $(SAMPLES)
 endif
