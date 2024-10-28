@@ -1045,7 +1045,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
-test_simplesignal_impl(int find_reorder)
+test_simple_signal_impl(int find_reorder)
 {
 	struct event ev;
 	struct itimerval itv;
@@ -1073,17 +1073,17 @@ test_simplesignal_impl(int find_reorder)
 }
 
 static void
-test_simplestsignal(void)
+test_simple_signal(void)
 {
 	setup_test("Simplest one signal: ");
-	test_simplesignal_impl(0);
+	test_simple_signal_impl(0);
 }
 
 static void
-test_simplesignal(void)
+test_simple_signal_re_order(void)
 {
 	setup_test("Simple signal: ");
-	test_simplesignal_impl(1);
+	test_simple_signal_impl(1);
 }
 
 /* signal_free_in_callback */
@@ -3782,8 +3782,8 @@ struct testcase_t evtag_testcases[] = {
 
 struct testcase_t signal_testcases[] = {
 #ifndef _WIN32
-	LEGACY(simplestsignal, TT_ISOLATED|RETRY_ON_DARWIN),
-	LEGACY(simplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simple_signal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simple_signal_re_order, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(multiplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(immediatesignal, TT_ISOLATED),
 	LEGACY(signal_dealloc, TT_ISOLATED),
