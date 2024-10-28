@@ -1232,7 +1232,7 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 	}
 	tt_int_op(ipv6_count, >, 0);
 	if (ipv6_count == 0) {
-		TT_BLATHER("DNS server without IPv6 address.");
+		TT_BLATHER(("DNS server without IPv6 address."));
 	}
 
 end:
