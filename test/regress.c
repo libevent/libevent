@@ -1045,10 +1045,20 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
+signal_alarm_fallback(int sig)
+{
+	TT_DIE(("ALRM received not from event loop!"));
+end:
+	;
+}
+
+static void
 test_simple_signal_impl(int find_reorder)
 {
 	struct event ev;
 	struct itimerval itv;
+
+	signal(SIGALRM, signal_alarm_fallback);
 
 	evsignal_set(&ev, SIGALRM, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
@@ -1123,6 +1133,8 @@ test_multiplesignal(void)
 	struct itimerval itv;
 
 	setup_test("Multiple signal: ");
+
+	signal(SIGALRM, signal_alarm_fallback);
 
 	evsignal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
 	evsignal_add(&ev_one, NULL);
