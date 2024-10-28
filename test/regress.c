@@ -2063,6 +2063,48 @@ end:
 	event_free(ev[4]);
 }
 
+static void
+test_event_timeout_lost_cb(evutil_socket_t fd, short events, void *arg)
+{
+	short *res_events = arg;
+	*res_events = events;
+}
+static void
+test_event_timeout_lost(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event *ev;
+	short res_events = 0;
+
+	event_base_assert_ok_(base);
+
+	ev = event_new(base, data->pair[0], EV_TIMEOUT|EV_READ, test_event_timeout_lost_cb, &res_events);
+	tt_assert(ev);
+
+	{
+		struct timeval timeout = { 0, 100 };
+		event_add(ev, &timeout);
+	}
+
+	event_active(ev, EV_READ, 1);
+
+	/* Ensure that timeout had been elapsed */
+	{
+		struct timeval delay = { 1, 0 };
+		evutil_usleep_(&delay);
+	}
+
+	event_base_assert_ok_(base);
+	event_base_loop(base, EVLOOP_ONCE|EVLOOP_NONBLOCK);
+	event_base_assert_ok_(base);
+
+	tt_int_op(res_events, ==, EV_READ|EV_TIMEOUT);
+
+end:
+	event_free(ev);
+}
+
 /* del_timeout_notify */
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 static THREAD_FN
@@ -3629,6 +3671,7 @@ struct testcase_t main_testcases[] = {
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_RETRIABLE),
 	BASIC(event_remove_timeout, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
+	BASIC(event_timeout_lost, TT_FORK|TT_NEED_BASE),
 
 	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
