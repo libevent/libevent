@@ -3784,6 +3784,8 @@ struct testcase_t evtag_testcases[] = {
 	END_OF_TESTCASES
 };
 
+/* Apparently there is a bug in OSX that leads to subsequent ALRM signal
+ * delievered even though it_interval is set to 0, so let's retry the tests */
 #if defined(__APPLE__)
 #define RETRY_ON_DARWIN TT_RETRIABLE
 #else
@@ -3803,7 +3805,7 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(signal_restore, TT_ISOLATED),
 	LEGACY(signal_assert, TT_ISOLATED),
 	LEGACY(signal_while_processing, TT_ISOLATED),
-	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE|RETRY_ON_DARWIN),
+	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE),
 #endif
 	END_OF_TESTCASES
 };
