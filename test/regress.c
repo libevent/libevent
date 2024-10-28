@@ -3774,7 +3774,7 @@ struct testcase_t evtag_testcases[] = {
 	END_OF_TESTCASES
 };
 
-#if defined(__darwin__)
+#if defined(__APPLE__)
 #define RETRY_ON_DARWIN TT_RETRIABLE
 #else
 #define RETRY_ON_DARWIN 0
