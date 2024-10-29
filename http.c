@@ -128,6 +128,15 @@
 #define NI_NUMERICSERV 2
 #endif
 
+/** The request obj owns the evhttp connection and needs to free it */
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001
+/** The request object is owned by the user; the user must free it */
+#define EVHTTP_USER_OWNED		0x0004
+/** The request will be used again upstack; freeing must be deferred */
+#define EVHTTP_REQ_DEFER_FREE		0x0008
+/** The request should be freed upstack */
+#define EVHTTP_REQ_NEEDS_FREE		0x0010
+
 static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
@@ -2047,17 +2056,6 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 			return -1;
 		}
 	}
-
-	/* If we have an absolute-URI, check to see if it is an http request
-	   for a known vhost or server alias. If we don't know about this
-	   host, we consider it a proxy request. */
-	scheme = evhttp_uri_get_scheme(req->uri_elems);
-	hostname = evhttp_uri_get_host(req->uri_elems);
-	if (scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
-		       !evutil_ascii_strcasecmp(scheme, "https")) &&
-	    hostname &&
-	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname))
-		req->flags |= EVHTTP_PROXY_REQUEST;
 
 	return 0;
 }
