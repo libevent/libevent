@@ -128,15 +128,6 @@
 #define NI_NUMERICSERV 2
 #endif
 
-/** The request obj owns the evhttp connection and needs to free it */
-#define EVHTTP_REQ_OWN_CONNECTION	0x0001
-/** The request object is owned by the user; the user must free it */
-#define EVHTTP_USER_OWNED		0x0004
-/** The request will be used again upstack; freeing must be deferred */
-#define EVHTTP_REQ_DEFER_FREE		0x0008
-/** The request should be freed upstack */
-#define EVHTTP_REQ_NEEDS_FREE		0x0010
-
 static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
@@ -187,6 +178,15 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
+
+/** The request obj owns the evhttp connection and needs to free it */
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001
+/** The request object is owned by the user; the user must free it */
+#define EVHTTP_USER_OWNED		0x0004
+/** The request will be used again upstack; freeing must be deferred */
+#define EVHTTP_REQ_DEFER_FREE		0x0008
+/** The request should be freed upstack */
+#define EVHTTP_REQ_NEEDS_FREE		0x0010
 
 extern int debug;
 
