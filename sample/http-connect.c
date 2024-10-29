@@ -116,7 +116,6 @@ int main(int argc, const char **argv)
 
 	uri_hostport(location, hostport);
 	evhttp_add_header(req->output_headers, "Connection", "keep-alive");
-	evhttp_add_header(req->output_headers, "Proxy-Connection", "keep-alive");
 	evhttp_add_header(req->output_headers, "Host", hostport);
 	evhttp_make_request(evcon, req, EVHTTP_REQ_CONNECT, hostport);
 
