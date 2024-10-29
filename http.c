@@ -1812,8 +1812,6 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	char *method;
 	char *uri;
 	char *version;
-	const char *hostname;
-	const char *scheme;
 	size_t method_len;
 	enum evhttp_cmd_type type = 0;
 
