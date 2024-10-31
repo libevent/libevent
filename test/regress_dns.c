@@ -2337,6 +2337,7 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 {
 	struct gaic_request_status *status = calloc(1,sizeof(*status));
 	struct timeval tv = { 0, 0 };
+	char nodename[256];
 
 	/// cancel via timer half of requests
 	if (i % 2) {
@@ -2350,8 +2351,9 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 	status->dns_base = dns_base;
 	event_assign(&status->cancel_event, base, -1, 0, gaic_cancel_request_cb,
 	    status);
+	snprintf(nodename, sizeof(nodename), "foobar-%u.bazquux.example.com", i);
 	status->request = evdns_getaddrinfo(dns_base,
-	    "foobar.bazquux.example.com", "80", NULL, gaic_getaddrinfo_cb,
+	    nodename, "80", NULL, gaic_getaddrinfo_cb,
 	    status);
 	event_add(&status->cancel_event, &tv);
 	++gaic_pending;
