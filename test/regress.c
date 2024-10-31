@@ -1045,10 +1045,20 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
-test_simplesignal_impl(int find_reorder)
+signal_alarm_fallback(int sig)
+{
+	TT_DIE(("ALRM received not from event loop!"));
+end:
+	;
+}
+
+static void
+test_simple_signal_impl(int find_reorder)
 {
 	struct event ev;
 	struct itimerval itv;
+
+	signal(SIGALRM, signal_alarm_fallback);
 
 	evsignal_set(&ev, SIGALRM, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
@@ -1061,11 +1071,10 @@ test_simplesignal_impl(int find_reorder)
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = 100000;
-	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
-		goto skip_simplesignal;
+	tt_int_op(setitimer(ITIMER_REAL, &itv, NULL), ==, 0);
 
 	event_dispatch();
- skip_simplesignal:
+end:
 	if (evsignal_del(&ev) == -1)
 		test_ok = 0;
 
@@ -1073,17 +1082,17 @@ test_simplesignal_impl(int find_reorder)
 }
 
 static void
-test_simplestsignal(void)
+test_simple_signal(void)
 {
 	setup_test("Simplest one signal: ");
-	test_simplesignal_impl(0);
+	test_simple_signal_impl(0);
 }
 
 static void
-test_simplesignal(void)
+test_simple_signal_re_order(void)
 {
 	setup_test("Simple signal: ");
-	test_simplesignal_impl(1);
+	test_simple_signal_impl(1);
 }
 
 /* signal_free_in_callback */
@@ -1125,6 +1134,8 @@ test_multiplesignal(void)
 
 	setup_test("Multiple signal: ");
 
+	signal(SIGALRM, signal_alarm_fallback);
+
 	evsignal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
 	evsignal_add(&ev_one, NULL);
 
@@ -1134,12 +1145,11 @@ test_multiplesignal(void)
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 0;
 	itv.it_value.tv_usec = 100000;
-	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
-		goto skip_simplesignal;
+	tt_int_op(setitimer(ITIMER_REAL, &itv, NULL), ==, 0);
 
 	event_dispatch();
 
- skip_simplesignal:
+end:
 	if (evsignal_del(&ev_one) == -1)
 		test_ok = 0;
 	if (evsignal_del(&ev_two) == -1)
@@ -3774,7 +3784,9 @@ struct testcase_t evtag_testcases[] = {
 	END_OF_TESTCASES
 };
 
-#if defined(__darwin__)
+/* Apparently there is a bug in OSX that leads to subsequent ALRM signal
+ * delievered even though it_interval is set to 0, so let's retry the tests */
+#if defined(__APPLE__)
 #define RETRY_ON_DARWIN TT_RETRIABLE
 #else
 #define RETRY_ON_DARWIN 0
@@ -3782,8 +3794,8 @@ struct testcase_t evtag_testcases[] = {
 
 struct testcase_t signal_testcases[] = {
 #ifndef _WIN32
-	LEGACY(simplestsignal, TT_ISOLATED|RETRY_ON_DARWIN),
-	LEGACY(simplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simple_signal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simple_signal_re_order, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(multiplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(immediatesignal, TT_ISOLATED),
 	LEGACY(signal_dealloc, TT_ISOLATED),
@@ -3793,7 +3805,7 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(signal_restore, TT_ISOLATED),
 	LEGACY(signal_assert, TT_ISOLATED),
 	LEGACY(signal_while_processing, TT_ISOLATED),
-	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE|RETRY_ON_DARWIN),
+	BASIC(signal_free_in_callback, TT_FORK|TT_NEED_BASE),
 #endif
 	END_OF_TESTCASES
 };

@@ -74,6 +74,7 @@ static int opt_verbosity = 1; /**< -==quiet,0==terse,1==normal,2==verbose */
 static unsigned int opt_timeout = DEFAULT_TESTCASE_TIMEOUT; /**< Timeout for every test (using alarm()) */
 static unsigned int opt_retries = 3; /**< How much test with TT_RETRIABLE should be retried */
 static unsigned int opt_retries_delay = 1; /**< How much seconds to delay before retrying */
+static unsigned int opt_repeat = 0; /**< How much times to repeat the test */
 const char *verbosity_flag = "";
 
 const struct testlist_alias_t *cfg_aliases=NULL;
@@ -409,6 +410,7 @@ usage(struct testgroup_t *groups, int list_groups)
 	puts("  --timeout <sec>");
 	puts("  --retries <n>");
 	puts("  --retries-delay <n>");
+	puts("  --repeat <n>");
 	puts("");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
 	puts("  To skip a test, prefix its name with a colon.");
@@ -527,6 +529,13 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					return -1;
 				}
 				opt_retries_delay = (unsigned)atoi(v[i]);
+			} else if (!strcmp(v[i], "--repeat")) {
+				++i;
+				if (i >= c) {
+					fprintf(stderr, "--repeat requires argument\n");
+					return -1;
+				}
+				opt_repeat = (unsigned)atoi(v[i]);
 			} else {
 				fprintf(stderr, "Unknown option %s. Try --help\n", v[i]);
 				return -1;
@@ -552,24 +561,26 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 			struct testcase_t *testcase = &group->cases[j];
 			int retriable = testcase->flags & TT_RETRIABLE;
 			int attempts = retriable ? opt_retries : 0;
-			int test_ret_err;
+			int test_ret_err = FAIL;
 
 			if (!(testcase->flags & TT_ENABLED_))
 				continue;
 
-			for (;;) {
-				test_ret_err = testcase_run_one(group, testcase, attempts);
+			for (unsigned k = 0; k < opt_repeat + 1; ++k) {
+				for (;;) {
+					test_ret_err = testcase_run_one(group, testcase, attempts);
 
-				if (test_ret_err == OK)
-					break;
-				if (!attempts--)
-					break;
-				printf("\n  [RETRYING %s%s (attempts left %i, delay %i sec)]\n", group->prefix, testcase->name, attempts, opt_retries_delay);
+					if (test_ret_err == OK)
+						break;
+					if (!attempts--)
+						break;
+					printf("\n  [RETRYING %s%s (attempts left %i, delay %i sec)]\n", group->prefix, testcase->name, attempts, opt_retries_delay);
 #ifdef _WIN32
-				Sleep(opt_retries_delay * 1000);
+					Sleep(opt_retries_delay * 1000);
 #else
-				sleep(opt_retries_delay);
+					sleep(opt_retries_delay);
 #endif
+				}
 			}
 
 			switch (test_ret_err) {
