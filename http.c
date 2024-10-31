@@ -179,6 +179,15 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 
+/** The request obj owns the evhttp connection and needs to free it */
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001
+/** The request object is owned by the user; the user must free it */
+#define EVHTTP_USER_OWNED		0x0004
+/** The request will be used again upstack; freeing must be deferred */
+#define EVHTTP_REQ_DEFER_FREE		0x0008
+/** The request should be freed upstack */
+#define EVHTTP_REQ_NEEDS_FREE		0x0010
+
 extern int debug;
 
 static evutil_socket_t create_bind_socket_nonblock(struct evutil_addrinfo *, int reuse);
@@ -505,8 +514,6 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	/* NOTE: some version of GCC reports a warning that flags may be uninitialized, hence assignment */
 	ev_uint16_t flags = 0;
 
-	evhttp_remove_header(req->output_headers, "Proxy-Connection");
-
 	/* Generate request line */
 	if (!(method = evhttp_method_(evcon, req->type, &flags))) {
 		method = "NULL";
@@ -535,15 +542,10 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 static int
 evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 {
-	if (flags & EVHTTP_PROXY_REQUEST) {
-		/* proxy connection */
-		const char *connection = evhttp_find_header(headers, "Proxy-Connection");
-		return (connection == NULL || evutil_ascii_strcasecmp(connection, "keep-alive") != 0);
-	} else {
-		const char *connection = evhttp_find_header(headers, "Connection");
-		return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
-	}
+	const char *connection = evhttp_find_header(headers, "Connection");
+	return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
 }
+
 static int
 evhttp_is_request_connection_close(struct evhttp_request *req)
 {
@@ -645,9 +647,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	/* if the request asked for a close, we send a close, too */
 	if (evhttp_is_connection_close(req->flags, req->input_headers)) {
 		evhttp_remove_header(req->output_headers, "Connection");
-		if (!(req->flags & EVHTTP_PROXY_REQUEST))
-		    evhttp_add_header(req->output_headers, "Connection", "close");
-		evhttp_remove_header(req->output_headers, "Proxy-Connection");
+		evhttp_add_header(req->output_headers, "Connection", "close");
 	}
 }
 
@@ -1812,8 +1812,6 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	char *method;
 	char *uri;
 	char *version;
-	const char *hostname;
-	const char *scheme;
 	size_t method_len;
 	enum evhttp_cmd_type type = 0;
 
@@ -2056,17 +2054,6 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 			return -1;
 		}
 	}
-
-	/* If we have an absolute-URI, check to see if it is an http request
-	   for a known vhost or server alias. If we don't know about this
-	   host, we consider it a proxy request. */
-	scheme = evhttp_uri_get_scheme(req->uri_elems);
-	hostname = evhttp_uri_get_host(req->uri_elems);
-	if (scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
-		       !evutil_ascii_strcasecmp(scheme, "https")) &&
-	    hostname &&
-	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname))
-		req->flags |= EVHTTP_PROXY_REQUEST;
 
 	return 0;
 }

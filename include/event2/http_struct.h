@@ -67,16 +67,6 @@ struct {
 	/* the connection object that this request belongs to */
 	struct evhttp_connection *evcon;
 	int flags;
-/** The request obj owns the evhttp connection and needs to free it */
-#define EVHTTP_REQ_OWN_CONNECTION	0x0001
-/** Request was made via a proxy */
-#define EVHTTP_PROXY_REQUEST		0x0002
-/** The request object is owned by the user; the user must free it */
-#define EVHTTP_USER_OWNED		0x0004
-/** The request will be used again upstack; freeing must be deferred */
-#define EVHTTP_REQ_DEFER_FREE		0x0008
-/** The request should be freed upstack */
-#define EVHTTP_REQ_NEEDS_FREE		0x0010
 
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
