@@ -2547,7 +2547,8 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 	unsigned i;
 
 	base = event_base_new();
-	dns_base = evdns_base_new(base, 0);
+	/* if we keep hitting cache this test becomes unreliable */
+	dns_base = evdns_base_new(base, EVDNS_BASE_NO_CACHE);
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
