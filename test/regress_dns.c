@@ -1231,7 +1231,8 @@ windows_dns_initialize_ipv6_nameservers_test(void *arg)
 			ipv6_count++;
 		}
 	}
-	tt_int_op(ipv6_count, >, 0);
+	/* CI environment does not have IPv6 addresses, so we cannot assert on this one */
+	TT_BLATHER(("Found %i IPv6 addresses", ipv6_count));
 
 end:
 	if (dns)
