@@ -859,7 +859,6 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 		 */
 		if (evhttp_connection_incoming_fail(req, error) == -1)
 			evhttp_connection_free(evcon);
-		// https://github.com/libevent/libevent/issues/509
 		if (error_cb != NULL)
 			error_cb(error, error_cb_arg);
 		return;
