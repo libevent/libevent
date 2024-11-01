@@ -674,7 +674,7 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  *     specified host name resolution will block.
  * @param bev a bufferevent to use for connecting to the server; if NULL, a
  *     socket-based bufferevent will be created.  This bufferevent will be freed
- *     when the connection closes.
+ *     when the connection closes.  It must have no fd set on it.
  * @param address the address to which to connect
  * @param port the port to connect to
  * @return an evhttp_connection object that can be used for making requests or
