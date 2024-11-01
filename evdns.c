@@ -5427,7 +5427,7 @@ evdns_cache_lookup(struct evdns_base *base,
 				continue;
 			ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
 			if (want_cname) {
-				ai_new->ai_canonname = strdup(e->ai_canonname);
+				ai_new->ai_canonname = mm_strdup(e->ai_canonname);
 			}
 			if (!ai_new) {
 				n_found = 0;
