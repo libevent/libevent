@@ -2598,7 +2598,7 @@ evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 }
 
 struct evhttp_connection *
-evhttp_connection_base_bufferevent_set_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev)
+evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev)
 {
 	struct evhttp_connection *evcon = NULL;
 	if (bev == NULL)
