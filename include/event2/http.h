@@ -1473,7 +1473,7 @@ void evhttp_uri_free(struct evhttp_uri *uri);
  * @see evhttp_uri_parse()
  */
 EVENT2_EXPORT_SYMBOL
-char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
+char *evhttp_uri_join(const struct evhttp_uri *uri, char *buf, size_t limit);
 
 #ifdef __cplusplus
 }

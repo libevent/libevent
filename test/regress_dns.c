@@ -2155,7 +2155,7 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(!b_out[2].ai->ai_next);
 	test_ai_eq(b_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
 
-	/* 2.5: v6only.example.com cache lookup with PF_INET should return NULL addressinfo. */
+	/* 2.5: v6only.example.com cache lookup with PF_INET should return EVUTIL_EAI_ADDRFAMILY. */
 	hints.ai_family = PF_INET;
 	hints.ai_flags = 0;
 	evutil_freeaddrinfo(b_out[2].ai); // since this is reused
@@ -2164,7 +2164,7 @@ test_getaddrinfo_async(void *arg)
 	    &hints, gai_cb, &b_out[2]);
 	tt_assert(!r);
 	// check
-	tt_int_op(b_out[2].err, ==, 0);
+	tt_int_op(b_out[2].err, ==, EVUTIL_EAI_ADDRFAMILY);
 	tt_assert(!b_out[2].ai);
 
 	/* 3: v4assert.example.com should have been cached */
@@ -2337,6 +2337,7 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 {
 	struct gaic_request_status *status = calloc(1,sizeof(*status));
 	struct timeval tv = { 0, 0 };
+	char nodename[256];
 
 	/// cancel via timer half of requests
 	if (i % 2) {
@@ -2350,8 +2351,9 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 	status->dns_base = dns_base;
 	event_assign(&status->cancel_event, base, -1, 0, gaic_cancel_request_cb,
 	    status);
+	snprintf(nodename, sizeof(nodename), "foobar-%u.bazquux.example.com", i);
 	status->request = evdns_getaddrinfo(dns_base,
-	    "foobar.bazquux.example.com", "80", NULL, gaic_getaddrinfo_cb,
+	    nodename, "80", NULL, gaic_getaddrinfo_cb,
 	    status);
 	event_add(&status->cancel_event, &tv);
 	++gaic_pending;
@@ -2547,7 +2549,8 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 	unsigned i;
 
 	base = event_base_new();
-	dns_base = evdns_base_new(base, 0);
+	/* if we keep hitting cache this test becomes unreliable */
+	dns_base = evdns_base_new(base, EVDNS_BASE_NO_CACHE);
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;

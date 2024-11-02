@@ -5383,15 +5383,17 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 		log(EVDNS_LOG_DEBUG, "Ejecting old cache for %s", nodename);
 		evdns_cache_free(cache);
 	}
-	cache = mm_malloc(sizeof(struct evdns_cache));
-	cache->base = dns_base;
-	cache->name = strdup(nodename);
-	cache->ai = evutil_dup_addrinfo_(res);
-	SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
-	evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
-	timerclear(&tv);
-	tv.tv_sec = ttl;
-	evtimer_add(&cache->ev_timeout, &tv);
+	if (res) {
+		cache = mm_calloc(1, sizeof(struct evdns_cache));
+		cache->base = dns_base;
+		cache->name = mm_strdup(nodename);
+		cache->ai = evutil_dup_addrinfo_(res);
+		SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
+		evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
+		timerclear(&tv);
+		tv.tv_sec = ttl;
+		evtimer_add(&cache->ev_timeout, &tv);
+	}
 	EVDNS_UNLOCK(dns_base);
 }
 
@@ -5425,7 +5427,7 @@ evdns_cache_lookup(struct evdns_base *base,
 				continue;
 			ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
 			if (want_cname) {
-				ai_new->ai_canonname = strdup(e->ai_canonname);
+				ai_new->ai_canonname = mm_strdup(e->ai_canonname);
 			}
 			if (!ai_new) {
 				n_found = 0;
@@ -5438,8 +5440,9 @@ evdns_cache_lookup(struct evdns_base *base,
 	EVDNS_UNLOCK(base);
 out:
 	if (n_found) {
-		/* Note that we return an empty answer if we found entries for
-		 * this hostname but none were of the right address type. */
+		if (!ai) {
+			return EVUTIL_EAI_ADDRFAMILY;
+		}
 		*res = ai;
 		return 0;
 	} else {
@@ -5696,8 +5699,9 @@ evdns_getaddrinfo_fromhosts(struct evdns_base *base,
 	EVDNS_UNLOCK(base);
 out:
 	if (n_found) {
-		/* Note that we return an empty answer if we found entries for
-		 * this hostname but none were of the right address type. */
+		if (!ai) {
+			return EVUTIL_EAI_ADDRFAMILY;
+		}
 		*res = ai;
 		return 0;
 	} else {
@@ -5761,15 +5765,19 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	}
 
 	/* If there is an entry in the hosts file, we should give it now. */
-	if (!evdns_getaddrinfo_fromhosts(dns_base, nodename, &hints, port, &res)) {
-		cb(0, res, arg);
+	err = evdns_getaddrinfo_fromhosts(dns_base, nodename, &hints, port, &res);
+	if (!err || err == EVUTIL_EAI_ADDRFAMILY) {
+		cb(err, res, arg);
 		return NULL;
 	}
 
 	/* See if we have it in the cache */
-	if (!dns_base->disable_cache && !evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
-		cb(0, res, arg);
-		return NULL;
+	if (!dns_base->disable_cache) {
+		err = evdns_cache_lookup(dns_base, nodename, &hints, port, &res);
+		if (!err || err == EVUTIL_EAI_ADDRFAMILY) {
+			cb(err, res, arg);
+			return NULL;
+		}
 	}
 
 	/* Okay, things are serious now. We're going to need to actually
@@ -5788,7 +5796,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	data->user_cb = cb;
 	data->user_data = arg;
 	data->evdns_base = dns_base;
-	data->nodename = strdup(nodename);
+	data->nodename = mm_strdup(nodename);
 
 	want_cname = (hints.ai_flags & EVUTIL_AI_CANONNAME);
 
