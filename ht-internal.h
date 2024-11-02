@@ -309,7 +309,7 @@ ht_string_hash_(const char *s)
     805306457, 1610612741                                               \
   };                                                                    \
   static unsigned name##_N_PRIMES =                                     \
-    (unsigned)(sizeof(name##_PRIMES)/sizeof(name##_PRIMES[0]));         \
+    (unsigned)(sizeof(name##_PRIMES)/sizeof(name##_PRIMES[0])) - 1;     \
   /* Expand the internal table of 'head' until it is large enough to    \
    * hold 'size' elements.  Return 0 on success, -1 on allocation       \
    * failure. */                                                        \
@@ -319,7 +319,7 @@ ht_string_hash_(const char *s)
     unsigned new_len, new_load_limit;                                   \
     int prime_idx;                                                      \
     struct type **new_table;                                            \
-    if (head->hth_prime_idx == (int)name##_N_PRIMES - 1)                \
+    if (head->hth_prime_idx == (int)name##_N_PRIMES)                    \
       return 0;                                                         \
     if (head->hth_load_limit > size)                                    \
       return 0;                                                         \
