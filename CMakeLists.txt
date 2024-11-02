@@ -830,6 +830,7 @@ set(HDR_PRIVATE
     evrpc-internal.h
     evsignal-internal.h
     evthread-internal.h
+    evdns-internal.h
     ht-internal.h
     http-internal.h
     iocp-internal.h

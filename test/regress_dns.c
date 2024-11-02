@@ -78,6 +78,7 @@
 #include <event2/thread.h>
 #include "log-internal.h"
 #include "evthread-internal.h"
+#include "evdns-internal.h"
 #include "regress.h"
 #include "regress_testutils.h"
 #include "regress_thread.h"
@@ -1199,6 +1200,47 @@ end:
 	if (dns)
 		evdns_base_free(dns, 0);
 }
+
+#ifdef _WIN32
+static void
+windows_dns_initialize_ipv6_nameservers_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	struct sockaddr_storage ss;
+	int i = 0, count = 0, ipv6_count = 0, size = 0;
+	int sockfd = 0;
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+
+	tt_int_op(load_nameservers_with_getadaptersaddresses(dns), ==, 0);
+	count = evdns_base_count_nameservers(dns);
+	tt_int_op(count, >, 0);
+
+	sockfd = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (sockfd < 0) {
+		event_warn("socket(AF_INET6) failed. Skipping test.");
+		tt_skip();
+	}
+	evutil_closesocket(sockfd);
+
+	for (i = 0; i < count; ++i) {
+		size = evdns_base_get_nameserver_addr(dns, i, (struct sockaddr *)&ss, sizeof(ss));
+		tt_int_op(size, >, 0);
+		if (ss.ss_family == AF_INET6) {
+			ipv6_count++;
+		}
+	}
+	/* CI environment does not have IPv6 addresses, so we cannot assert on this one */
+	TT_BLATHER(("Found %i IPv6 addresses", ipv6_count));
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+}
+#endif
 
 static const char *dns_resolvconf_with_one_nameserver =
 	"nameserver 127.0.0.53\n";
@@ -3273,6 +3315,12 @@ struct testcase_t dns_testcases[] = {
 
 	{ "initialize_nameservers", dns_initialize_nameservers_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
+#ifdef _WIN32
+	{ "windows_initialize_ipv6_nameservers", windows_dns_initialize_ipv6_nameservers_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#endif
+
 #ifndef _WIN32
 	{"initialize_with_one_inactive_nameserver", dns_initialize_inactive_one_nameserver_test,
 	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL},
