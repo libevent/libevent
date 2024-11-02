@@ -1975,7 +1975,6 @@ int
 event_base_loop(struct event_base *base, int flags)
 {
 	const struct eventop *evsel = base->evsel;
-	struct timeval tv;
 	struct timeval *tv_p;
 	int res, done, retval = 0;
 	struct evwatch_prepare_cb_info prepare_info;
@@ -2009,6 +2008,8 @@ event_base_loop(struct event_base *base, int flags)
 	base->event_gotterm = base->event_break = 0;
 
 	while (!done) {
+		struct timeval tv;
+
 		base->event_continue = 0;
 		base->n_deferreds_queued = 0;
 
