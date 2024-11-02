@@ -2155,7 +2155,7 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(!b_out[2].ai->ai_next);
 	test_ai_eq(b_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
 
-	/* 2.5: v6only.example.com cache lookup with PF_INET should return NULL addressinfo. */
+	/* 2.5: v6only.example.com cache lookup with PF_INET should return EVUTIL_EAI_ADDRFAMILY. */
 	hints.ai_family = PF_INET;
 	hints.ai_flags = 0;
 	evutil_freeaddrinfo(b_out[2].ai); // since this is reused
@@ -2164,7 +2164,7 @@ test_getaddrinfo_async(void *arg)
 	    &hints, gai_cb, &b_out[2]);
 	tt_assert(!r);
 	// check
-	tt_int_op(b_out[2].err, ==, 0);
+	tt_int_op(b_out[2].err, ==, EVUTIL_EAI_ADDRFAMILY);
 	tt_assert(!b_out[2].ai);
 
 	/* 3: v4assert.example.com should have been cached */

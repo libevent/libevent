@@ -819,6 +819,7 @@ struct evdns_getaddrinfo_request;
  * - For ai_protocol, we only handle IPPROTO_TCP, IPPROTO_UDP, and 0.
  * - If we cached a response exclusively for a different address type (e.g.
  *   PF_INET), we will set addrinfo to NULL (e.g. queried with PF_INET6)
+ *   and return EVUTIL_EAI_ADDRFAMILY.
  * - Cache isn't hit when AI_CANONNAME is set but cached server response
  *	 doesn't contain CNAME.
  * - If we can answer immediately (e.g. using hosts file, there is an error

@@ -5440,8 +5440,9 @@ evdns_cache_lookup(struct evdns_base *base,
 	EVDNS_UNLOCK(base);
 out:
 	if (n_found) {
-		/* Note that we return an empty answer if we found entries for
-		 * this hostname but none were of the right address type. */
+		if (!ai) {
+			return EVUTIL_EAI_ADDRFAMILY;
+		}
 		*res = ai;
 		return 0;
 	} else {
@@ -5764,15 +5765,19 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	}
 
 	/* If there is an entry in the hosts file, we should give it now. */
-	if (!evdns_getaddrinfo_fromhosts(dns_base, nodename, &hints, port, &res)) {
-		cb(0, res, arg);
+	err = evdns_getaddrinfo_fromhosts(dns_base, nodename, &hints, port, &res);
+	if (!err || err == EVUTIL_EAI_ADDRFAMILY) {
+		cb(err, res, arg);
 		return NULL;
 	}
 
 	/* See if we have it in the cache */
-	if (!dns_base->disable_cache && !evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
-		cb(0, res, arg);
-		return NULL;
+	if (!dns_base->disable_cache) {
+		err = evdns_cache_lookup(dns_base, nodename, &hints, port, &res);
+		if (!err || err == EVUTIL_EAI_ADDRFAMILY) {
+			cb(err, res, arg);
+			return NULL;
+		}
 	}
 
 	/* Okay, things are serious now. We're going to need to actually
