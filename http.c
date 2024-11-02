@@ -2541,7 +2541,6 @@ evhttp_connection_set_existing_(struct evhttp_connection *evcon, struct bufferev
 	evcon->state = EVCON_IDLE;
 	evcon->flags |= EVHTTP_CON_OUTGOING;
 	return 0;
-
 }
 
 static struct evhttp_connection *

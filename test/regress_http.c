@@ -2367,9 +2367,9 @@ static void http_unix_socket_test_(struct basic_test_data *data, int preexisting
 
 	if (preexisting) {
 		client_fd = http_connect_unixsocket(tmp_sock_path);
-		tt_fd_op(client_fd,!=,EVUTIL_INVALID_SOCKET);
+		tt_fd_op(client_fd, !=, EVUTIL_INVALID_SOCKET);
 		bev = create_bev(data->base, client_fd, 0x00, BEV_OPT_CLOSE_ON_FREE);
-		evcon = evhttp_connection_base_bufferevent_set_new(data->base, NULL, bev);
+		evcon = evhttp_connection_base_bufferevent_reuse_new(data->base, NULL, bev);
 	} else {
 		evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
 	}
@@ -2391,7 +2391,7 @@ static void http_unix_socket_test_(struct basic_test_data *data, int preexisting
 	event_base_dispatch(data->base);
 
 	if (preexisting) {
-		tt_fd_op(bufferevent_getfd(bev),==,client_fd);
+		tt_fd_op(bufferevent_getfd(bev), ==, client_fd);
 	}
 
  end:
@@ -4453,23 +4453,23 @@ http_simple_test_impl(void *arg, int ssl, int dirty, int preexisting, const char
 
 	if (preexisting) {
 		client_fd = http_connect("127.0.0.1", hs.port);
-		tt_fd_op(client_fd,!=,EVUTIL_INVALID_SOCKET);
+		tt_fd_op(client_fd, !=, EVUTIL_INVALID_SOCKET);
 	}
 	bev = create_bev(data->base, client_fd, ssl, BEV_OPT_CLOSE_ON_FREE);
-	tt_fd_op(bufferevent_getfd(bev),==,client_fd);
+	tt_fd_op(bufferevent_getfd(bev), ==, client_fd);
 #ifdef EVENT__HAVE_OPENSSL
-	if(ssl == HTTP_OPENSSL) {
+	if (ssl == HTTP_OPENSSL) {
 		bufferevent_openssl_set_allow_dirty_shutdown(bev, dirty);
 	}
 #endif
 #ifdef EVENT__HAVE_MBEDTLS
-	if(ssl == HTTP_MBEDTLS) {
+	if (ssl == HTTP_MBEDTLS) {
 		bufferevent_mbedtls_set_allow_dirty_shutdown(bev, dirty);
 	}
 #endif
 
 	if (preexisting) {
-		evcon = evhttp_connection_base_bufferevent_set_new(data->base, NULL, bev);
+		evcon = evhttp_connection_base_bufferevent_reuse_new(data->base, NULL, bev);
 	} else {
 		evcon = evhttp_connection_base_bufferevent_new(
 			data->base, NULL, bev, "127.0.0.1", hs.port);
