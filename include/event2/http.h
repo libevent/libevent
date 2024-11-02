@@ -700,6 +700,24 @@ struct evhttp_connection *evhttp_connection_base_bufferevent_unix_new(
 	struct event_base *base, struct bufferevent* bev, const char *path);
 
 /**
+ * Create and return a connection object that can be used to for making HTTP
+ * requests. The connection attempts to reuse an existing connection that was
+ * already established with bufferevent.
+ *
+ * @param base the event_base to use for handling the connection
+ * @param dnsbase the dns_base to use for resolving host names; if not
+ *     specified host name resolution will block.
+ * @param bev a bufferevent to use for connecting to the server. A fd
+ *     is already set on the bufferevent, it will be assumed that this
+ *     connection is already open and ready to send requests.
+ * @return an evhttp_connection object that can be used for making requests or
+ *   NULL on error
+ */
+EVENT2_EXPORT_SYMBOL
+struct evhttp_connection *
+evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev);
+
+/**
  * Return the bufferevent that an evhttp_connection is using.
  */
 EVENT2_EXPORT_SYMBOL

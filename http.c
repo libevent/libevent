@@ -2534,6 +2534,18 @@ evhttp_connection_new(const char *address, ev_uint16_t port)
 	return (evhttp_connection_base_new(NULL, NULL, address, port));
 }
 
+/* We were passed a bev with file descriptor set.
+ * Assume that this is an already-open connection that we
+ * can start sending requests on.
+ */
+static int
+evhttp_connection_set_existing_(struct evhttp_connection *evcon, struct bufferevent* bev)
+{
+	evcon->state = EVCON_IDLE;
+	evcon->flags |= EVHTTP_CON_OUTGOING;
+	return 0;
+}
+
 static struct evhttp_connection *
 evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 {
@@ -2582,6 +2594,35 @@ evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 
 	return (evcon);
 
+ error:
+	if (evcon != NULL)
+		evhttp_connection_free(evcon);
+	return (NULL);
+}
+
+struct evhttp_connection *
+evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev)
+{
+	struct evhttp_connection *evcon = NULL;
+	if (bev == NULL)
+		goto error;
+
+	evcon = evhttp_connection_new_(base, bev);
+
+	if (evcon == NULL)
+		goto error;
+
+	if (evhttp_connection_set_existing_(evcon, bev))
+		goto error;
+
+	evcon->dns_base = dnsbase;
+	evcon->address = NULL;
+	evcon->port = 0;
+#ifndef _WIN32
+	evcon->unixsocket = NULL;
+#endif
+
+	return (evcon);
  error:
 	if (evcon != NULL)
 		evhttp_connection_free(evcon);
