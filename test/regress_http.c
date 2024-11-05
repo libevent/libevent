@@ -401,6 +401,8 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 		} else if (sa->sa_family == AF_INET6) {
 			evutil_format_sockaddr_port_((struct sockaddr *)sa, addrbuf, sizeof(addrbuf));
 			tt_assert(!strncmp(addrbuf, "[::1]:", strlen("[::1]:")));
+		} else if (sa->sa_family == AF_UNIX) {
+			/* This is either a unix socket with a name or a socketpair with no path */
 		} else {
 			tt_fail_msg("Unsupported family");
 		}
@@ -4507,6 +4509,173 @@ static void http_simple_nonconformant_test(void *arg)
 static void http_simple_nonconformant_preexisting_test(void *arg)
 { http_simple_test_impl(arg, 0, 0, 1, "/test nonconformant"); }
 
+struct context_serve {
+	struct event_base *base;
+	int remaining;
+	char msg[sizeof(BASIC_REQUEST_BODY)];
+	int received_len;
+	int err;
+};
+
+static void http_serve_request_done(struct evhttp_request *req, void *arg) {
+	int *request_done = (int *)arg;
+	*request_done = 1;
+}
+
+static void http_serve_handler_cb(struct evhttp_request *req, void *arg) {
+	struct context_serve *ctx = (struct context_serve *)arg;
+	struct evbuffer *inbuf = NULL;
+	struct evbuffer *reply = NULL;
+	ev_ssize_t data_len;
+	char *data = NULL;
+
+	inbuf = evhttp_request_get_input_buffer(req);
+	data_len = evbuffer_get_length(inbuf);
+	data = (char *)evbuffer_pullup(inbuf, data_len);
+	ctx->received_len = data_len;
+
+	if (data_len < (ev_ssize_t)sizeof(ctx->msg) + 1) {
+		data_len = (ev_ssize_t)sizeof(ctx->msg) - 1;
+	}
+
+	memcpy(ctx->msg, data, data_len);
+	ctx->msg[data_len] = '\0';
+	evbuffer_drain(inbuf, data_len);
+
+	reply = evbuffer_new();
+	evhttp_send_reply(req, HTTP_OK, "Ok", reply);
+	evbuffer_free(reply);
+
+	--ctx->remaining;
+	if (ctx->remaining == 0) {
+		test_ok = 1;
+		event_base_loopexit(ctx->base, NULL);
+	}
+}
+
+static void
+http_local_serve_test_impl(void *arg, int pair_type, const char *uri)
+{
+	struct basic_test_data *data = arg;
+	struct evhttp *http = NULL;
+	struct bufferevent *bev[2] = { NULL, NULL };
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct evbuffer *req_outbuf = NULL;
+	evutil_socket_t pair[2] = { EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET };
+	struct sockaddr_storage addr[2] = {0};
+	ev_socklen_t socklen[2] = { sizeof(addr[0]), sizeof(addr[1]) };
+	struct context_serve ctx = (struct context_serve){
+		.base=data->base,
+		.remaining=1,
+		.msg={'\0'},
+		.received_len=0,
+		.err=0,
+	};
+	int request_done = 0;
+	int r = -1;
+
+	exit_base = data->base;
+
+	if (pair_type == 0) {
+		/* bufferevent pair */
+		r = bufferevent_pair_new(data->base, BEV_OPT_CLOSE_ON_FREE, bev);
+		tt_int_op(r,==,0);
+	} else if (pair_type == 1) {
+		/* socketpair */
+		r = evutil_socketpair(AF_UNIX, SOCK_STREAM | EVUTIL_SOCK_NONBLOCK, 0, pair);
+		if (r) {
+			perror("evutil_socketpair");
+		}
+		tt_int_op(r,==,0);
+
+		r = getsockname(pair[0], (struct sockaddr *)&addr[0], &socklen[0]);
+		tt_int_op(r,==,0);
+		r = getsockname(pair[1], (struct sockaddr *)&addr[1], &socklen[1]);
+		tt_int_op(r,==,0);
+
+		bev[0] = create_bev(data->base, pair[0], 0, BEV_OPT_CLOSE_ON_FREE);
+		bev[1] = create_bev(data->base, pair[1], 0, BEV_OPT_CLOSE_ON_FREE);
+	} else if (pair_type == 2) {
+		/* pipe */
+		r = evutil_make_internal_pipe_(pair);
+		{
+			int tmp = pair[0];
+			pair[0] = pair[1];
+			pair[1] = tmp;
+		}
+		if (r) {
+			perror("pipe2");
+		}
+		tt_int_op(r,==,0);
+
+		bev[0] = create_bev(data->base, pair[0], 0, BEV_OPT_CLOSE_ON_FREE);
+		bev[1] = create_bev(data->base, pair[1], 0, BEV_OPT_CLOSE_ON_FREE);
+	}
+
+	tt_assert(bev[0]);
+	tt_assert(bev[1]);
+
+	tt_fd_op(bufferevent_getfd(bev[0]), ==, pair[0]);
+	tt_fd_op(bufferevent_getfd(bev[1]), ==, pair[1]);
+
+	if (pair_type == 0 || pair_type == 1) {
+		r = bufferevent_enable(bev[0], EV_READ | EV_WRITE);
+		tt_int_op(r,==,0);
+		r = bufferevent_enable(bev[1], EV_READ | EV_WRITE);
+		tt_int_op(r,==,0);
+	} else if (pair_type == 1) {
+		r = bufferevent_enable(bev[0], EV_WRITE);
+		tt_int_op(r,==,0);
+		r = bufferevent_enable(bev[1], EV_READ);
+		tt_int_op(r,==,0);
+	}
+
+	http = evhttp_new(data->base);
+	tt_assert(http);
+	evhttp_set_gencb(http, http_serve_handler_cb, &ctx);
+
+	evcon = evhttp_connection_base_bufferevent_reuse_new(data->base, NULL, bev[0]);
+	tt_assert(evcon);
+
+	/* since these are non-listening socket, the connection done doesn't happen */
+	req = evhttp_request_new(http_serve_request_done, &request_done);
+	tt_assert(req);
+
+	req_outbuf = evhttp_request_get_output_buffer(req);
+	tt_assert(req_outbuf);
+	evbuffer_add_printf(req_outbuf, "%s", BASIC_REQUEST_BODY);
+
+	r = evhttp_make_request(evcon, req, EVHTTP_REQ_GET, uri);
+	tt_int_op(r,!=,-1);
+
+	r = evhttp_serve_bufferevent(http, bev[1]);
+	tt_int_op(r,==,0);
+
+	event_base_dispatch(data->base);
+	tt_int_op(ctx.received_len,==,(ev_ssize_t)sizeof(BASIC_REQUEST_BODY)-1);
+	tt_int_op(test_ok,==,1);
+	tt_str_op(ctx.msg,==,BASIC_REQUEST_BODY);
+	if (pair_type == 0) {
+		tt_int_op(request_done,==,1);
+	}
+
+	tt_fd_op(bufferevent_getfd(bev[0]),==,pair[0]);
+	tt_fd_op(bufferevent_getfd(bev[1]),==,pair[1]);
+
+end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+static void http_local_serve_bevpair_test(void *arg)
+{ http_local_serve_test_impl(arg, 0, "/"); }
+static void http_local_serve_socketpair_test(void *arg)
+{ http_local_serve_test_impl(arg, 1, "/"); }
+static void http_local_serve_pipe_test(void *arg)
+{ http_local_serve_test_impl(arg, 2, "/"); }
+
 static int
 https_bind_ssl_bevcb(struct evhttp *http, ev_uint16_t port, ev_uint16_t *pport, int mask)
 {
@@ -6119,6 +6288,9 @@ struct testcase_t http_testcases[] = {
 	HTTP(simple_preexisting),
 	HTTP(simple_nonconformant),
 	HTTP(simple_nonconformant_preexisting),
+	HTTP(local_serve_bevpair),
+	HTTP(local_serve_socketpair),
+	HTTP(local_serve_pipe),
 
 	HTTP_N(cancel, cancel, 0, BASIC),
 	HTTP_RET_N(cancel_by_host, cancel, 0, BY_HOST),
