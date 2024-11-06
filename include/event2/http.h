@@ -106,10 +106,11 @@ struct evhttp *evhttp_new(struct event_base *base);
    @param salen remote address length
    @param bev Optional associated bufferevent
 
-   @return 0 on success, -1 when evhttp_connection can't be made.
+   @return evhttp_connection * on success, NULL on error.
  */
 EVENT2_EXPORT_SYMBOL
-int evhttp_serve(struct evhttp *http,
+struct evhttp_connection *
+evhttp_serve(struct evhttp *http,
     evutil_socket_t fd,
     struct sockaddr *sa, ev_socklen_t salen,
     struct bufferevent *bev);
@@ -121,10 +122,11 @@ int evhttp_serve(struct evhttp *http,
    @param http the evhttp server object will handle the connection
    @param bev associated bufferevent
 
-   @return 0 on success, -1 when evhttp_connection can't be made.
+   @return evhttp_connection * on success, NULL on error.
  */
 EVENT2_EXPORT_SYMBOL
-int evhttp_serve_bufferevent(struct evhttp *http, struct bufferevent *bev);
+struct evhttp_connection *
+evhttp_serve_bufferevent(struct evhttp *http, struct bufferevent *bev);
 
 /**
  * Binds an HTTP server on the specified address and port.
