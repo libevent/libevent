@@ -209,8 +209,6 @@ static int evhttp_add_header_internal(struct evkeyvalq *headers,
     const char *key, const char *value);
 static const char *evhttp_response_phrase_internal(int code);
 static void evhttp_serve_request_(struct evhttp *, struct evhttp_connection *evcon);
-static struct evhttp_connection* evhttp_get_request_connection(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t, struct bufferevent *bev);
-static struct evhttp_connection* evhttp_get_request_connection_reuse_bufferevent(struct evhttp *, struct bufferevent *bev);
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
@@ -3882,40 +3880,17 @@ accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct so
 		bev = bound->bevcb(http->base, bound->bevcbarg);
 
 	evcon = evhttp_get_request_connection(http, nfd, peer_sa, peer_socklen, bev);
-	if (evcon == NULL) {
-		event_sock_warn(nfd, "%s: cannot get connection on "EV_SOCK_FMT,
-		    __func__, EV_SOCK_ARG(nfd));
-		evutil_closesocket(nfd);
+	evhttp_serve_request_(http, evcon);
+}
+
+void
+evhttp_serve(struct evhttp *http, struct evhttp_connection *evcon)
+{
+	if (!(evcon->flags & EVHTTP_CON_INCOMING)) {
+		event_errx(1, "%s: must be an incoming connection", __func__);
 		return;
 	}
 	evhttp_serve_request_(http, evcon);
-}
-
-struct evhttp_connection *
-evhttp_serve(struct evhttp *http,
-    evutil_socket_t fd,
-    struct sockaddr *sa, ev_socklen_t salen,
-    struct bufferevent *bev)
-{
-	struct evhttp_connection *evcon = evhttp_get_request_connection(http, fd, sa, salen, bev);
-	if (evcon == NULL) {
-		event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT,
-		    __func__, EV_SOCK_ARG(fd));
-		evutil_closesocket(fd);
-		return NULL;
-	}
-	evhttp_serve_request_(http, evcon);
-	return evcon;
-}
-
-struct evhttp_connection *
-evhttp_serve_bufferevent(struct evhttp *http, struct bufferevent *bev)
-{
-	struct evhttp_connection *evcon = evhttp_get_request_connection_reuse_bufferevent(http, bev);
-	if (evcon == NULL)
-		return NULL;
-	evhttp_serve_request_(http, evcon);
-	return evcon;
 }
 
 int
@@ -4648,13 +4623,13 @@ struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req)
  * The callback is executed once the whole request has been read.
  */
 
-static struct evhttp_connection*
+struct evhttp_connection*
 evhttp_get_request_connection(
 	struct evhttp* http,
 	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
 	struct bufferevent* bev)
 {
-	struct evhttp_connection *evcon;
+	struct evhttp_connection *evcon = NULL;
 
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
 	if (sa->sa_family == AF_UNIX) {
@@ -4687,7 +4662,7 @@ evhttp_get_request_connection(
 		if (hostname == NULL || portname == NULL) {
 			if (hostname) mm_free(hostname);
 			if (portname) mm_free(portname);
-			return (NULL);
+			goto err;
 		}
 
 		event_debug(("%s: new request from %s:%s on "EV_SOCK_FMT"\n",
@@ -4703,7 +4678,7 @@ evhttp_get_request_connection(
 		mm_free(portname);
 	}
 	if (evcon == NULL)
-		return (NULL);
+		goto err;
 
 	evcon->max_headers_size = http->default_max_headers_size;
 	evcon->max_body_size = http->default_max_body_size;
@@ -4724,7 +4699,10 @@ evhttp_get_request_connection(
 	return (evcon);
 
 err:
-	evhttp_connection_free(evcon);
+	if (evcon)
+		evhttp_connection_free(evcon);
+	event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT, __func__, EV_SOCK_ARG(fd));
+	evutil_closesocket(fd);
 	return (NULL);
 }
 
@@ -4733,7 +4711,7 @@ err:
  * The callback is executed once the whole request has been read.
  */
 
-static struct evhttp_connection*
+struct evhttp_connection*
 evhttp_get_request_connection_reuse_bufferevent(
 	struct evhttp* http,
 	struct bufferevent* bev)

@@ -83,9 +83,11 @@ worker_bev_execute_read_cb(struct bufferevent *bev, void *arg)
 	};
 	nbytes = bufferevent_read(bev, &srvconn, sizeof(srvconn));
 	if (nbytes == sizeof(srvconn)) {
-		in_evcon = evhttp_serve(worker->http, srvconn.sockfd, (struct sockaddr *)&srvconn.saddr, srvconn.socklen, NULL);
-		if (!in_evcon) {
-			fprintf(stderr, "%s:%d can't serve a connection\n", __func__, __LINE__);
+		in_evcon = evhttp_get_request_connection(worker->http, srvconn.sockfd, (struct sockaddr *)&srvconn.saddr, srvconn.socklen, NULL);
+		if (in_evcon) {
+			evhttp_serve(worker->http, in_evcon);
+		} else {
+			fprintf(stderr, "%s:%d can't obtain a request connection\n", __func__, __LINE__);
 		}
 	} else {
 		fprintf(stderr, "%s:%d read %d bytes instead of %d\n", __func__, __LINE__, nbytes, (int)sizeof(srvconn));

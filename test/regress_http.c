@@ -4650,8 +4650,9 @@ http_local_serve_test_impl(void *arg, int pair_type, const char *uri)
 	r = evhttp_make_request(evcon, req, EVHTTP_REQ_GET, uri);
 	tt_int_op(r,!=,-1);
 
-	evcon_in = evhttp_serve_bufferevent(http, bev[1]);
+	evcon_in = evhttp_get_request_connection_reuse_bufferevent(http, bev[1]);
 	tt_assert(evcon_in);
+	evhttp_serve(http, evcon_in);
 
 	event_base_dispatch(data->base);
 	tt_int_op(ctx.received_len,==,(ev_ssize_t)sizeof(BASIC_REQUEST_BODY)-1);
