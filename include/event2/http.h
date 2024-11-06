@@ -98,7 +98,7 @@ EVENT2_EXPORT_SYMBOL
 struct evhttp *evhttp_new(struct event_base *base);
 
 /**
-   Submit the socket obtained by accept to the http service for processing
+   Obtain evhttp_connection when accepting an incoming request
 
    @param http the evhttp server object will handle the connection
    @param fd accept gets the socket
@@ -110,14 +110,13 @@ struct evhttp *evhttp_new(struct event_base *base);
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *
-evhttp_serve(struct evhttp *http,
-    evutil_socket_t fd,
-    struct sockaddr *sa, ev_socklen_t salen,
-    struct bufferevent *bev);
-
+evhttp_get_request_connection(
+	struct evhttp* http,
+	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
+	struct bufferevent* bev);
 
 /**
-   Submit a bufferevent obtained by accept to the http service for processing
+   Obtain evhttp_connection when accepting an incoming request with an existing bufferevent
 
    @param http the evhttp server object will handle the connection
    @param bev associated bufferevent
@@ -126,7 +125,18 @@ evhttp_serve(struct evhttp *http,
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *
-evhttp_serve_bufferevent(struct evhttp *http, struct bufferevent *bev);
+evhttp_get_request_connection_reuse_bufferevent(struct evhttp* http, struct bufferevent* bev);
+
+/**
+   Submit an incoming evhttp_connection to the http service for processing
+
+   @param http the evhttp server object will handle the connection
+   @param bev associated bufferevent
+
+   @return evhttp_connection * on success, NULL on error.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_serve(struct evhttp *http, struct evhttp_connection *evcon);
 
 /**
  * Binds an HTTP server on the specified address and port.
