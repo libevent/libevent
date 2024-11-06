@@ -74,6 +74,7 @@ worker_bev_execute_read_cb(struct bufferevent *bev, void *arg)
 {
 	struct worker *worker = (struct worker *)arg;
 	struct serve_connection srvconn;
+	struct evhttp_connection *in_evcon = NULL;
 	int nbytes = -1;
 	srvconn = (struct serve_connection){
 		.sockfd=EVUTIL_INVALID_SOCKET,
@@ -82,7 +83,10 @@ worker_bev_execute_read_cb(struct bufferevent *bev, void *arg)
 	};
 	nbytes = bufferevent_read(bev, &srvconn, sizeof(srvconn));
 	if (nbytes == sizeof(srvconn)) {
-		evhttp_serve(worker->http, srvconn.sockfd, (struct sockaddr *)&srvconn.saddr, srvconn.socklen, NULL);
+		in_evcon = evhttp_serve(worker->http, srvconn.sockfd, (struct sockaddr *)&srvconn.saddr, srvconn.socklen, NULL);
+		if (!in_evcon) {
+			fprintf(stderr, "%s:%d can't serve a connection\n", __func__, __LINE__);
+		}
 	} else {
 		fprintf(stderr, "%s:%d read %d bytes instead of %d\n", __func__, __LINE__, nbytes, (int)sizeof(srvconn));
 	}

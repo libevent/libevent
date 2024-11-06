@@ -3891,7 +3891,7 @@ accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct so
 	evhttp_serve_request_(http, evcon);
 }
 
-int
+struct evhttp_connection *
 evhttp_serve(struct evhttp *http,
     evutil_socket_t fd,
     struct sockaddr *sa, ev_socklen_t salen,
@@ -3902,21 +3902,20 @@ evhttp_serve(struct evhttp *http,
 		event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT,
 		    __func__, EV_SOCK_ARG(fd));
 		evutil_closesocket(fd);
-		return -1;
+		return NULL;
 	}
 	evhttp_serve_request_(http, evcon);
-	return 0;
+	return evcon;
 }
 
-int
+struct evhttp_connection *
 evhttp_serve_bufferevent(struct evhttp *http, struct bufferevent *bev)
 {
 	struct evhttp_connection *evcon = evhttp_get_request_connection_reuse_bufferevent(http, bev);
-	if (evcon == NULL) {
-		return -1;
-	}
+	if (evcon == NULL)
+		return NULL;
 	evhttp_serve_request_(http, evcon);
-	return 0;
+	return evcon;
 }
 
 int

@@ -4509,7 +4509,7 @@ static void http_simple_nonconformant_test(void *arg)
 static void http_simple_nonconformant_preexisting_test(void *arg)
 { http_simple_test_impl(arg, 0, 0, 1, "/test nonconformant"); }
 
-struct context_serve {
+struct context_serve_local {
 	struct event_base *base;
 	int remaining;
 	char msg[sizeof(BASIC_REQUEST_BODY)];
@@ -4523,7 +4523,7 @@ static void http_serve_request_done(struct evhttp_request *req, void *arg) {
 }
 
 static void http_serve_handler_cb(struct evhttp_request *req, void *arg) {
-	struct context_serve *ctx = (struct context_serve *)arg;
+	struct context_serve_local *ctx = (struct context_serve_local *)arg;
 	struct evbuffer *inbuf = NULL;
 	struct evbuffer *reply = NULL;
 	ev_ssize_t data_len;
@@ -4560,12 +4560,13 @@ http_local_serve_test_impl(void *arg, int pair_type, const char *uri)
 	struct evhttp *http = NULL;
 	struct bufferevent *bev[2] = { NULL, NULL };
 	struct evhttp_connection *evcon = NULL;
+	struct evhttp_connection *evcon_in = NULL;
 	struct evhttp_request *req = NULL;
 	struct evbuffer *req_outbuf = NULL;
 	evutil_socket_t pair[2] = { EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET };
 	struct sockaddr_storage addr[2] = {0};
 	ev_socklen_t socklen[2] = { sizeof(addr[0]), sizeof(addr[1]) };
-	struct context_serve ctx = (struct context_serve){
+	struct context_serve_local ctx = (struct context_serve_local){
 		.base=data->base,
 		.remaining=1,
 		.msg={'\0'},
@@ -4649,8 +4650,8 @@ http_local_serve_test_impl(void *arg, int pair_type, const char *uri)
 	r = evhttp_make_request(evcon, req, EVHTTP_REQ_GET, uri);
 	tt_int_op(r,!=,-1);
 
-	r = evhttp_serve_bufferevent(http, bev[1]);
-	tt_int_op(r,==,0);
+	evcon_in = evhttp_serve_bufferevent(http, bev[1]);
+	tt_assert(evcon_in);
 
 	event_base_dispatch(data->base);
 	tt_int_op(ctx.received_len,==,(ev_ssize_t)sizeof(BASIC_REQUEST_BODY)-1);
