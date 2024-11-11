@@ -758,6 +758,19 @@ struct evhttp_connection *
 evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev);
 
 /**
+ * Set peer address of a connection object.
+ *
+ * @param evcon the connection object
+ * @param address the address to which to connect
+ * @param port the port to connect to
+ * @return 0 on success, -1 on failure; if peer already exists, returns -1.
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_connection_set_peer(struct evhttp_connection *evcon,
+    const char *address, ev_uint16_t port);
+
+
+/**
  * Return the bufferevent that an evhttp_connection is using.
  */
 EVENT2_EXPORT_SYMBOL

@@ -2600,6 +2600,30 @@ evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 	return (NULL);
 }
 
+int
+evhttp_connection_set_peer(struct evhttp_connection *evcon, const char *address, ev_uint16_t port)
+{
+	if (evcon == NULL)
+		return -1;
+
+	if ((evcon->address != NULL || evcon->port != 0) && evcon->state != EVCON_DISCONNECTED) {
+		event_warn("%s: peer already exists", __func__);
+		return -1;
+	}
+
+	if (evcon->address != NULL) {
+		mm_free(evcon->address);
+		evcon->address = NULL;
+	}
+
+	if ((evcon->address = mm_strdup(address)) == NULL) {
+		event_warn("%s: strdup failed", __func__);
+		return -1;
+	}
+	evcon->port = port;
+	return 0;
+}
+
 struct evhttp_connection *
 evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev)
 {
@@ -2671,11 +2695,8 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	if (evcon == NULL)
 		goto error;
 
-	if ((evcon->address = mm_strdup(address)) == NULL) {
-		event_warn("%s: strdup failed", __func__);
+	if (evhttp_connection_set_peer(evcon, address, port))
 		goto error;
-	}
-	evcon->port = port;
 	evcon->dns_base = dnsbase;
 
 	return (evcon);
