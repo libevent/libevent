@@ -4497,6 +4497,7 @@ http_simple_test_impl(void *arg, int ssl, int dirty, int preexisting, const char
 		tt_assert(evcon);
 		evhttp_connection_set_local_address(evcon, "127.0.0.1");
 	}
+	tt_str_op(evcon->address,==,"127.0.0.1");
 
 	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 	tt_assert(req);
@@ -4609,6 +4610,7 @@ http_serve_test_impl(void *arg, int ssl, int dirty, int preexisting, const char 
 		tt_assert(evcon);
 		evhttp_connection_set_local_address(evcon, "127.0.0.1");
 	}
+	tt_str_op(evcon->address,==,"127.0.0.1");
 
 	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 	tt_assert(req);
