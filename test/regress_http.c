@@ -4472,12 +4472,13 @@ http_simple_test_impl(void *arg, int ssl, int dirty, int preexisting, const char
 
 	if (preexisting) {
 		evcon = evhttp_connection_base_bufferevent_reuse_new(data->base, NULL, bev);
+		if (evhttp_connection_set_peer(evcon, "127.0.0.1", hs.port))
+			tt_abort_msg("unable to set peer");
+		tt_assert(evcon);
 	} else {
 		evcon = evhttp_connection_base_bufferevent_new(
 			data->base, NULL, bev, "127.0.0.1", hs.port);
-	}
-	tt_assert(evcon);
-	if (!preexisting) {
+		tt_assert(evcon);
 		evhttp_connection_set_local_address(evcon, "127.0.0.1");
 	}
 
