@@ -39,6 +39,12 @@
 #ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#ifdef EVENT__HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef EVENT__HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
 #include <sys/queue.h>
 #ifndef _WIN32
 #include <sys/socket.h>
@@ -174,17 +180,11 @@ https_mbedtls_bev(struct event_base *base, void *arg)
 		BEV_OPT_CLOSE_ON_FREE);
 }
 #endif
-static struct evhttp *
-http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
-	void (*cb)(struct evhttp_request *, void *), void *cbarg)
+
+static void
+http_setcb(struct evhttp *myhttp, struct event_base *base, int mask,
+		void (*cb)(struct evhttp_request *, void *), void *cbarg)
 {
-	struct evhttp *myhttp;
-
-	/* Try a few different ports */
-	myhttp = evhttp_new(base);
-
-	if (http_bind(myhttp, pport, mask) < 0)
-		return NULL;
 #ifdef EVENT__HAVE_OPENSSL
 	if (mask & HTTP_OPENSSL) {
 		init_ssl();
@@ -227,6 +227,22 @@ http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
 	evhttp_set_cb(myhttp, "/oncomplete", http_on_complete_cb, base);
 	evhttp_set_cb(myhttp, "/ws", http_on_ws_cb, base);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
+}
+
+static struct evhttp *
+http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
+	void (*cb)(struct evhttp_request *, void *), void *cbarg)
+{
+	struct evhttp *myhttp;
+
+	/* Try a few different ports */
+	myhttp = evhttp_new(base);
+
+	if (http_bind(myhttp, pport, mask) < 0)
+		return NULL;
+
+	http_setcb(myhttp, base, mask, cb, cbarg);
+
 	return (myhttp);
 }
 struct evhttp *
@@ -4510,6 +4526,121 @@ static void http_simple_nonconformant_test(void *arg)
 static void http_simple_nonconformant_preexisting_test(void *arg)
 { http_simple_test_impl(arg, 0, 0, 1, "/test nonconformant"); }
 
+struct context_serve {
+	struct event_base *base;
+	struct evhttp *http;
+};
+
+static void
+evlistener_accept_serve_cb(struct evconnlistener *listener, evutil_socket_t sockfd, struct sockaddr *addr, int socklen, void *ptr)
+{
+	struct context_serve *ctx = (struct context_serve *)ptr;
+	struct evhttp_connection *evcon_in = evhttp_get_request_connection(ctx->http, sockfd, addr, socklen, NULL);
+	evhttp_serve(ctx->http, evcon_in);
+}
+
+static void
+http_serve_test_impl(void *arg, int ssl, int dirty, int preexisting, const char *uri) {
+	struct basic_test_data *data = arg;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct bufferevent *bev = NULL;
+	struct evconnlistener *listener = NULL;
+	struct evhttp *http = evhttp_new(data->base);
+	evutil_socket_t client_fd = EVUTIL_INVALID_SOCKET;
+	struct context_serve ctx = {
+		.base=data->base,
+		.http=http,
+	};
+	struct sockaddr_in s_in;
+	struct sockaddr_in *s_in_p;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen = sizeof(ss);
+	ev_uint16_t port = 0;
+
+	memset(&s_in, 0, sizeof(s_in));
+	s_in.sin_family = AF_INET;
+	s_in.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
+	s_in.sin_port = 0; /* "You pick!" */
+	http_setcb(http, data->base, ssl, NULL, NULL);
+
+	exit_base = data->base;
+	test_ok = 0;
+
+	listener = evconnlistener_new_bind(
+	  data->base,
+	  evlistener_accept_serve_cb, &ctx,
+	  LEV_OPT_CLOSE_ON_FREE | LEV_OPT_REUSEABLE,
+	  -1,
+	  (struct sockaddr *)&s_in, sizeof(s_in));
+	tt_assert(listener);
+	tt_int_op(evconnlistener_get_fd(listener),!=,EVUTIL_INVALID_SOCKET);
+	tt_int_op(getsockname(evconnlistener_get_fd(listener), (struct sockaddr *)&ss, &slen),==,0);
+	tt_int_op(ss.ss_family,==,AF_INET);
+	s_in_p = (struct sockaddr_in *)&ss;
+	tt_int_op(ntohl(s_in_p->sin_addr.s_addr), ==, 0x7f000001);
+	tt_int_op(s_in_p->sin_port,!=,0);
+	port = ntohs(s_in_p->sin_port);
+
+	if (preexisting) {
+		client_fd = http_connect("127.0.0.1", port);
+		tt_fd_op(client_fd, !=, EVUTIL_INVALID_SOCKET);
+	}
+	bev = create_bev(data->base, client_fd, ssl, BEV_OPT_CLOSE_ON_FREE);
+	tt_fd_op(bufferevent_getfd(bev), ==, client_fd);
+#ifdef EVENT__HAVE_OPENSSL
+	if (ssl == HTTP_OPENSSL) {
+		bufferevent_openssl_set_allow_dirty_shutdown(bev, dirty);
+	}
+#endif
+#ifdef EVENT__HAVE_MBEDTLS
+	if (ssl == HTTP_MBEDTLS) {
+		bufferevent_mbedtls_set_allow_dirty_shutdown(bev, dirty);
+	}
+#endif
+	if (preexisting) {
+		evcon = evhttp_connection_base_bufferevent_reuse_new(data->base, NULL, bev);
+		tt_assert(evcon);
+		if (evhttp_connection_set_peer(evcon, "127.0.0.1", port))
+			tt_abort_msg("unable to set peer");
+	} else {
+		evcon = evhttp_connection_base_bufferevent_new(
+			data->base, NULL, bev, "127.0.0.1", port);
+		tt_assert(evcon);
+		evhttp_connection_set_local_address(evcon, "127.0.0.1");
+	}
+
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+	tt_assert(req);
+
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, uri) == -1)
+		tt_abort_msg("Couldn't make request");
+
+	event_base_dispatch(data->base);
+	tt_int_op(test_ok, ==, 1);
+
+	if (preexisting) {
+		tt_fd_op(bufferevent_getfd(bev),==,client_fd);
+	}
+
+end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (listener)
+		evconnlistener_free(listener);
+	if (http)
+		evhttp_free(http);
+}
+
+static void http_serve_test(void *arg)
+{ http_serve_test_impl(arg, 0, 0, 0, "/test"); }
+static void http_serve_preexisting_test(void *arg)
+{ http_serve_test_impl(arg, 0, 0, 1, "/test"); }
+static void http_serve_nonconformant_test(void *arg)
+{ http_serve_test_impl(arg, 0, 0, 0, "/test nonconformant"); }
+static void http_serve_nonconformant_preexisting_test(void *arg)
+{ http_serve_test_impl(arg, 0, 0, 1, "/test nonconformant"); }
+
 struct context_serve_local {
 	struct event_base *base;
 	int remaining;
@@ -6212,6 +6343,14 @@ static void https_simple_dirty_test(void *arg)
 { http_simple_test_impl(arg, HTTP_OPENSSL, 1, 0, "/test"); }
 static void https_simple_dirty_preexisting_test(void *arg)
 { http_simple_test_impl(arg, HTTP_OPENSSL, 1, 1, "/test"); }
+static void https_serve_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_OPENSSL, 0, 0, "/test"); }
+static void https_serve_preexisting_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_OPENSSL, 0, 1, "/test"); }
+static void https_serve_dirty_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_OPENSSL, 1, 0, "/test"); }
+static void https_serve_dirty_preexisting_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_OPENSSL, 1, 1, "/test"); }
 static void https_connection_retry_conn_address_test(void *arg)
 { http_connection_retry_conn_address_test_impl(arg, HTTP_OPENSSL); }
 static void https_connection_retry_test(void *arg)
@@ -6251,6 +6390,14 @@ static void https_mbedtls_simple_dirty_test(void *arg)
 { http_simple_test_impl(arg, HTTP_MBEDTLS, 1, 0, "/test"); }
 static void https_mbedtls_simple_dirty_preexisting_test(void *arg)
 { http_simple_test_impl(arg, HTTP_MBEDTLS, 1, 1, "/test"); }
+static void https_mbedtls_serve_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_MBEDTLS, 0, 0, "/test"); }
+static void https_mbedtls_serve_preexisting_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_MBEDTLS, 0, 1, "/test"); }
+static void https_mbedtls_serve_dirty_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_MBEDTLS, 1, 0, "/test"); }
+static void https_mbedtls_serve_dirty_preexisting_test(void *arg)
+{ http_serve_test_impl(arg, HTTP_MBEDTLS, 1, 1, "/test"); }
 static void https_mbedtls_connection_retry_conn_address_test(void *arg)
 { http_connection_retry_conn_address_test_impl(arg, HTTP_MBEDTLS); }
 static void https_mbedtls_connection_retry_test(void *arg)
@@ -6291,6 +6438,10 @@ struct testcase_t http_testcases[] = {
 	HTTP(simple_preexisting),
 	HTTP(simple_nonconformant),
 	HTTP(simple_nonconformant_preexisting),
+	HTTP(serve),
+	HTTP(serve_preexisting),
+	HTTP(serve_nonconformant),
+	HTTP(serve_nonconformant_preexisting),
 	HTTP(local_serve_bevpair),
 	HTTP(local_serve_socketpair),
 	HTTP(local_serve_pipe),
@@ -6388,6 +6539,10 @@ struct testcase_t http_testcases[] = {
 	HTTPS(simple_preexisting),
 	HTTPS(simple_dirty),
 	HTTPS(simple_dirty_preexisting),
+	HTTPS(serve),
+	HTTPS(serve_preexisting),
+	HTTPS(serve_dirty),
+	HTTPS(serve_dirty_preexisting),
 	HTTPS(incomplete),
 	HTTPS(incomplete_timeout),
 	{ "https_connection_retry", https_connection_retry_test, TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
@@ -6410,6 +6565,10 @@ struct testcase_t http_testcases[] = {
 	HTTPS_MBEDTLS(simple_preexisting),
 	HTTPS_MBEDTLS(simple_dirty),
 	HTTPS_MBEDTLS(simple_dirty_preexisting),
+	HTTPS_MBEDTLS(serve),
+	HTTPS_MBEDTLS(serve_preexisting),
+	HTTPS_MBEDTLS(serve_dirty),
+	HTTPS_MBEDTLS(serve_dirty_preexisting),
 	HTTPS_MBEDTLS(incomplete),
 	HTTPS_MBEDTLS(incomplete_timeout),
 	{ "https_mbedtls_connection_retry", https_mbedtls_connection_retry_test, TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
