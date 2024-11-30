@@ -68,6 +68,9 @@ main_callback(int result, char type, int count, int ttl,
 	for (i = 0; i < count; ++i) {
 		if (type == DNS_IPv4_A) {
 			printf("%s: %s\n", n, debug_ntoa(((u32*)addrs)[i]));
+		} else if (type == DNS_NS) {
+			struct evdns_reply_ns *ns = addrs;
+			printf("NS %s: %s ttl=%d\n", n, ns[i].name, ns[i].ttl);
 		} else if (type == DNS_PTR) {
 			printf("%s: %s\n", n, ((char**)addrs)[i]);
 		}
@@ -116,19 +119,30 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 {
 	int i, r;
 	(void)data;
-	/* dummy; give 192.168.11.11 as an answer for all A questions,
-	 *	give foo.bar.example.com as an answer for all PTR questions. */
 	for (i = 0; i < req->nquestions; ++i) {
-		u32 ans = htonl(0xc0a80b0bUL);
 		if (req->questions[i]->type == EVDNS_TYPE_A &&
 		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give 192.168.11.11 as an answer for all A questions */
+			u32 ans = htonl(0xc0a80b0bUL);
 			printf(" -- replying for %s (A)\n", req->questions[i]->name);
 			r = evdns_server_request_add_a_reply(req, req->questions[i]->name,
 										  1, &ans, 10);
 			if (r<0)
 				printf("eeep, didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_NS &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give ns1.example.com and ns2.example.com as an answer for all NS questions */
+			printf(" -- replying for %s (NS)\n", req->questions[i]->name);
+			r = evdns_server_request_add_ns_reply(req, req->questions[i]->name,
+				"ns1.example.com", 100);
+			if (r<0) printf("eeep, didn't work.\n");
+			r = evdns_server_request_add_ns_reply(req, req->questions[i]->name,
+				"ns2.example.com", 200);
+			if (r<0) printf("eeep, didn't work.\n");
+
 		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
 		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give foo.bar.example.com as an answer for all PTR questions. */
 			printf(" -- replying for %s (PTR)\n", req->questions[i]->name);
 			r = evdns_server_request_add_ptr_reply(req, NULL, req->questions[i]->name,
 											"foo.bar.example.com", 10);
@@ -162,6 +176,7 @@ main(int c, char **v) {
 		int servertest;
 		const char *resolv_conf;
 		const char *ns;
+		int resolve_type;
 	};
 	struct options o;
 	int opt;
@@ -171,12 +186,12 @@ main(int c, char **v) {
 	memset(&o, 0, sizeof(o));
 
 	if (c < 2) {
-		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] hostname\n", v[0]);
+		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] [-t type] hostname\n", v[0]);
 		fprintf(stderr, "syntax: %s [-T]\n", v[0]);
 		return 1;
 	}
 
-	while ((opt = getopt(c, v, "xvc:Ts:g")) != -1) {
+	while ((opt = getopt(c, v, "xvc:Ts:t:g")) != -1) {
 		switch (opt) {
 			case 'x': o.reverse = 1; break;
 			case 'v': ++verbose; break;
@@ -184,6 +199,12 @@ main(int c, char **v) {
 			case 'T': o.servertest = 1; break;
 			case 'c': o.resolv_conf = optarg; break;
 			case 's': o.ns = optarg; break;
+			case 't':
+				if (!strcasecmp(optarg, "A")) o.resolve_type = DNS_IPv4_A;
+				// else if (!strcasecmp(optarg, "AAAA")) o.resolve_type = DNS_IPv6_AAAA;
+				else if (!strcasecmp(optarg, "NS")) o.resolve_type = DNS_NS;
+				else fprintf(stderr, "Unknown -%c value %s\n", opt, optarg);
+				break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
 	}
@@ -265,6 +286,18 @@ main(int c, char **v) {
 			fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
 			evdns_getaddrinfo(evdns_base, v[optind], NULL, &hints,
 			    gai_callback, v[optind]);
+		} else if (o.resolve_type != 0) {
+			switch(o.resolve_type) {
+			case DNS_IPv4_A:
+				fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_ipv4(evdns_base, v[optind], DNS_CNAME_CALLBACK, main_callback, v[optind]);
+				break;
+			case DNS_NS:
+				fprintf(stderr, "resolving NS (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_ns(evdns_base, v[optind], DNS_CNAME_CALLBACK, main_callback, v[optind]);
+				break;
+			default: fprintf(stderr, "Unknown resolve type %d\n", o.resolve_type);
+			}
 		} else {
 			fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
 			evdns_base_resolve_ipv4(evdns_base, v[optind], DNS_CNAME_CALLBACK, main_callback, v[optind]);
