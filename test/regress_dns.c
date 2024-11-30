@@ -288,6 +288,17 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			    qname, 1, addr6, 123);
 			if (r<0)
 				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_NS &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			r = evdns_server_request_add_ns_reply(req, qname,
+			    "NS1.EXAMPLE.COM", 555);
+			if (r<0)
+				dns_ok = 0;
+			r = evdns_server_request_add_ns_reply(req, qname,
+			    "NS2.EXAMPLE.COM", 566);
+			if (r<0)
+				dns_ok = 0;
 		} else if (qtype == EVDNS_TYPE_PTR &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, TEST_ARPA)) {
@@ -339,14 +350,14 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		dns_ok = 0;
 		goto out;
 	}
-	if (count != 1) {
-		printf("Unexpected answer count %d. ", count);
-		dns_ok = 0;
-		goto out;
-	}
 	switch (type) {
 	case DNS_IPv4_A: {
 		struct in_addr *in_addrs = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
 		if (in_addrs[0].s_addr != htonl(0xc0a80b0bUL) || ttl != 12345) {
 			printf("Bad IPv4 response \"%s\" %d. ",
 					inet_ntoa(in_addrs[0]), ttl);
@@ -359,6 +370,11 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 #if defined (EVENT__HAVE_STRUCT_IN6_ADDR) && defined(EVENT__HAVE_INET_NTOP) && defined(INET6_ADDRSTRLEN)
 		struct in6_addr *in6_addrs = addresses;
 		char buf[INET6_ADDRSTRLEN+1];
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
 		if (memcmp(&in6_addrs[0].s6_addr, "abcdefghijklmnop", 16)
 		    || ttl != 123) {
 			const char *b = evutil_inet_ntop(AF_INET6, &in6_addrs[0],buf,sizeof(buf));
@@ -369,8 +385,33 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 #endif
 		break;
 	}
+	case DNS_NS: {
+		struct evdns_reply_ns *ns = addresses;
+		if (count != 2) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(ns[0].name, "NS1.EXAMPLE.COM") || ns[0].ttl != 555 || ttl != 555) {
+			printf("Bad NS 0 response \"%s\" %d. ", ns[0].name, ns[0].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		/* 566 larger than 555 and in reply we use min ttl for all answers */
+		if (strcmp(ns[1].name, "NS2.EXAMPLE.COM") || ns[1].ttl != 566 || ttl != 555) {
+			printf("Bad NS 1 response \"%s\" %d. ", ns[1].name, ns[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
 	case DNS_PTR: {
 		char **addrs = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
 		if (arg != (void*)6) {
 			if (strcmp(addrs[0], "ZZ.EXAMPLE.COM") ||
 			    ttl != 54321) {
@@ -466,6 +507,10 @@ dns_server(void)
 	evdns_base_resolve_ipv6(base, "zz.example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
+
+	evdns_base_resolve_ns(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
 	evdns_base_resolve_reverse(base, &resolve_addr, 0,
 	    dns_server_gethostbyname_cb, NULL);
 	memcpy(resolve_addr6.s6_addr,
@@ -513,6 +558,7 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
     void *arg)
 {
 	size_t len = 0;
+	int copy_addr = 1;
 	struct generic_dns_callback_result *res = arg;
 	res->result = result;
 	res->type = type;
@@ -524,13 +570,22 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 			len = count * 4;
 		else if (type == DNS_IPv6_AAAA)
 			len = count * 16;
+		else if (type == DNS_NS) {
+			struct evdns_reply_ns *ns = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf),
+					"%" PRIu32 " %s%s", ns[i].ttl,
+					ns[i].name, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		}
 		else if (type == DNS_PTR || type == DNS_CNAME)
 			len = strlen(addresses)+1;
 	} else {
 		res->addrs_len = len = 0;
 		res->addrs = NULL;
 	}
-	if (len) {
+	if (len && copy_addr) {
 		res->addrs_len = len;
 		if (len > ARRAY_SIZE(res->addrs_buf))
 			len = ARRAY_SIZE(res->addrs_buf);
@@ -566,6 +621,8 @@ static struct regress_dns_server_table search_table[] = {
 	{ "hostc.c.example.com", "CNAME", "cname.c.example.com", 0, 0 },
 	{ "host", "err", "3", 0, 0 },
 	{ "host2", "err", "3", 0, 0 },
+	{ "example.com", "NS", "555 ns1.example.com,566 ns2.example.com", 0, 0 },
+	{ "nons.example.com", "errsoa", "3", 0, 0 },
 	{ "*", "err", "3", 0, 0 },
 	{ NULL, NULL, NULL, 0, 0 }
 };
@@ -599,7 +656,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[9];
+	struct generic_dns_callback_result r[11];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -632,6 +689,9 @@ dns_search_test_impl(void *arg, int lower)
 	evdns_base_resolve_ipv4(dns, "hostc.c.example.com", DNS_NO_SEARCH | DNS_CNAME_CALLBACK,
 				generic_dns_callback, &r[8]);
 
+	evdns_base_resolve_ns(dns, "example.com", 0, generic_dns_callback, &r[9]);
+	evdns_base_resolve_ns(dns, "nons.example.com", 0, generic_dns_callback, &r[10]);
+
 	event_base_dispatch(base);
 
 	tt_int_op(r[0].type, ==, DNS_IPv4_A);
@@ -652,6 +712,13 @@ dns_search_test_impl(void *arg, int lower)
 	tt_int_op(r[8].type, ==, DNS_CNAME);
 	tt_int_op(r[8].count, ==, 1);
 	tt_str_op(r[8].addrs, ==, "cname.c.example.com");
+
+	tt_int_op(r[9].count, ==, 2);
+	tt_int_op(r[9].type, ==, DNS_NS);
+	tt_str_op(r[9].addrs, ==, "555 ns1.example.com,566 ns2.example.com");
+
+	tt_int_op(r[10].count, ==, 0);
+	tt_int_op(r[10].result, ==, DNS_ERR_NOTEXIST);
 
 end:
 	if (dns)

@@ -257,6 +257,14 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		}
 		evdns_server_request_add_aaaa_reply(req,
 		    question, 1, &in6.s6_addr, 100);
+	} else if (!strcmp(tab->anstype, "NS")) {
+		struct evdns_reply_ns ns[128];
+		int count = parse_csv_ns_list(tab->ans, &ns[0], ARRAY_SIZE(ns));
+		for (int n = 0; n < count; ++n) {
+			evdns_server_request_add_ns_reply(req, question, ns[n].name, ns[n].ttl);
+			free(ns[n].name);
+			ns[n].name = NULL;
+		}
 	} else if (!strcmp(tab->anstype, "CNAME")) {
 		struct in_addr in;
 		evutil_inet_pton(AF_INET, "11.22.33.44", &in);
@@ -328,6 +336,28 @@ parse_csv_address_list(const char *s, int family, void *addrs, size_t addrs_size
 		if (!evutil_inet_pton(AF_INET, token, next_addr)) {
 			TT_DIE(("Bad %s value %s in table", (family == AF_INET) ? "A" :"AAAA", token));
 		}
+		++i;
+		token = strtok (NULL, ",");
+	} while (token);
+end:
+	return i;
+}
+
+int
+parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns, size_t ns_size)
+{
+	int i = 0;
+	char *token;
+	char buf[16384];
+
+	tt_assert(strlen(s) < ARRAY_SIZE(buf));
+	strcpy(buf, s);
+	token = strtok(buf, ",");
+	do {
+		tt_assert((unsigned)i < ns_size);
+		ns[i].name = malloc(EVDNS_NAME_MAX + 1);
+		tt_assert(ns[i].name != NULL);
+		tt_assert(2 == sscanf(token, "%" SCNu32 " %s", &ns[i].ttl, ns[i].name));
 		++i;
 		token = strtok (NULL, ",");
 	} while (token);
