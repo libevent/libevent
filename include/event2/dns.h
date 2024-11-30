@@ -150,6 +150,10 @@ extern "C" {
 /* For integer types. */
 #include <event2/util.h>
 
+#ifndef EVDNS_NAME_MAX
+#define EVDNS_NAME_MAX 255
+#endif
+
 /** Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
 /** The name server was unable to interpret the query */
@@ -183,6 +187,7 @@ extern "C" {
 #define DNS_PTR 2
 #define DNS_IPv6_AAAA 3
 #define DNS_CNAME 4
+#define DNS_NS 5
 
 /** Disable searching for the query. */
 #define DNS_QUERY_NO_SEARCH 0x01
@@ -469,6 +474,20 @@ struct evdns_request *evdns_base_resolve_ipv4(struct evdns_base *base, const cha
 EVENT2_EXPORT_SYMBOL
 struct evdns_request *evdns_base_resolve_ipv6(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
+/**
+  Lookup an NS record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
 struct in_addr;
 struct in6_addr;
 
@@ -657,6 +676,7 @@ void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 struct evdns_server_request;
 struct evdns_server_question;
+struct evdns_reply_ns;
 
 /**
    A callback to implement a DNS server.  The callback function receives a DNS
@@ -682,6 +702,7 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_TYPE_MX	  15
 #define EVDNS_TYPE_TXT	  16
 #define EVDNS_TYPE_AAAA	  28
+#define EVDNS_TYPE_OPT	  41
 
 #define EVDNS_QTYPE_AXFR 252
 #define EVDNS_QTYPE_ALL	 255
@@ -773,6 +794,8 @@ EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, const void *addrs, int ttl);
 EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, const void *addrs, int ttl);
+EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_ns_reply(struct evdns_server_request *req, const char *name, const char *nsname, int ttl);
 EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
 EVENT2_EXPORT_SYMBOL

@@ -125,10 +125,6 @@
 #define EVDNS_LOG_WARN EVENT_LOG_WARN
 #define EVDNS_LOG_MSG EVENT_LOG_MSG
 
-#ifndef EVDNS_NAME_MAX
-#define EVDNS_NAME_MAX 255
-#endif
-
 #include <stdio.h>
 
 #undef MIN
@@ -157,12 +153,13 @@
 #define EDNS_ENABLED(base) \
 	(((base)->global_max_udp_size) > DNS_MAX_UDP_SIZE)
 
-#define TYPE_A	       EVDNS_TYPE_A
-#define TYPE_CNAME     5
-#define TYPE_PTR       EVDNS_TYPE_PTR
-#define TYPE_SOA       EVDNS_TYPE_SOA
-#define TYPE_AAAA      EVDNS_TYPE_AAAA
-#define TYPE_OPT       41
+#define TYPE_A         EVDNS_TYPE_A	/* 1 */
+#define TYPE_NS        EVDNS_TYPE_NS	/* 2 */
+#define TYPE_CNAME     EVDNS_TYPE_CNAME	/* 5 */
+#define TYPE_SOA       EVDNS_TYPE_SOA	/* 6 */
+#define TYPE_PTR       EVDNS_TYPE_PTR	/* 12 */
+#define TYPE_AAAA      EVDNS_TYPE_AAAA	/* 28 */
+#define TYPE_OPT       EVDNS_TYPE_OPT	/* 41 */
 
 #define CLASS_INET     EVDNS_CLASS_INET
 
@@ -180,6 +177,7 @@ struct reply {
 	union {
 		u32 *a;
 		struct in6_addr *aaaa;
+		struct evdns_reply_ns *ns;
 		char *ptr_name;
 		void *raw;
 	} data;
@@ -996,6 +994,7 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 {
 	struct evdns_request *handle =
 	    EVUTIL_UPCAST(d, struct evdns_request, deferred);
+	size_t i;
 
 	switch (handle->request_type) {
 	case TYPE_A:
@@ -1009,6 +1008,21 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 				    handle->ttl, handle->reply.cname, user_pointer);
 		} else
 			handle->user_callback(handle->err, DNS_IPv4_A, 0, handle->ttl, NULL, user_pointer);
+		break;
+	case TYPE_NS:
+		if (handle->have_reply) {
+			handle->user_callback(DNS_ERR_NONE, DNS_NS,
+			    handle->reply.rr_count, handle->ttl,
+			    handle->reply.data.ns,
+			    user_pointer);
+		} else
+			handle->user_callback(handle->err, DNS_NS, 0, handle->ttl, NULL, user_pointer);
+		for (i = 0; i < handle->reply.rr_count; ++i) {
+			if (handle->reply.data.ns[i].name) {
+				mm_free(handle->reply.data.ns[i].name);
+				handle->reply.data.ns[i].name = NULL;
+			}
+		}
 		break;
 	case TYPE_PTR:
 		if (handle->have_reply) {
@@ -1269,7 +1283,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 	int j = 0, k = 0;  /* index into packet */
 	u16 t_;	 /* used by the macros */
 	u32 t32_;  /* used by the macros */
-	char tmp_name[256], cmp_name[256]; /* used by the macros */
+	char tmp_name[EVDNS_NAME_MAX + 1], cmp_name[EVDNS_NAME_MAX + 1]; /* used by the macros */
 	int name_matches = 0;
 
 	u16 trans_id, questions, answers, authority, additional, datalength;
@@ -1380,6 +1394,16 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			j += 4*addrcount;
 			reply.rr_count += addrcount;
 			reply.have_answer = 1;
+		} else if (type == TYPE_NS && class == CLASS_INET) {
+			if (name_parse(packet, length, &j, tmp_name,
+				sizeof(tmp_name))<0)
+				goto err;
+			reply.data.ns[reply.rr_count].name = mm_strdup(tmp_name);
+			if (!reply.data.ns[reply.rr_count].name) goto ns_err;
+			reply.data.ns[reply.rr_count].ttl = ttl;
+			ttl_r = MIN(ttl_r, ttl);
+			reply.rr_count++;
+			reply.have_answer = 1;
 		} else if (type == TYPE_PTR && class == CLASS_INET) {
 			if (req->request_type != TYPE_PTR) {
 				j += datalength; continue;
@@ -1459,6 +1483,10 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 	if (reply.data.raw)
 		mm_free(reply.data.raw);
 	return 0;
+ns_err:
+	for (i = 0; i < reply.rr_count; ++i)
+		mm_free(reply.data.ns[i].name);
+	goto err;
  err:
 	if (req)
 		reply_handle(req, flags, 0, NULL);
@@ -2325,10 +2353,7 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	if (!item)
 		goto done;
 	item->next = NULL;
-	if (!(item->name = mm_strdup(name))) {
-		mm_free(item);
-		goto done;
-	}
+	if (!(item->name = mm_strdup(name))) goto error;
 	item->type = type;
 	item->dns_question_class = class;
 	item->ttl = ttl;
@@ -2337,18 +2362,10 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	item->data = NULL;
 	if (data) {
 		if (item->is_name) {
-			if (!(item->data = mm_strdup(data))) {
-				mm_free(item->name);
-				mm_free(item);
-				goto done;
-			}
+			if (!(item->data = mm_strdup(data))) goto error;
 			item->datalen = (u16)-1;
 		} else {
-			if (!(item->data = mm_malloc(datalen))) {
-				mm_free(item->name);
-				mm_free(item);
-				goto done;
-			}
+			if (!(item->data = mm_malloc(datalen))) goto error;
 			item->datalen = datalen;
 			memcpy(item->data, data, datalen);
 		}
@@ -2357,6 +2374,13 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	*itemp = item;
 	++(*countp);
 	result = 0;
+	goto done;
+error:
+	if (item) {
+		if (item->name) mm_free(item->name);
+		mm_free(item);
+	}
+
 done:
 	EVDNS_UNLOCK(req->port);
 	return result;
@@ -2378,6 +2402,15 @@ evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char
 	return evdns_server_request_add_reply(
 		  req, EVDNS_ANSWER_SECTION, name, TYPE_AAAA, CLASS_INET,
 		  ttl, n*16, 0, addrs);
+}
+
+/* exported function */
+int
+evdns_server_request_add_ns_reply(struct evdns_server_request *req, const char *name, const char *nsname, int ttl)
+{
+	return evdns_server_request_add_reply(
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_NS, CLASS_INET,
+		  ttl, -1, 1, nsname);
 }
 
 /* exported function */
@@ -3686,12 +3719,12 @@ evdns_cancel_request(struct evdns_base *base, struct evdns_request *handle)
 }
 
 /* exported function */
-struct evdns_request *
-evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
-    evdns_callback_type callback, void *ptr) {
+static struct evdns_request *
+_evdns_base_resolve_by_type(struct evdns_base *base, const char *name, int flags,
+    evdns_callback_type callback, void *ptr, int type) {
 	struct evdns_request *handle;
 	struct request *req;
-	log(EVDNS_LOG_DEBUG, "Resolve requested for %s", name);
+	log(EVDNS_LOG_DEBUG, "Resolve type %d requested for %s", type, name);
 	handle = mm_calloc(1, sizeof(*handle));
 	if (handle == NULL)
 		return NULL;
@@ -3702,11 +3735,11 @@ evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
 	handle->tcp_flags |= flags & (DNS_QUERY_USEVC | DNS_QUERY_IGNTC);
 	if (flags & DNS_QUERY_NO_SEARCH) {
 		req =
-			request_new(base, handle, TYPE_A, name, flags);
+			request_new(base, handle, type, name, flags);
 		if (req)
 			request_submit(req);
 	} else {
-		search_request_new(base, handle, TYPE_A, name, flags);
+		search_request_new(base, handle, type, name, flags);
 	}
 	if (handle->current_req == NULL) {
 		mm_free(handle);
@@ -3714,6 +3747,13 @@ evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
 	}
 	EVDNS_UNLOCK(base);
 	return handle;
+}
+
+/* exported function */
+struct evdns_request *
+evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
+	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_A);
 }
 
 int evdns_resolve_ipv4(const char *name, int flags,
@@ -3723,43 +3763,26 @@ int evdns_resolve_ipv4(const char *name, int flags,
 		? 0 : -1;
 }
 
-
 /* exported function */
 struct evdns_request *
 evdns_base_resolve_ipv6(struct evdns_base *base,
     const char *name, int flags,
     evdns_callback_type callback, void *ptr)
 {
-	struct evdns_request *handle;
-	struct request *req;
-	log(EVDNS_LOG_DEBUG, "Resolve requested for %s", name);
-	handle = mm_calloc(1, sizeof(*handle));
-	if (handle == NULL)
-		return NULL;
-	handle->user_callback = callback;
-	handle->user_pointer = ptr;
-	EVDNS_LOCK(base);
-	handle->tcp_flags = base->global_tcp_flags;
-	handle->tcp_flags |= flags & (DNS_QUERY_USEVC | DNS_QUERY_IGNTC);
-	if (flags & DNS_QUERY_NO_SEARCH) {
-		req = request_new(base, handle, TYPE_AAAA, name, flags);
-		if (req)
-			request_submit(req);
-	} else {
-		search_request_new(base, handle, TYPE_AAAA, name, flags);
-	}
-	if (handle->current_req == NULL) {
-		mm_free(handle);
-		handle = NULL;
-	}
-	EVDNS_UNLOCK(base);
-	return handle;
+	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_AAAA);
 }
 
 int evdns_resolve_ipv6(const char *name, int flags,
     evdns_callback_type callback, void *ptr) {
 	return evdns_base_resolve_ipv6(current_base, name, flags, callback, ptr)
 		? 0 : -1;
+}
+
+/* exported function */
+struct evdns_request *
+evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
+	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_NS);
 }
 
 struct evdns_request *

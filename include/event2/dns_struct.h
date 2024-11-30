@@ -72,6 +72,11 @@ struct evdns_server_question {
 	char name[1];
 };
 
+struct evdns_reply_ns {
+	ev_uint32_t ttl;
+	char *name;
+};
+
 #ifdef __cplusplus
 }
 #endif

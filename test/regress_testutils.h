@@ -28,6 +28,7 @@
 #define REGRESS_TESTUTILS_H_INCLUDED_
 
 #include "event2/dns.h"
+#include "event2/dns_struct.h"
 
 struct regress_dns_server_table {
 	const char *q;
@@ -76,6 +77,11 @@ int regress_get_listener_addr(struct evconnlistener *lev,
 /* Parse comma-separated list of IP addresses. */
 int parse_csv_address_list(const char *s, int family,
     void *addrs, size_t addrs_size);
+
+/* Parse comma-separated list of NS records
+ * in format "<ttl> <name>", ex. "600 ns1.abcd.com,300 ns2.safeweb.com". */
+int parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns,
+    size_t ns_size);
 
 #endif /* REGRESS_TESTUTILS_H_INCLUDED_ */
 
