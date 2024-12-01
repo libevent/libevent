@@ -83,5 +83,11 @@ int parse_csv_address_list(const char *s, int family,
 int parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns,
     size_t ns_size);
 
+/* Parse comma-separated list of SOA records
+ * in format "<ns> <mail> <serial> <refresh> <retry> <expire> <minimum>",
+ * ex. "dns1.icann.org hostmaster.icann.org 2024120101 10800 3600 604800 1800". */
+int parse_csv_soa_list(const char *s, struct evdns_reply_soa *soa,
+    size_t soa_size);
+
 #endif /* REGRESS_TESTUTILS_H_INCLUDED_ */
 

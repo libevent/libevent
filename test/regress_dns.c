@@ -299,6 +299,23 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			    "NS2.EXAMPLE.COM", 566);
 			if (r<0)
 				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_SOA &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			char nsname[] = "DNS1.ICANN.ORG";
+			char email[] = "HOSTMASTER.ICANN.ORG";
+			struct evdns_reply_soa soa = {
+				.nsname = nsname,
+				.email = email,
+				.serial = 2011061946,
+				.refresh = 2 * 60 * 60, // 2h
+				.retry = 1 * 60 * 60, // 1h
+				.expire = 14 * 24 * 60 * 60 , // 14d
+				.minimum = 1 * 60 * 60, // 1h
+			};
+			r = evdns_server_request_add_soa_reply(req, qname, &soa, 0, 666);
+			if (r<0)
+				dns_ok = 0;
 		} else if (qtype == EVDNS_TYPE_PTR &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, TEST_ARPA)) {
@@ -400,6 +417,28 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		/* 566 larger than 555 and in reply we use min ttl for all answers */
 		if (strcmp(ns[1].name, "NS2.EXAMPLE.COM") || ns[1].ttl != 566 || ttl != 555) {
 			printf("Bad NS 1 response \"%s\" %d. ", ns[1].name, ns[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
+	case DNS_SOA: {
+		struct evdns_reply_soa *soa = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(soa->nsname, "DNS1.ICANN.ORG")
+		    || strcmp(soa->email, "HOSTMASTER.ICANN.ORG")
+		    || soa->serial != 2011061946 || soa->refresh != 7200
+		    || soa->retry != 3600 || soa->expire != 1209600
+		    || soa->minimum != 3600 || ttl != 666
+		) {
+			printf("Bad SOA response \"%s %s %" PRIu32 " %" PRIu32 " %" PRIu32
+				" %" PRIu32 " %" PRIu32 "\" %d. ", soa->nsname, soa->email,
+				soa->serial, soa->refresh, soa->retry, soa->expire,
+				soa->minimum, ttl);
 			dns_ok = 0;
 			goto out;
 		}
@@ -511,6 +550,9 @@ dns_server(void)
 	evdns_base_resolve_ns(base, "example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 
+	evdns_base_resolve_soa(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
 	evdns_base_resolve_reverse(base, &resolve_addr, 0,
 	    dns_server_gethostbyname_cb, NULL);
 	memcpy(resolve_addr6.s6_addr,
@@ -573,9 +615,19 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 		else if (type == DNS_NS) {
 			struct evdns_reply_ns *ns = addresses;
 			for (int i = 0; i < count; ++i)
-				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf),
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
 					"%" PRIu32 " %s%s", ns[i].ttl,
 					ns[i].name, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		} else if (type == DNS_SOA) {
+			struct evdns_reply_soa *soa = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%s %s %" PRIu32 " %" PRIu32 " %" PRIu32
+					" %" PRIu32 " %" PRIu32 "%s", soa[i].nsname, soa[i].email,
+					soa[i].serial, soa[i].refresh, soa[i].retry, soa[i].expire,
+					soa[i].minimum, (i < count-1) ? ",":"");
 			copy_addr = 0;
 			res->addrs = res->addrs_buf;
 		}
@@ -623,6 +675,7 @@ static struct regress_dns_server_table search_table[] = {
 	{ "host2", "err", "3", 0, 0 },
 	{ "example.com", "NS", "555 ns1.example.com,566 ns2.example.com", 0, 0 },
 	{ "nons.example.com", "errsoa", "3", 0, 0 },
+	{ "domain.com", "SOA", "ns1.domain.com admin.domain.com 2024120102 7200 3600 1209600 3600", 0, 0 },
 	{ "*", "err", "3", 0, 0 },
 	{ NULL, NULL, NULL, 0, 0 }
 };
@@ -656,7 +709,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[11];
+	struct generic_dns_callback_result r[12];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -692,6 +745,8 @@ dns_search_test_impl(void *arg, int lower)
 	evdns_base_resolve_ns(dns, "example.com", 0, generic_dns_callback, &r[9]);
 	evdns_base_resolve_ns(dns, "nons.example.com", 0, generic_dns_callback, &r[10]);
 
+	evdns_base_resolve_soa(dns, "domain.com", 0, generic_dns_callback, &r[11]);
+
 	event_base_dispatch(base);
 
 	tt_int_op(r[0].type, ==, DNS_IPv4_A);
@@ -719,6 +774,10 @@ dns_search_test_impl(void *arg, int lower)
 
 	tt_int_op(r[10].count, ==, 0);
 	tt_int_op(r[10].result, ==, DNS_ERR_NOTEXIST);
+
+	tt_int_op(r[11].count, ==, 1);
+	tt_int_op(r[11].type, ==, DNS_SOA);
+	tt_str_op(r[11].addrs, ==, "ns1.domain.com admin.domain.com 2024120102 7200 3600 1209600 3600");
 
 end:
 	if (dns)

@@ -77,6 +77,16 @@ struct evdns_reply_ns {
 	char *name;
 };
 
+struct evdns_reply_soa {
+	char *nsname;
+	char *email;
+	ev_uint32_t serial;
+	ev_uint32_t refresh;
+	ev_uint32_t retry;
+	ev_uint32_t expire;
+	ev_uint32_t minimum;
+};
+
 #ifdef __cplusplus
 }
 #endif
