@@ -231,19 +231,18 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		return;
 	} else if (!strcmp(tab->anstype, "errsoa")) {
 		int err = atoi(tab->ans);
-		char soa_record[] =
-			"\x04" "dns1" "\x05" "icann" "\x03" "org" "\0"
-			"\x0a" "hostmaster" "\x05" "icann" "\x03" "org" "\0"
-			"\x77\xde\x5e\xba" /* serial */
-			"\x00\x00\x1c\x20" /* refreshtime = 2h */
-			"\x00\x00\x0e\x10" /* retry = 1h */
-			"\x00\x12\x75\x00" /* expiration = 14d */
-			"\x00\x00\x0e\x10" /* min.ttl = 1h */
-			;
-		evdns_server_request_add_reply(
-			req, EVDNS_AUTHORITY_SECTION,
-			"example.com", EVDNS_TYPE_SOA, EVDNS_CLASS_INET,
-			42, sizeof(soa_record) - 1, 0, soa_record);
+		char name[] = "dns1.icann.org";
+		char mail[] = "hostmaster.icann.org";
+		struct evdns_reply_soa soa = {
+			.nsname = name,
+			.email = mail,
+			.serial = 0x77de5eba, // 2011061946
+			.refresh = 2 * 60 * 60, // 2h
+			.retry = 1 * 60 * 60, // 1h
+			.expire = 14 * 24 * 60 * 60 , // 14d
+			.minimum = 1 * 60 * 60, // 1h
+		};
+		evdns_server_request_add_soa_reply(req, question, &soa, 1, 42);
 		tt_assert(! evdns_server_request_respond(req, err));
 		return;
 	} else if (!strcmp(tab->anstype, "A")) {
@@ -264,6 +263,14 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 			evdns_server_request_add_ns_reply(req, question, ns[n].name, ns[n].ttl);
 			free(ns[n].name);
 			ns[n].name = NULL;
+		}
+	} else if (!strcmp(tab->anstype, "SOA")) {
+		struct evdns_reply_soa soa[128];
+		int count = parse_csv_soa_list(tab->ans, &soa[0], ARRAY_SIZE(soa));
+		for (int n = 0; n < count; ++n) {
+			evdns_server_request_add_soa_reply(req, question, &soa[n], 0, soa[n].minimum);
+			free(soa[n].nsname); soa[n].nsname = NULL;
+			free(soa[n].email); soa[n].email = NULL;
 		}
 	} else if (!strcmp(tab->anstype, "CNAME")) {
 		struct in_addr in;
@@ -358,6 +365,33 @@ parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns, size_t ns_size)
 		ns[i].name = malloc(EVDNS_NAME_MAX + 1);
 		tt_assert(ns[i].name != NULL);
 		tt_assert(2 == sscanf(token, "%" SCNu32 " %s", &ns[i].ttl, ns[i].name));
+		++i;
+		token = strtok (NULL, ",");
+	} while (token);
+end:
+	return i;
+}
+
+int
+parse_csv_soa_list(const char *s, struct evdns_reply_soa *soa, size_t soa_size)
+{
+	int i = 0;
+	char *token;
+	char buf[16384];
+
+	tt_assert(strlen(s) < ARRAY_SIZE(buf));
+	strcpy(buf, s);
+	token = strtok(buf, ",");
+	do {
+		tt_assert((unsigned)i < soa_size);
+		soa[i].nsname = malloc(EVDNS_NAME_MAX + 1);
+		tt_assert(soa[i].nsname != NULL);
+		soa[i].email = malloc(EVDNS_NAME_MAX + 1);
+		tt_assert(soa[i].email != NULL);
+		tt_assert(7 == sscanf(token, "%s %s %" SCNu32 " %" SCNu32
+			" %" SCNu32 " %" SCNu32 " %" SCNu32, soa[i].nsname, soa[i].email,
+			&soa[i].serial, &soa[i].refresh, &soa[i].retry, &soa[i].expire,
+			&soa[i].minimum));
 		++i;
 		token = strtok (NULL, ",");
 	} while (token);
