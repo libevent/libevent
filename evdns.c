@@ -178,6 +178,7 @@ struct reply {
 		u32 *a;
 		struct in6_addr *aaaa;
 		struct evdns_reply_ns *ns;
+		struct evdns_reply_soa *soa;
 		char *ptr_name;
 		void *raw;
 	} data;
@@ -323,6 +324,9 @@ struct server_reply_item {
 	char is_name; /* True iff data is a label */
 	u16 datalen; /* Length of data; -1 if data is a label */
 	void *data; /* The contents of the RR */
+	union {
+		struct evdns_reply_soa *soa;
+	} addon;
 };
 
 /* Represents a request that we've received as a DNS server, and holds */
@@ -1024,6 +1028,25 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			}
 		}
 		break;
+	case TYPE_SOA:
+		if (handle->have_reply) {
+			handle->user_callback(DNS_ERR_NONE, DNS_SOA,
+			    handle->reply.rr_count, handle->ttl,
+			    handle->reply.data.soa,
+			    user_pointer);
+		} else
+			handle->user_callback(handle->err, DNS_SOA, 0, handle->ttl, NULL, user_pointer);
+		for (i = 0; i < handle->reply.rr_count; ++i) {
+			if (handle->reply.data.soa[i].nsname) {
+				mm_free(handle->reply.data.soa[i].nsname);
+				handle->reply.data.soa[i].nsname = NULL;
+			}
+			if (handle->reply.data.soa[i].email) {
+				mm_free(handle->reply.data.soa[i].email);
+				handle->reply.data.soa[i].email = NULL;
+			}
+		}
+		break;
 	case TYPE_PTR:
 		if (handle->have_reply) {
 			char *name = handle->reply.data.ptr_name;
@@ -1362,7 +1385,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 	 * a little bit more to avoid complex evaluations.
 	 */
 	buf_size = MAX(length - j, EVDNS_NAME_MAX);
-	reply.data.raw = mm_malloc(buf_size);
+	reply.data.raw = mm_calloc(1, buf_size);
 
 	/* now we have the answer section which looks like
 	 * <label:name><u16:type><u16:class><u32:ttl><u16:len><data...>
@@ -1402,6 +1425,26 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			if (!reply.data.ns[reply.rr_count].name) goto ns_err;
 			reply.data.ns[reply.rr_count].ttl = ttl;
 			ttl_r = MIN(ttl_r, ttl);
+			reply.rr_count++;
+			reply.have_answer = 1;
+		} else if (type == TYPE_SOA && class == CLASS_INET) {
+			if (name_parse(packet, length, &j, tmp_name,
+				sizeof(tmp_name))<0)
+				goto err;
+			reply.data.soa[reply.rr_count].nsname = mm_strdup(tmp_name);
+			if (!reply.data.soa[reply.rr_count].nsname) goto soa_err;
+			if (name_parse(packet, length, &j, tmp_name,
+				sizeof(tmp_name))<0)
+				goto err;
+			reply.data.soa[reply.rr_count].email = mm_strdup(tmp_name);
+			if (!reply.data.soa[reply.rr_count].email) goto soa_err;
+			GET32(reply.data.soa[reply.rr_count].serial);
+			GET32(reply.data.soa[reply.rr_count].refresh);
+			GET32(reply.data.soa[reply.rr_count].retry);
+			GET32(reply.data.soa[reply.rr_count].expire);
+			GET32(reply.data.soa[reply.rr_count].minimum);
+			ttl_r = MIN(ttl_r, ttl);
+			ttl_r = MIN(ttl_r, reply.data.soa[reply.rr_count].minimum);
 			reply.rr_count++;
 			reply.have_answer = 1;
 		} else if (type == TYPE_PTR && class == CLASS_INET) {
@@ -1486,6 +1529,12 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 ns_err:
 	for (i = 0; i < reply.rr_count; ++i)
 		mm_free(reply.data.ns[i].name);
+	goto err;
+soa_err:
+	for (i = 0; i < reply.rr_count; ++i) {
+		mm_free(reply.data.soa[i].nsname);
+		mm_free(reply.data.soa[i].email);
+	}
 	goto err;
  err:
 	if (req)
@@ -2349,7 +2398,7 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	while (*itemp) {
 		itemp = &((*itemp)->next);
 	}
-	item = mm_malloc(sizeof(struct server_reply_item));
+	item = mm_calloc(1, sizeof(struct server_reply_item));
 	if (!item)
 		goto done;
 	item->next = NULL;
@@ -2362,7 +2411,28 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	item->data = NULL;
 	if (data) {
 		if (item->is_name) {
-			if (!(item->data = mm_strdup(data))) goto error;
+			int offset = 0;
+			if (item->type == TYPE_SOA) {
+				item->addon.soa = mm_calloc(1, sizeof(struct evdns_reply_soa));
+				if (!item->addon.soa) goto error;
+				memcpy(item->addon.soa, data, sizeof(*item->addon.soa));
+				offset += sizeof(*item->addon.soa);
+				item->addon.soa->nsname = mm_strdup(data + offset);
+				if (!item->addon.soa->nsname) {
+					mm_free(item->addon.soa);
+					goto error;
+				}
+				offset += strlen(item->addon.soa->nsname) + 1; // skip nsname + \0
+				item->addon.soa->email = mm_strdup(data + offset);
+				if (!item->addon.soa->email) {
+					mm_free(item->addon.soa->nsname);
+					mm_free(item->addon.soa);
+					goto error;
+				}
+			} else {
+				// labels & TYPE_NS going here
+				if (!(item->data = mm_strdup(data))) goto error;
+			}
 			item->datalen = (u16)-1;
 		} else {
 			if (!(item->data = mm_malloc(datalen))) goto error;
@@ -2411,6 +2481,32 @@ evdns_server_request_add_ns_reply(struct evdns_server_request *req, const char *
 	return evdns_server_request_add_reply(
 		  req, EVDNS_ANSWER_SECTION, name, TYPE_NS, CLASS_INET,
 		  ttl, -1, 1, nsname);
+}
+
+/* exported function */
+int
+evdns_server_request_add_soa_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_soa *soa, int in_authority, int ttl)
+{
+	int len;
+	size_t dsize;
+	char *data;
+	if (!soa) return -1;
+	if (!soa->nsname || !soa->email) return -1;
+
+	dsize = sizeof(struct evdns_reply_soa) + EVDNS_NAME_MAX * 2 + 3;
+	if (!(data = mm_calloc(1, dsize))) return -1;
+
+	len = sizeof(struct evdns_reply_soa);
+	memcpy(data, soa, len);
+
+	len += evutil_snprintf(data + len, EVDNS_NAME_MAX, "%s", soa->nsname) + 1;
+	evutil_snprintf(data + len, EVDNS_NAME_MAX, "%s", soa->email);
+	len = evdns_server_request_add_reply(
+		  req, (in_authority == 1 ? EVDNS_AUTHORITY_SECTION : EVDNS_ANSWER_SECTION),
+		  name, TYPE_SOA, CLASS_INET,
+		  ttl, -1, 1, data);
+	mm_free(data);
+	return len;
 }
 
 /* exported function */
@@ -2516,10 +2612,26 @@ evdns_server_request_format_response(struct server_request *req, int err)
 				off_t len_idx = j, name_start;
 				j += 2;
 				name_start = j;
-				r = dnsname_to_labels(buf, buf_len, j, item->data, strlen(item->data), &table);
-				if (r < 0)
-					goto overflow;
-				j = r;
+				if (item->type == EVDNS_TYPE_SOA) {
+					r = dnsname_to_labels(buf, buf_len, j, item->addon.soa->nsname, strlen(item->addon.soa->nsname), &table);
+					if (r < 0)
+						goto overflow;
+					j = r;
+					r = dnsname_to_labels(buf, buf_len, j, item->addon.soa->email, strlen(item->addon.soa->email), &table);
+					if (r < 0)
+						goto overflow;
+					j = r;
+					APPEND32(item->addon.soa->serial);
+					APPEND32(item->addon.soa->refresh);
+					APPEND32(item->addon.soa->retry);
+					APPEND32(item->addon.soa->expire);
+					APPEND32(item->addon.soa->minimum);
+				} else {
+					r = dnsname_to_labels(buf, buf_len, j, item->data, strlen(item->data), &table);
+					if (r < 0)
+						goto overflow;
+					j = r;
+				}
 				t_ = htons( (short) (j-name_start) );
 				memcpy(buf+len_idx, &t_, 2);
 			} else {
@@ -2616,6 +2728,7 @@ done:
 static void
 server_request_free_answers(struct server_request *req)
 {
+#define EVDNS_VICTIM_FREE_NULL(a) if (a) { mm_free(a); a = NULL; }
 	struct server_reply_item *victim, *next, **list;
 	int i;
 	for (i = 0; i < 3; ++i) {
@@ -2629,17 +2742,19 @@ server_request_free_answers(struct server_request *req)
 		victim = *list;
 		while (victim) {
 			next = victim->next;
-			mm_free(victim->name);
-			victim->name = NULL;
-			if (victim->data) {
-				mm_free(victim->data);
-				victim->data = NULL;
+			if (victim->type == EVDNS_TYPE_SOA && victim->addon.soa) {
+				EVDNS_VICTIM_FREE_NULL(victim->addon.soa->nsname);
+				EVDNS_VICTIM_FREE_NULL(victim->addon.soa->email);
+				EVDNS_VICTIM_FREE_NULL(victim->addon.soa);
 			}
+			EVDNS_VICTIM_FREE_NULL(victim->name);
+			EVDNS_VICTIM_FREE_NULL(victim->data);
 			mm_free(victim);
 			victim = next;
 		}
 		*list = NULL;
 	}
+#undef EVDNS_VICTIM_FREE_NULL
 }
 
 /* Free all storage held by req, and remove links to it. */
@@ -3783,6 +3898,13 @@ struct evdns_request *
 evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags,
     evdns_callback_type callback, void *ptr) {
 	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_NS);
+}
+
+/* exported function */
+struct evdns_request *
+evdns_base_resolve_soa(struct evdns_base *base, const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
+	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_SOA);
 }
 
 struct evdns_request *
