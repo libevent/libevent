@@ -778,7 +778,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.4"]
+        release: ["13.4", "14.1"]
 
     steps:
       - uses: actions/checkout@v4
