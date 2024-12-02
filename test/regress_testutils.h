@@ -89,5 +89,11 @@ int parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns,
 int parse_csv_soa_list(const char *s, struct evdns_reply_soa *soa,
     size_t soa_size);
 
-#endif /* REGRESS_TESTUTILS_H_INCLUDED_ */
 
+/* Parse comma-separated list of MX records
+ * in format "<ttl> <pref> <name>",
+ * ex. "3600 10 mx1.icann.org". */
+int parse_csv_mx_list(const char *s, struct evdns_reply_mx *mx,
+    size_t mx_size);
+
+#endif /* REGRESS_TESTUTILS_H_INCLUDED_ */

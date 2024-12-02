@@ -77,6 +77,10 @@ main_callback(int result, char type, int count, int ttl,
 				soa[i].email, soa[i].serial, ttl);
 		} else if (type == DNS_PTR) {
 			printf("%s: %s\n", n, ((char**)addrs)[i]);
+		} else if (type == DNS_MX) {
+			struct evdns_reply_mx *mx = addrs;
+			printf("MX %s: %s pref=%u ttl=%d\n", n, mx[i].name,
+				mx[i].pref, ttl);
 		} else {
 			printf("Unknown type: %d\n", type);
 		}
@@ -173,6 +177,18 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 											"foo.bar.example.com", 10);
 			if (r<0)
 				printf("ugh, no luck");
+		} else if (req->questions[i]->type == EVDNS_TYPE_MX &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give mx1.example.com and mx2.example.com as an answer for all MX questions */
+			struct evdns_reply_mx mx1 = {.name = label1,.pref = 10};
+			struct evdns_reply_mx mx2 = {.name = label2,.pref = 20};
+			snprintf(label1, EVDNS_NAME_MAX, "%s", "mx1.example.com");
+			snprintf(label2, EVDNS_NAME_MAX, "%s", "mx2.example.com");
+			printf(" -- replying for %s (MX)\n", req->questions[i]->name);
+			r = evdns_server_request_add_mx_reply(req, req->questions[i]->name, &mx1, 600);
+			if (r<0) printf("eeep, MX1 didn't work.\n");
+			r = evdns_server_request_add_mx_reply(req, req->questions[i]->name, &mx2, 1200);
+			if (r<0) printf("eeep, MX2 didn't work.\n");
 		} else {
 			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
 				   req->questions[i]->type, req->questions[i]->dns_question_class);
@@ -229,6 +245,7 @@ main(int c, char **v) {
 				// else if (!strcasecmp(optarg, "AAAA")) o.resolve_type = DNS_IPv6_AAAA;
 				else if (!strcasecmp(optarg, "NS")) o.resolve_type = DNS_NS;
 				else if (!strcasecmp(optarg, "SOA")) o.resolve_type = DNS_SOA;
+				else if (!strcasecmp(optarg, "MX")) o.resolve_type = DNS_MX;
 				else fprintf(stderr, "Unknown -%c value %s\n", opt, optarg);
 				break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
@@ -325,6 +342,10 @@ main(int c, char **v) {
 			case DNS_SOA:
 				fprintf(stderr, "resolving SOA (fwd) %s...\n",v[optind]);
 				evdns_base_resolve_soa(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_MX:
+				fprintf(stderr, "resolving MX (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_mx(evdns_base, v[optind], 0, main_callback, v[optind]);
 				break;
 			default: fprintf(stderr, "Unknown resolve type %d\n", o.resolve_type);
 			}
