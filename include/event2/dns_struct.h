@@ -87,6 +87,12 @@ struct evdns_reply_soa {
 	ev_uint32_t minimum;
 };
 
+struct evdns_reply_mx {
+	ev_uint32_t ttl;
+	ev_uint16_t pref;
+	char *name;
+};
+
 #ifdef __cplusplus
 }
 #endif
