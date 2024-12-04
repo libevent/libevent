@@ -89,11 +89,16 @@ int parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns,
 int parse_csv_soa_list(const char *s, struct evdns_reply_soa *soa,
     size_t soa_size);
 
-
 /* Parse comma-separated list of MX records
  * in format "<ttl> <pref> <name>",
  * ex. "3600 10 mx1.icann.org". */
 int parse_csv_mx_list(const char *s, struct evdns_reply_mx *mx,
     size_t mx_size);
+
+/* Parse comma-separated list of TXT records
+ * in format "<ttl> <text>", text may have several parts splitted by '\t' char
+ * ex. "600 uuid=753585f9-8636-486b-b75a-32c915a432b4\tpart2=some text". */
+int parse_csv_txt_list(const char *s, struct evdns_reply_txt *txt,
+    size_t txt_size);
 
 #endif /* REGRESS_TESTUTILS_H_INCLUDED_ */

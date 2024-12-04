@@ -159,6 +159,7 @@
 #define TYPE_SOA       EVDNS_TYPE_SOA	/* 6 */
 #define TYPE_PTR       EVDNS_TYPE_PTR	/* 12 */
 #define TYPE_MX        EVDNS_TYPE_MX	/* 15 */
+#define TYPE_TXT       EVDNS_TYPE_TXT	/* 16 */
 #define TYPE_AAAA      EVDNS_TYPE_AAAA	/* 28 */
 #define TYPE_OPT       EVDNS_TYPE_OPT	/* 41 */
 
@@ -181,6 +182,7 @@ struct reply {
 		struct evdns_reply_ns *ns;
 		struct evdns_reply_soa *soa;
 		struct evdns_reply_mx *mx;
+		struct evdns_reply_txt *txt;
 		char *ptr_name;
 		void *raw;
 	} data;
@@ -329,6 +331,7 @@ struct server_reply_item {
 	union {
 		struct evdns_reply_soa *soa;
 		struct evdns_reply_mx *mx;
+		struct evdns_reply_txt *txt;
 	} addon;
 };
 
@@ -1070,6 +1073,20 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			}
 		}
 		break;
+	case TYPE_TXT:
+		if (handle->have_reply) {
+			handle->user_callback(DNS_ERR_NONE, DNS_TXT,
+			    handle->reply.rr_count, handle->ttl,
+			    handle->reply.data.txt, user_pointer);
+		} else
+			handle->user_callback(handle->err, DNS_TXT, 0, handle->ttl, NULL, user_pointer);
+		for (i = 0; i < handle->reply.rr_count; ++i) {
+			if (handle->reply.data.txt[i].text) {
+				mm_free(handle->reply.data.txt[i].text);
+				handle->reply.data.txt[i].text = NULL;
+			}
+		}
+		break;
 	case TYPE_AAAA:
 		if (handle->have_reply) {
 			handle->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
@@ -1413,11 +1430,20 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 		GET32(ttl);
 		GET16(datalength);
 
+		/* we can't mix different types in reply.data union
+		 * but if reply was A or AAAA type and get CNAME answer
+		 * we may use cname field to save it */
+		if (type != reply.type) {
+			if (!(type == TYPE_CNAME &&
+				(reply.type == TYPE_A || reply.type == TYPE_AAAA))
+			){
+				j += datalength;
+				continue;
+			}
+		}
+
 		if (type == TYPE_A && class == CLASS_INET) {
 			int addrcount;
-			if (req->request_type != TYPE_A) {
-				j += datalength; continue;
-			}
 			if ((datalength & 3) != 0) /* not an even number of As. */
 			    goto err;
 			addrcount = datalength >> 2;
@@ -1461,9 +1487,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			reply.rr_count++;
 			reply.have_answer = 1;
 		} else if (type == TYPE_PTR && class == CLASS_INET) {
-			if (req->request_type != TYPE_PTR) {
-				j += datalength; continue;
-			}
 			if (name_parse(packet, length, &j, reply.data.ptr_name,
 						   buf_size)<0)
 				goto err;
@@ -1481,6 +1504,31 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			ttl_r = MIN(ttl_r, ttl);
 			reply.rr_count++;
 			reply.have_answer = 1;
+		} else if (type == TYPE_TXT && class == CLASS_INET) {
+			u16 progress = 0;
+			u8 txtlen;
+			/* One TXT answer can have several parts, fill result buffer
+			 * as joined strings splitted by '\0' char, count accumulate
+			 * in .parts field.
+			 * TODO may by better create string array, but this is more
+			 * difficult for memory management ?
+			 */
+			reply.data.txt[reply.rr_count].text = mm_malloc(datalength);
+			if (!reply.data.txt[reply.rr_count].text) goto txt_err;
+			reply.data.txt[reply.rr_count].parts = 0;
+			while (progress < datalength) {
+				GET8(txtlen);
+				if (progress + txtlen + 1 > datalength) goto txt_err;
+				memcpy(reply.data.txt[reply.rr_count].text + progress, packet + j, txtlen);
+				*(reply.data.txt[reply.rr_count].text + progress + txtlen) = '\0';
+				reply.data.txt[reply.rr_count].parts++;
+				progress += txtlen + 1; // skip also \0
+				j += txtlen;
+			}
+			reply.data.txt[reply.rr_count].ttl = ttl;
+			ttl_r = MIN(ttl_r, ttl);
+			reply.rr_count++;
+			reply.have_answer = 1;
 		} else if (type == TYPE_CNAME) {
 			char cname[EVDNS_NAME_MAX];
 			if (name_parse(packet, length, &j, cname,
@@ -1492,9 +1540,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 				*req->put_cname_in_ptr = mm_strdup(cname);
 		} else if (type == TYPE_AAAA && class == CLASS_INET) {
 			int addrcount;
-			if (req->request_type != TYPE_AAAA) {
-				j += datalength; continue;
-			}
 			if ((datalength & 15) != 0) /* not an even number of AAAAs. */
 				goto err;
 			addrcount = datalength >> 4;  /* each address is 16 bytes long */
@@ -1564,7 +1609,11 @@ mx_err:
 	for (i = 0; i < reply.rr_count; ++i)
 		mm_free(reply.data.mx[i].name);
 	goto err;
- err:
+txt_err:
+	for (i = 0; i < reply.rr_count; ++i)
+		mm_free(reply.data.txt[i].text);
+	goto err;
+err:
 	if (req)
 		reply_handle(req, flags, 0, NULL);
 	if (reply.data.raw)
@@ -2467,6 +2516,20 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 					mm_free(item->addon.mx);
 					goto error;
 				}
+			} else if (item->type == TYPE_TXT) {
+				size_t text_full_len = 0;
+				item->addon.txt = mm_calloc(1, sizeof(struct evdns_reply_txt));
+				if (!item->addon.txt) goto error;
+				offset = sizeof(item->addon.txt->parts);
+				memcpy(&item->addon.txt->parts, data, offset);
+				memcpy(&text_full_len, data + offset, sizeof(text_full_len));
+				offset += sizeof(text_full_len);
+				item->addon.txt->text = mm_calloc(1, text_full_len);
+				if (!item->addon.txt->text) {
+					free(item->addon.txt);
+					goto error;
+				}
+				memcpy(item->addon.txt->text, data + offset, text_full_len);
 			} else {
 				// labels & TYPE_NS going here
 				if (!(item->data = mm_strdup(data))) goto error;
@@ -2597,6 +2660,50 @@ evdns_server_request_add_mx_reply(struct evdns_server_request *req, const char *
 
 /* exported function */
 int
+evdns_server_request_add_txt_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_txt *txt, int ttl)
+{
+	size_t text_len = sizeof(txt->parts), pos = 0;
+	size_t data_len = 0;
+	char *data; char *p; int r;
+
+	if (!txt) return -1;
+	if (!txt->text) return -1;
+	if (txt->parts == 0) txt->parts++; // correct parts count if not provided
+
+	// calc total parts length
+	p = txt->text;
+	for (u8 i = 0; i < txt->parts; ++i) {
+		size_t l = strlen(p) + 1; // skip also end '\0'
+		p += l;
+		text_len += l;
+	}
+	// pack into data <u8:parts><size_t:text_len><data:txt.text...>
+	data_len = sizeof(txt->parts) + sizeof(text_len) + text_len;
+	data = mm_calloc(1, data_len);
+	if (!data) return -1;
+
+	memcpy(data + pos, &txt->parts, sizeof(txt->parts));
+	pos += sizeof(txt->parts);
+
+	memcpy(data + pos, &text_len, sizeof(text_len));
+	pos += sizeof(text_len);
+
+	p = txt->text;
+	for (u8 i = 0; i < txt->parts; ++i) {
+		pos += evutil_snprintf(data + pos, data_len - pos, "%s", p) + 1;
+		p += strlen(p) + 1;
+	}
+
+	r = evdns_server_request_add_reply(
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_TXT, CLASS_INET,
+		  ttl, -1, 1, data);
+
+	mm_free(data);
+	return r;
+}
+
+/* exported function */
+int
 evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl)
 {
 	return evdns_server_request_add_reply(
@@ -2693,6 +2800,18 @@ evdns_server_request_format_response(struct server_request *req, int err)
 					r = dnsname_to_labels(buf, buf_len, j, item->addon.mx->name, strlen(item->addon.mx->name), &table);
 					if (r < 0) goto overflow;
 					j = r;
+				} else if (item->type == EVDNS_TYPE_TXT) {
+					u8 parts = item->addon.txt->parts;
+					char *p = item->addon.txt->text;
+					while (parts > 0 && p) {
+						u8 len = strlen(p);
+						if (j + len > (off_t)buf_len) goto overflow;
+						buf[j++] = len;
+						memcpy(buf + j, p, len);
+						j += len;
+						parts--;
+						p += len + 1;
+					}
 				} else {
 					r = dnsname_to_labels(buf, buf_len, j, item->data, strlen(item->data), &table);
 					if (r < 0)
@@ -2816,6 +2935,9 @@ server_request_free_answers(struct server_request *req)
 			} else if (victim->type == EVDNS_TYPE_MX && victim->addon.mx) {
 				EVDNS_VICTIM_FREE_NULL(victim->addon.mx->name);
 				EVDNS_VICTIM_FREE_NULL(victim->addon.mx);
+			} else if (victim->type == EVDNS_TYPE_TXT && victim->addon.txt) {
+				EVDNS_VICTIM_FREE_NULL(victim->addon.txt->text);
+				EVDNS_VICTIM_FREE_NULL(victim->addon.txt);
 			}
 			EVDNS_VICTIM_FREE_NULL(victim->name);
 			EVDNS_VICTIM_FREE_NULL(victim->data);
@@ -4064,6 +4186,13 @@ struct evdns_request *
 evdns_base_resolve_mx(struct evdns_base *base, const char *name, int flags,
     evdns_callback_type callback, void *ptr) {
 	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_MX);
+}
+
+/* exported function */
+struct evdns_request *
+evdns_base_resolve_txt(struct evdns_base *base, const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
+	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_TXT);
 }
 
 /* ================================================================= */

@@ -333,6 +333,21 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			r = evdns_server_request_add_mx_reply(req, qname, &mx, 3700);
 			if (r<0)
 				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_TXT &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			char text1[EVDNS_NAME_MAX+1];
+			char text2[EVDNS_NAME_MAX+1];
+			struct evdns_reply_txt txt1 = { .text = text1, };
+			struct evdns_reply_txt txt2 = { .text = text2, };
+			sprintf(text1, "hello world");
+			sprintf(text2, "foo bar");
+			r = evdns_server_request_add_txt_reply(req, qname, &txt1, 600);
+			if (r<0)
+				dns_ok = 0;
+			r = evdns_server_request_add_txt_reply(req, qname, &txt2, 900);
+			if (r<0)
+				dns_ok = 0;
 		} else if (qtype == EVDNS_TYPE_PTR &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, TEST_ARPA)) {
@@ -480,6 +495,25 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		}
 		break;
 	}
+	case DNS_TXT: {
+		struct evdns_reply_txt *txt = addresses;
+		if (count != 2) {
+			printf("Unexpected TXT answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(txt[0].text, "hello world") || txt[0].ttl != 600 || ttl != 600) {
+			printf("Bad TXT 0 response \"%s\" %d. ", txt[0].text, txt[0].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(txt[1].text, "foo bar") || txt[1].ttl != 900 || ttl != 600) {
+			printf("Bad TXT 1 response \"%s\" %d. ", txt[1].text, txt[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
 	case DNS_PTR: {
 		char **addrs = addresses;
 		if (count != 1) {
@@ -592,6 +626,9 @@ dns_server(void)
 	evdns_base_resolve_mx(base, "example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 
+	evdns_base_resolve_txt(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
 	evdns_base_resolve_reverse(base, &resolve_addr, 0,
 	    dns_server_gethostbyname_cb, NULL);
 	memcpy(resolve_addr6.s6_addr,
@@ -677,6 +714,23 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 					mx[i].pref, mx[i].name, (i < count-1) ? ",":"");
 			copy_addr = 0;
 			res->addrs = res->addrs_buf;
+		} else if (type == DNS_TXT) {
+			struct evdns_reply_txt *txt = addresses;
+			char *p;
+			for (int i = 0; i < count; ++i) {
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%" PRIu32 " ", txt[i].ttl);
+				p = txt[i].text;
+				for (int j = 0; j < txt[i].parts; ++j) {
+					len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%s%s", p, (j < txt[i].parts-1) ? "\t":"");
+					p += strlen(p) + 1;
+				}
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+						"%s", (i < count-1) ? ",":"");
+			}
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
 		}
 		else if (type == DNS_PTR || type == DNS_CNAME)
 			len = strlen(addresses)+1;
@@ -724,6 +778,7 @@ static struct regress_dns_server_table search_table[] = {
 	{ "nons.example.com", "errsoa", "3", 0, 0 },
 	{ "domain.com", "SOA", "ns1.domain.com admin.domain.com 2024120102 7200 3600 1209600 3600", 0, 0 },
 	{ "mailsend.net", "MX", "600 10 mx1.mailsend.net,1200 20 mx.example.com", 0, 0 },
+	{ "text.example.com", "TXT", "600 v=spf1 +a +mx -all,1200 part1=hello\tpart2=world", 0, 0 },
 	{ "*", "err", "3", 0, 0 },
 	{ NULL, NULL, NULL, 0, 0 }
 };
@@ -757,7 +812,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[13];
+	struct generic_dns_callback_result r[14];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -797,6 +852,8 @@ dns_search_test_impl(void *arg, int lower)
 
 	evdns_base_resolve_mx(dns, "mailsend.net", 0, generic_dns_callback, &r[12]);
 
+	evdns_base_resolve_txt(dns, "text.example.com", 0, generic_dns_callback, &r[13]);
+
 	event_base_dispatch(base);
 
 	tt_int_op(r[0].type, ==, DNS_IPv4_A);
@@ -832,6 +889,10 @@ dns_search_test_impl(void *arg, int lower)
 	tt_int_op(r[12].count, ==, 2);
 	tt_int_op(r[12].type, ==, DNS_MX);
 	tt_str_op(r[12].addrs, ==, "600 10 mx1.mailsend.net,1200 20 mx.example.com");
+
+	tt_int_op(r[13].count, ==, 2);
+	tt_int_op(r[13].type, ==, DNS_TXT);
+	tt_str_op(r[13].addrs, ==, "600 v=spf1 +a +mx -all,1200 part1=hello\tpart2=world");
 
 end:
 	if (dns)

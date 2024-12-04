@@ -81,6 +81,18 @@ main_callback(int result, char type, int count, int ttl,
 			struct evdns_reply_mx *mx = addrs;
 			printf("MX %s: %s pref=%u ttl=%d\n", n, mx[i].name,
 				mx[i].pref, ttl);
+		} else if (type == DNS_TXT) {
+			struct evdns_reply_txt *txt = addrs;
+			printf("TXT %s: %s parts=%u ttl=%d\n", n,
+				txt[i].parts == 1 ? txt[i].text : "",
+				txt[i].parts, ttl);
+			if (txt[i].parts > 1) {
+				char *part = txt[i].text;
+				for (int j = 0; j < txt[i].parts; ++j) {
+					printf("\tpart=%d \"%s\"\n", j, part);
+					part += strlen(part) + 1; // skip '/0'
+				}
+			}
 		} else {
 			printf("Unknown type: %d\n", type);
 		}
@@ -189,6 +201,19 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 			if (r<0) printf("eeep, MX1 didn't work.\n");
 			r = evdns_server_request_add_mx_reply(req, req->questions[i]->name, &mx2, 1200);
 			if (r<0) printf("eeep, MX2 didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_TXT &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give spf and two parts text as an answer for all TXT questions */
+			struct evdns_reply_txt txt1 = {.parts = 1, .text = label1 };
+			struct evdns_reply_txt txt2 = {.parts = 2, .text = label2 };
+			snprintf(label1, EVDNS_NAME_MAX, "%s", "v=spf1 +a +mx -all");
+			snprintf(label2, EVDNS_NAME_MAX, "%s%c%s", "part1=hello world",
+				'\0',"part2=second part");
+			printf(" -- replying for %s (TXT)\n", req->questions[i]->name);
+			r = evdns_server_request_add_txt_reply(req, req->questions[i]->name, &txt1, 600);
+			if (r<0) printf("eeep, TXT1 didn't work.\n");
+			r = evdns_server_request_add_txt_reply(req, req->questions[i]->name, &txt2, 1200);
+			if (r<0) printf("eeep, TXT2 didn't work.\n");
 		} else {
 			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
 				   req->questions[i]->type, req->questions[i]->dns_question_class);
@@ -246,6 +271,7 @@ main(int c, char **v) {
 				else if (!strcasecmp(optarg, "NS")) o.resolve_type = DNS_NS;
 				else if (!strcasecmp(optarg, "SOA")) o.resolve_type = DNS_SOA;
 				else if (!strcasecmp(optarg, "MX")) o.resolve_type = DNS_MX;
+				else if (!strcasecmp(optarg, "TXT")) o.resolve_type = DNS_TXT;
 				else fprintf(stderr, "Unknown -%c value %s\n", opt, optarg);
 				break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
@@ -346,6 +372,10 @@ main(int c, char **v) {
 			case DNS_MX:
 				fprintf(stderr, "resolving MX (fwd) %s...\n",v[optind]);
 				evdns_base_resolve_mx(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_TXT:
+				fprintf(stderr, "resolving TXT (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_txt(evdns_base, v[optind], 0, main_callback, v[optind]);
 				break;
 			default: fprintf(stderr, "Unknown resolve type %d\n", o.resolve_type);
 			}
