@@ -279,6 +279,13 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 			evdns_server_request_add_mx_reply(req, question, &mx[n], mx[n].ttl);
 			free(mx[n].name); mx[n].name = NULL;
 		}
+	} else if (!strcmp(tab->anstype, "TXT")) {
+		struct evdns_reply_txt txt[128];
+		int count = parse_csv_txt_list(tab->ans, &txt[0], ARRAY_SIZE(txt));
+		for (int n = 0; n < count; ++n) {
+			evdns_server_request_add_txt_reply(req, question, &txt[n], txt[n].ttl);
+			free(txt[n].text); txt[n].text = NULL;
+		}
 	} else if (!strcmp(tab->anstype, "CNAME")) {
 		struct in_addr in;
 		evutil_inet_pton(AF_INET, "11.22.33.44", &in);
@@ -422,6 +429,41 @@ parse_csv_mx_list(const char *s, struct evdns_reply_mx *mx, size_t mx_size)
 		tt_assert(mx[i].name != NULL);
 		tt_assert(3 == sscanf(token, "%" SCNu32 " %" SCNu16 " %s", &mx[i].ttl,
 			&mx[i].pref, mx[i].name));
+		++i;
+		token = strtok (NULL, ",");
+	} while (token);
+end:
+	return i;
+}
+
+int
+parse_csv_txt_list(const char *s, struct evdns_reply_txt *txt, size_t txt_size)
+{
+	int i = 0;
+	char *token;
+	char buf[16384];
+	char *p;
+
+	tt_assert(strlen(s) < ARRAY_SIZE(buf));
+	strcpy(buf, s);
+	token = strtok(buf, ",");
+	do {
+		tt_assert((unsigned)i < txt_size);
+		p = strchr(token, ' ');
+		tt_assert(p != NULL);
+		*p = '\0';
+		tt_assert(1 == sscanf(token, "%" SCNu32, &txt[i].ttl));
+		txt[i].text = strdup(p + 1);
+		tt_assert(txt[i].text != NULL);
+		txt[i].parts = 1;
+		p = txt[i].text;
+		while (*p) {
+			if (*p == '\t') {
+				*p = '\0';
+				txt[i].parts++;
+			}
+			p++;
+		}
 		++i;
 		token = strtok (NULL, ",");
 	} while (token);

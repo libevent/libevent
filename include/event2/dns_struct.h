@@ -93,6 +93,12 @@ struct evdns_reply_mx {
 	char *name;
 };
 
+struct evdns_reply_txt {
+	ev_uint32_t ttl;
+	ev_uint8_t parts; /* parts counter */
+	char *text; /* joined string from all parts (delimiter '\0' char) */
+};
+
 #ifdef __cplusplus
 }
 #endif

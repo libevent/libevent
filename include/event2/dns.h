@@ -190,6 +190,7 @@ extern "C" {
 #define DNS_NS 5
 #define DNS_SOA 6
 #define DNS_MX 7
+#define DNS_TXT 8
 
 /** Disable searching for the query. */
 #define DNS_QUERY_NO_SEARCH 0x01
@@ -551,6 +552,20 @@ EVENT2_EXPORT_SYMBOL
 struct evdns_request *evdns_base_resolve_mx(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
+  Lookup an TXT record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_txt(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
   Cancels a pending DNS resolution request.
 
   @param base the evdns_base that was used to make the request
@@ -709,6 +724,7 @@ struct evdns_server_question;
 struct evdns_reply_ns;
 struct evdns_reply_soa;
 struct evdns_reply_mx;
+struct evdns_reply_txt;
 
 /**
    A callback to implement a DNS server.  The callback function receives a DNS
@@ -834,6 +850,8 @@ EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
 EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_mx_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_mx *mx, int ttl);
+EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_txt_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_txt *txt, int ttl);
 EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
 
