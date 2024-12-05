@@ -99,6 +99,15 @@ struct evdns_reply_txt {
 	char *text; /* joined string from all parts (delimiter '\0' char) */
 };
 
+struct evdns_reply_srv {
+	ev_uint32_t ttl;
+	ev_uint16_t priority;
+	ev_uint16_t weight;
+	ev_uint16_t port;
+	char *name;
+};
+
+
 #ifdef __cplusplus
 }
 #endif

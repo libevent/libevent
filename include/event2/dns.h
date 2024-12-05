@@ -191,6 +191,7 @@ extern "C" {
 #define DNS_SOA 6
 #define DNS_MX 7
 #define DNS_TXT 8
+#define DNS_SRV 9
 
 /** Disable searching for the query. */
 #define DNS_QUERY_NO_SEARCH 0x01
@@ -566,6 +567,20 @@ EVENT2_EXPORT_SYMBOL
 struct evdns_request *evdns_base_resolve_txt(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
+  Lookup an SRV record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_srv(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
   Cancels a pending DNS resolution request.
 
   @param base the evdns_base that was used to make the request
@@ -725,6 +740,7 @@ struct evdns_reply_ns;
 struct evdns_reply_soa;
 struct evdns_reply_mx;
 struct evdns_reply_txt;
+struct evdns_reply_srv;
 
 /**
    A callback to implement a DNS server.  The callback function receives a DNS
@@ -750,6 +766,7 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_TYPE_MX	  15
 #define EVDNS_TYPE_TXT	  16
 #define EVDNS_TYPE_AAAA	  28
+#define EVDNS_TYPE_SRV	  33
 #define EVDNS_TYPE_OPT	  41
 
 #define EVDNS_QTYPE_AXFR 252
@@ -854,6 +871,8 @@ EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_txt_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_txt *txt, int ttl);
 EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
+EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_srv_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_srv *srv, int ttl);
 
 /**
    Send back a response to a DNS request, and free the request structure.

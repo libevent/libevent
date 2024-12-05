@@ -93,6 +93,11 @@ main_callback(int result, char type, int count, int ttl,
 					part += strlen(part) + 1; // skip '/0'
 				}
 			}
+		} else if (type == DNS_SRV) {
+			struct evdns_reply_srv *srv = addrs;
+			printf("SRV %s: %s priority=%u weight=%u port=%u ttl=%d\n",
+				n, srv[i].name, srv[i].priority, srv[i].weight,
+				srv[i].port, ttl);
 		} else {
 			printf("Unknown type: %d\n", type);
 		}
@@ -214,6 +219,20 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 			if (r<0) printf("eeep, TXT1 didn't work.\n");
 			r = evdns_server_request_add_txt_reply(req, req->questions[i]->name, &txt2, 1200);
 			if (r<0) printf("eeep, TXT2 didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_SRV &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give 5 0 .example.com and mx2.example.com as an answer for all MX questions */
+			struct evdns_reply_srv srv = { .name = label1 };
+			if (!strcmp(req->questions[i]->name,"_ldap._tcp.example.com")) {
+				srv.priority = 1; srv.weight = 0; srv.port = 389;
+				snprintf(label1, EVDNS_NAME_MAX, "%s", "ldap.example.com");
+			} else if (!strcmp(req->questions[i]->name,"_rsync._tcp.example.com")) {
+				srv.priority = 5; srv.weight = 10; srv.port = 873;
+				snprintf(label1, EVDNS_NAME_MAX, "%s", "storage.example.com");
+			} else continue;
+			printf(" -- replying for %s (SRV)\n", req->questions[i]->name);
+			r = evdns_server_request_add_srv_reply(req, req->questions[i]->name, &srv, 600);
+			if (r<0) printf("eeep, SRV didn't work.\n");
 		} else {
 			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
 				   req->questions[i]->type, req->questions[i]->dns_question_class);
@@ -272,6 +291,7 @@ main(int c, char **v) {
 				else if (!strcasecmp(optarg, "SOA")) o.resolve_type = DNS_SOA;
 				else if (!strcasecmp(optarg, "MX")) o.resolve_type = DNS_MX;
 				else if (!strcasecmp(optarg, "TXT")) o.resolve_type = DNS_TXT;
+				else if (!strcasecmp(optarg, "SRV")) o.resolve_type = DNS_SRV;
 				else fprintf(stderr, "Unknown -%c value %s\n", opt, optarg);
 				break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
@@ -376,6 +396,10 @@ main(int c, char **v) {
 			case DNS_TXT:
 				fprintf(stderr, "resolving TXT (fwd) %s...\n",v[optind]);
 				evdns_base_resolve_txt(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_SRV:
+				fprintf(stderr, "resolving SRV (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_srv(evdns_base, v[optind], 0, main_callback, v[optind]);
 				break;
 			default: fprintf(stderr, "Unknown resolve type %d\n", o.resolve_type);
 			}

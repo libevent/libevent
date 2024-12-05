@@ -101,4 +101,10 @@ int parse_csv_mx_list(const char *s, struct evdns_reply_mx *mx,
 int parse_csv_txt_list(const char *s, struct evdns_reply_txt *txt,
     size_t txt_size);
 
+/* Parse comma-separated list of SRV records
+ * in format "<ttl> <priority> <weight> <port> <name>",
+ * ex. "3600 5 0 389 ldap.domain.com". */
+int parse_csv_srv_list(const char *s, struct evdns_reply_srv *srv,
+    size_t srv_size);
+
 #endif /* REGRESS_TESTUTILS_H_INCLUDED_ */
