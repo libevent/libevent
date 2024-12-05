@@ -369,6 +369,19 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			if (evdns_server_request_drop(req)<0)
 				dns_ok = 0;
 			return;
+		} else if (qtype == EVDNS_TYPE_SRV &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "_ldap._tcp.example.com")) {
+			char name[] = "LDAP.EXAMPLE.COM";
+			struct evdns_reply_srv srv = {
+				.name = name,
+				.priority = 5,
+				.weight = 0,
+				.port = 389,
+			};
+			r = evdns_server_request_add_srv_reply(req, qname, &srv, 7200);
+			if (r<0)
+				dns_ok = 0;
 		} else {
 			printf("Unexpected question %d %d \"%s\" ",
 			    qtype, qclass, qname);
@@ -540,6 +553,25 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		}
 		break;
 	}
+	case DNS_SRV: {
+		struct evdns_reply_srv *srv = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(srv->name, "LDAP.EXAMPLE.COM")
+		    || srv->priority != 5 || srv->weight != 0
+		    || srv->port != 389 || ttl != 7200
+		) {
+			printf("Bad SRV response \"%s %" PRIu32 " %" PRIu16 " %" PRIu16
+				" %" PRIu16 "\" %d. ", srv->name, srv->ttl, srv->priority,
+				srv->weight, srv->port, ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
 	default:
 		printf("Bad response type %d. ", type);
 		dns_ok = 0;
@@ -641,6 +673,9 @@ dns_server(void)
 	    "drop.example.com", DNS_QUERY_NO_SEARCH,
 	    dns_server_gethostbyname_cb, (void*)(char*)90909);
 
+	evdns_base_resolve_srv(base, "_ldap._tcp.example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
 	evdns_cancel_request(base, req);
 
 	event_dispatch();
@@ -731,6 +766,15 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 			}
 			copy_addr = 0;
 			res->addrs = res->addrs_buf;
+		} else if (type == DNS_SRV) {
+			struct evdns_reply_srv *srv = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%s %" PRIu32 " %" PRIu16 " %" PRIu16 " %" PRIu16
+					"%s", srv[i].name, srv[i].ttl, srv[i].priority, srv[i].weight,
+					srv[i].port, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
 		}
 		else if (type == DNS_PTR || type == DNS_CNAME)
 			len = strlen(addresses)+1;
@@ -779,6 +823,7 @@ static struct regress_dns_server_table search_table[] = {
 	{ "domain.com", "SOA", "ns1.domain.com admin.domain.com 2024120102 7200 3600 1209600 3600", 0, 0 },
 	{ "mailsend.net", "MX", "600 10 mx1.mailsend.net,1200 20 mx.example.com", 0, 0 },
 	{ "text.example.com", "TXT", "600 v=spf1 +a +mx -all,1200 part1=hello\tpart2=world", 0, 0 },
+	{ "_collab-edge._tls.example.com", "SRV", "600 3 7 8843 vcse1.example.com,600 4 8 8843 vcse2.example.com,600 5 0 8843 vcse3.example.com", 0, 0 },
 	{ "*", "err", "3", 0, 0 },
 	{ NULL, NULL, NULL, 0, 0 }
 };
@@ -812,7 +857,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[14];
+	struct generic_dns_callback_result r[15];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -854,6 +899,8 @@ dns_search_test_impl(void *arg, int lower)
 
 	evdns_base_resolve_txt(dns, "text.example.com", 0, generic_dns_callback, &r[13]);
 
+	evdns_base_resolve_srv(dns, "_collab-edge._tls.example.com", 0, generic_dns_callback, &r[14]);
+
 	event_base_dispatch(base);
 
 	tt_int_op(r[0].type, ==, DNS_IPv4_A);
@@ -893,6 +940,10 @@ dns_search_test_impl(void *arg, int lower)
 	tt_int_op(r[13].count, ==, 2);
 	tt_int_op(r[13].type, ==, DNS_TXT);
 	tt_str_op(r[13].addrs, ==, "600 v=spf1 +a +mx -all,1200 part1=hello\tpart2=world");
+
+	tt_int_op(r[14].count, ==, 3);
+	tt_int_op(r[14].type, ==, DNS_SRV);
+	tt_str_op(r[14].addrs, ==, "vcse1.example.com 600 3 7 8843,vcse2.example.com 600 4 8 8843,vcse3.example.com 600 5 0 8843");
 
 end:
 	if (dns)

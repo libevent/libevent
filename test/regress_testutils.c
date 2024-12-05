@@ -291,6 +291,13 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		evutil_inet_pton(AF_INET, "11.22.33.44", &in);
 		evdns_server_request_add_a_reply(req, question, 1, &in, 100);
 		evdns_server_request_add_cname_reply(req, question, tab->ans, 100);
+	} else if (!strcmp(tab->anstype, "SRV")) {
+		struct evdns_reply_srv srv[128];
+		int count = parse_csv_srv_list(tab->ans, &srv[0], ARRAY_SIZE(srv));
+		for (int n = 0; n < count; ++n) {
+			evdns_server_request_add_srv_reply(req, question, &srv[n], srv[n].ttl);
+			free(srv[n].name); srv[n].name = NULL;
+		}
 	} else {
 		TT_DIE(("Weird table entry with type '%s'", tab->anstype));
 	}
@@ -464,6 +471,30 @@ parse_csv_txt_list(const char *s, struct evdns_reply_txt *txt, size_t txt_size)
 			}
 			p++;
 		}
+		++i;
+		token = strtok (NULL, ",");
+	} while (token);
+end:
+	return i;
+}
+
+int
+parse_csv_srv_list(const char *s, struct evdns_reply_srv *srv, size_t srv_size)
+{
+	int i = 0;
+	char *token;
+	char buf[16384];
+
+	tt_assert(strlen(s) < ARRAY_SIZE(buf));
+	strcpy(buf, s);
+	token = strtok(buf, ",");
+	do {
+		tt_assert((unsigned)i < srv_size);
+		srv[i].name = malloc(EVDNS_NAME_MAX + 1);
+		tt_assert(srv[i].name != NULL);
+		tt_assert(5 == sscanf(token, "%" SCNu32 " %" SCNu16
+			" %" SCNu16 " %" SCNu16 " %s", &srv[i].ttl,
+			&srv[i].priority, &srv[i].weight, &srv[i].port, srv[i].name));
 		++i;
 		token = strtok (NULL, ",");
 	} while (token);
