@@ -299,6 +299,13 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			    "NS2.EXAMPLE.COM", 566);
 			if (r<0)
 				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_CNAME &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "www.example.com")) {
+			r = evdns_server_request_add_cname_reply(req, qname,
+			    "EXAMPLE.COM", 7200);
+			if (r<0)
+				dns_ok = 0;
 		} else if (qtype == EVDNS_TYPE_SOA &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, "example.com")) {
@@ -462,6 +469,20 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		/* 566 larger than 555 and in reply we use min ttl for all answers */
 		if (strcmp(ns[1].name, "NS2.EXAMPLE.COM") || ns[1].ttl != 566 || ttl != 555) {
 			printf("Bad NS 1 response \"%s\" %d. ", ns[1].name, ns[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
+	case DNS_CNAME: {
+		char *cname = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(cname, "EXAMPLE.COM") || ttl != 7200) {
+			printf("Bad CNAME response \"%s\" %d. ", cname, ttl);
 			dns_ok = 0;
 			goto out;
 		}
@@ -652,6 +673,9 @@ dns_server(void)
 	evdns_base_resolve_ns(base, "example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 
+	evdns_base_resolve_cname(base, "www.example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
 	evdns_base_resolve_soa(base, "example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 
@@ -816,6 +840,7 @@ static struct regress_dns_server_table search_table[] = {
 	{ "hostn.b.example.com", "errsoa", "3", 0, 0 },
 	{ "hostn.c.example.com", "err", "0", 0, 0 },
 	{ "hostc.c.example.com", "CNAME", "cname.c.example.com", 0, 0 },
+	{ "www.example.com", "CNAME", "example.com", 0, 0 },
 	{ "host", "err", "3", 0, 0 },
 	{ "host2", "err", "3", 0, 0 },
 	{ "example.com", "NS", "555 ns1.example.com,566 ns2.example.com", 0, 0 },
@@ -857,7 +882,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[15];
+	struct generic_dns_callback_result r[17];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -900,6 +925,9 @@ dns_search_test_impl(void *arg, int lower)
 	evdns_base_resolve_txt(dns, "text.example.com", 0, generic_dns_callback, &r[13]);
 
 	evdns_base_resolve_srv(dns, "_collab-edge._tls.example.com", 0, generic_dns_callback, &r[14]);
+
+	evdns_base_resolve_cname(dns, "www.example.com", 0, generic_dns_callback, &r[15]);
+	evdns_base_resolve_cname(dns, "example.com", 0, generic_dns_callback, &r[16]);
 
 	event_base_dispatch(base);
 
@@ -945,6 +973,12 @@ dns_search_test_impl(void *arg, int lower)
 	tt_int_op(r[14].type, ==, DNS_SRV);
 	tt_str_op(r[14].addrs, ==, "vcse1.example.com 600 3 7 8843,vcse2.example.com 600 4 8 8843,vcse3.example.com 600 5 0 8843");
 
+	tt_int_op(r[15].count, ==, 1);
+	tt_int_op(r[15].type, ==, DNS_CNAME);
+	tt_str_op(r[15].addrs, ==, "example.com");
+
+	tt_int_op(r[16].count, ==, 0);
+	tt_int_op(r[16].result, ==, DNS_ERR_NOTEXIST);
 end:
 	if (dns)
 		evdns_base_free(dns, 0);

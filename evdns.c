@@ -1035,6 +1035,13 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			}
 		}
 		break;
+	case TYPE_CNAME:
+		if (handle->have_reply) {
+			handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
+			    handle->ttl, handle->reply.cname, user_pointer);
+		} else
+			handle->user_callback(handle->err, DNS_NS, 0, handle->ttl, NULL, user_pointer);
+		break;
 	case TYPE_SOA:
 		if (handle->have_reply) {
 			handle->user_callback(DNS_ERR_NONE, DNS_SOA,
@@ -1551,10 +1558,15 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			if (name_parse(packet, length, &j, cname,
 				sizeof(cname))<0)
 				goto err;
-			if (req->need_cname)
+			if (req->need_cname || reply.type == TYPE_CNAME)
 				reply.cname = mm_strdup(cname);
 			if (req->put_cname_in_ptr && !*req->put_cname_in_ptr)
 				*req->put_cname_in_ptr = mm_strdup(cname);
+			if (reply.type == TYPE_CNAME) {
+				ttl_r = MIN(ttl_r, ttl);
+				reply.rr_count++;
+				reply.have_answer = 1;
+			}
 		} else if (type == TYPE_AAAA && class == CLASS_INET) {
 			int addrcount;
 			if ((datalength & 15) != 0) /* not an even number of AAAAs. */
@@ -4157,6 +4169,13 @@ struct evdns_request *
 evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags,
     evdns_callback_type callback, void *ptr) {
 	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_NS);
+}
+
+/* exported function */
+struct evdns_request *
+evdns_base_resolve_cname(struct evdns_base *base, const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
+	return _evdns_base_resolve_by_type(base, name, flags, callback, ptr, TYPE_CNAME);
 }
 
 /* exported function */

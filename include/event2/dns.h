@@ -493,6 +493,20 @@ EVENT2_EXPORT_SYMBOL
 struct evdns_request *evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
+  Lookup an CNAME record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_cname(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
   Lookup an SOA record for a given name.
 
   @param base the evdns_base to which to apply this operation
