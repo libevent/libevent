@@ -176,6 +176,7 @@
 struct reply {
 	unsigned int type;
 	unsigned int have_answer : 1;
+	unsigned int cname_first : 1;
 	u32 rr_count;
 	union {
 		u32 *a;
@@ -240,6 +241,7 @@ struct request {
 	unsigned request_appended :1;	/* true if the request pointer is data which follows this struct */
 	unsigned transmit_me :1;  /* needs to be transmitted */
 	unsigned need_cname :1;   /* make a separate callback for CNAME */
+	unsigned cname_first :1;  /* make a callback for CNAME first */
 
 	/* XXXX This is a horrible hack. */
 	char **put_cname_in_ptr; /* store the cname here if we get one. */
@@ -1012,10 +1014,13 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 	switch (handle->request_type) {
 	case TYPE_A:
 		if (handle->have_reply) {
+			if (handle->reply.cname && handle->reply.cname_first)
+				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
+				    handle->ttl, handle->reply.cname, user_pointer);
 			handle->user_callback(DNS_ERR_NONE, DNS_IPv4_A,
 			    handle->reply.rr_count, handle->ttl,
 			    handle->reply.data.a, user_pointer);
-			if (handle->reply.cname)
+			if (handle->reply.cname && !handle->reply.cname_first)
 				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
 				    handle->ttl, handle->reply.cname, user_pointer);
 		} else
@@ -1099,10 +1104,13 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 		break;
 	case TYPE_AAAA:
 		if (handle->have_reply) {
+			if (handle->reply.cname && handle->reply.cname_first)
+				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
+				    handle->ttl, handle->reply.cname, user_pointer);
 			handle->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
 			    handle->reply.rr_count, handle->ttl,
 			    handle->reply.data.aaaa, user_pointer);
-			if (handle->reply.cname)
+			if (handle->reply.cname && !handle->reply.cname_first)
 				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
 				    handle->ttl, handle->reply.cname, user_pointer);
 		} else
@@ -1558,8 +1566,10 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			if (name_parse(packet, length, &j, cname,
 				sizeof(cname))<0)
 				goto err;
-			if (req->need_cname || reply.type == TYPE_CNAME)
+			if (req->need_cname || reply.type == TYPE_CNAME) {
 				reply.cname = mm_strdup(cname);
+				reply.cname_first = req->cname_first;
+			}
 			if (req->put_cname_in_ptr && !*req->put_cname_in_ptr)
 				*req->put_cname_in_ptr = mm_strdup(cname);
 			if (reply.type == TYPE_CNAME) {
@@ -4010,6 +4020,9 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 
 	if (flags & DNS_CNAME_CALLBACK)
 		req->need_cname = 1;
+
+	if (flags & DNS_CNAME_CALLBACK_FIRST)
+		req->cname_first = 1;
 
 	return req;
 err1:

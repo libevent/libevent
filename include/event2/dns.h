@@ -201,6 +201,8 @@ extern "C" {
 #define DNS_QUERY_IGNTC 0x04
 /** Make a separate callback for CNAME in answer */
 #define DNS_CNAME_CALLBACK 0x80
+/** Make a callback with CNAME before main answer (use with DNS_CNAME_CALLBACK) */
+#define DNS_CNAME_CALLBACK_FIRST 0x100
 
 /* Allow searching */
 #define DNS_OPTION_SEARCH 1
