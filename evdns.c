@@ -1045,7 +1045,7 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
 			    handle->ttl, handle->reply.cname, user_pointer);
 		} else
-			handle->user_callback(handle->err, DNS_NS, 0, handle->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, DNS_CNAME, 0, handle->ttl, NULL, user_pointer);
 		break;
 	case TYPE_SOA:
 		if (handle->have_reply) {
