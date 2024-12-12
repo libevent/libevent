@@ -71,6 +71,8 @@ main_callback(int result, char type, int count, int ttl,
 		} else if (type == DNS_NS) {
 			struct evdns_reply_ns *ns = addrs;
 			printf("NS %s: %s ttl=%d\n", n, ns[i].name, ns[i].ttl);
+		} else if (type == DNS_CNAME) {
+			printf("CNAME %s: %s ttl=%d\n", n, (char*)addrs, ttl);
 		} else if (type == DNS_SOA) {
 			struct evdns_reply_soa *soa = addrs;
 			printf("SOA %s: %s %s sn=%u ttl=%d\n", n, soa[i].nsname,
@@ -168,6 +170,15 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 			r = evdns_server_request_add_ns_reply(req, req->questions[i]->name,
 				"ns2.example.com", 200);
 			if (r<0) printf("eeep, NS2 didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_CNAME &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give example.com as an answer for www.example.com CNAME questions */
+			if (!strncasecmp(req->questions[i]->name, "www.", 4)) {
+				printf(" -- replying for %s (CNAME)\n", req->questions[i]->name);
+				r = evdns_server_request_add_cname_reply(req, req->questions[i]->name,
+					req->questions[i]->name + 4, 300);
+				if (r<0) printf("eeep, CNAME didn't work.\n");
+			}
 		} else if (req->questions[i]->type == EVDNS_TYPE_SOA &&
 		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
 		/* give ns1.example.com and admin@example.com as an answer for all SOA questions */
@@ -288,6 +299,7 @@ main(int c, char **v) {
 				if (!strcasecmp(optarg, "A")) o.resolve_type = DNS_IPv4_A;
 				// else if (!strcasecmp(optarg, "AAAA")) o.resolve_type = DNS_IPv6_AAAA;
 				else if (!strcasecmp(optarg, "NS")) o.resolve_type = DNS_NS;
+				else if (!strcasecmp(optarg, "CNAME")) o.resolve_type = DNS_CNAME;
 				else if (!strcasecmp(optarg, "SOA")) o.resolve_type = DNS_SOA;
 				else if (!strcasecmp(optarg, "MX")) o.resolve_type = DNS_MX;
 				else if (!strcasecmp(optarg, "TXT")) o.resolve_type = DNS_TXT;
@@ -384,6 +396,10 @@ main(int c, char **v) {
 			case DNS_NS:
 				fprintf(stderr, "resolving NS (fwd) %s...\n",v[optind]);
 				evdns_base_resolve_ns(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_CNAME:
+				fprintf(stderr, "resolving CNAME (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_cname(evdns_base, v[optind], 0, main_callback, v[optind]);
 				break;
 			case DNS_SOA:
 				fprintf(stderr, "resolving SOA (fwd) %s...\n",v[optind]);
