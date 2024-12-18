@@ -204,6 +204,10 @@ evbuffer_chain_new_membuf(size_t size)
 static inline void
 evbuffer_chain_free(struct evbuffer_chain *chain)
 {
+    if (NULL == chain) {
+        return;
+    }
+
 	EVUTIL_ASSERT(chain->refcnt > 0);
 	if (--chain->refcnt > 0) {
 		/* chain is still referenced by other chains */
@@ -254,11 +258,13 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		EVUTIL_ASSERT(info->source != NULL);
 		EVUTIL_ASSERT(info->parent != NULL);
 		EVBUFFER_LOCK(info->source);
-		evbuffer_chain_free(info->parent);
 		evbuffer_decref_and_unlock_(info->source);
+		evbuffer_chain_free(info->parent);
 	}
 
-	mm_free(chain);
+    if (chain != NULL) {
+        mm_free(chain);
+    }
 }
 
 static void
