@@ -5447,12 +5447,12 @@ evdns_cache_lookup(struct evdns_base *base,
 				(e->ai_addr->sa_family == AF_INET6 && f == PF_INET))
 				continue;
 			ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
-			if (want_cname) {
-				ai_new->ai_canonname = mm_strdup(e->ai_canonname);
-			}
 			if (!ai_new) {
 				n_found = 0;
 				goto out;
+			}
+			if (want_cname) {
+				ai_new->ai_canonname = mm_strdup(e->ai_canonname);
 			}
 			sockaddr_setport(ai_new->ai_addr, port);
 			ai = evutil_addrinfo_append_(ai, ai_new);
