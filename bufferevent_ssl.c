@@ -769,8 +769,13 @@ be_ssl_handshakeeventcb(evutil_socket_t fd, short what, void *ptr)
 		int c = evutil_socket_finished_connecting_(fd);
 		if (c < 0)
 			bufferevent_run_eventcb_(&bev_ssl->bev.bev, BEV_EVENT_ERROR, 0);
-		else
-			do_handshake(bev_ssl);/* XXX handle failure */
+		else {
+			if (bev_ssl->bev.bev.proxy_type && (bev_ssl->bev.bev.proxycb != NULL)){
+				//proxy handshake now
+			}else{
+				do_handshake(bev_ssl);/* XXX handle failure */
+			}
+		}
 	}
 	bufferevent_decref_and_unlock_(&bev_ssl->bev.bev);
 }

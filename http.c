@@ -2880,10 +2880,10 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 
 	/* Set up a callback for successful connection setup */
 	bufferevent_setcb(evcon->bufev,
-	    NULL /* evhttp_read_cb */,
-	    NULL /* evhttp_write_cb */,
-	    evhttp_connection_cb,
-	    evcon);
+			NULL /* evhttp_read_cb */,
+			NULL /* evhttp_write_cb */,
+			evhttp_connection_cb,
+			evcon);
 	bufferevent_set_timeouts(evcon->bufev,
 	    &evcon->timeout_connect, &evcon->timeout_connect);
 	/* make sure that we get a write callback */
@@ -2917,7 +2917,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	if (ret < 0) {
 		evcon->state = old_state;
 		event_sock_warn(bufferevent_getfd(evcon->bufev), "%s: connection to \"%s\" failed",
-		    __func__, evcon->address);
+			__func__, evcon->address);
 		/* some operating systems return ECONNREFUSED immediately
 		 * when connecting to a local address.  the cleanup is going
 		 * to reschedule this function call.

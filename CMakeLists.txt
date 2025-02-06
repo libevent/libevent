@@ -879,6 +879,7 @@ list(APPEND SRC_CORE
     bufferevent.c
     bufferevent_filter.c
     bufferevent_pair.c
+    bufferevent_proxy.c
     bufferevent_ratelim.c
     bufferevent_sock.c
     event.c
@@ -1185,6 +1186,8 @@ if (NOT EVENT__DISABLE_SAMPLES)
                         sample/hostcheck.c)
         add_sample_prog(event_openssl le-proxy
                         sample/le-proxy.c)
+        add_sample_prog(event_openssl https-client-proxy
+                        sample/https-client-proxy.c)
         add_sample_prog(event_openssl becat sample/becat.c ${WIN32_GETOPT})
     endif()
 
