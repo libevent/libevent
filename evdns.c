@@ -235,6 +235,7 @@ struct request {
 	unsigned request_appended :1;	/* true if the request pointer is data which follows this struct */
 	unsigned transmit_me :1;  /* needs to be transmitted */
 	unsigned need_cname :1;   /* make a separate callback for CNAME */
+	unsigned is_probe : 1;  /* this is a probe request */
 
 	/* XXXX This is a horrible hack. */
 	char **put_cname_in_ptr; /* store the cname here if we get one. */
@@ -2765,7 +2766,9 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 			/* retransmit it */
 			log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d by udp", arg, req->tx_count);
 			(void) evtimer_del(&req->timeout_event);
-			request_swap_ns(req, nameserver_pick(base));
+			if (!req->is_probe) {
+				request_swap_ns(req, nameserver_pick(base));
+			}
 			evdns_request_transmit(req);
 
 			req->ns->timedout++;
@@ -3068,6 +3071,7 @@ nameserver_send_probe(struct nameserver *const ns) {
 	/* we force this into the inflight queue no matter what */
 	request_trans_id_set(req, transaction_id_pick(ns->base));
 	req->ns = ns;
+	req->is_probe = 1;
 	request_submit(req);
 }
 
