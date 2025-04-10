@@ -28,7 +28,7 @@
 #  find_package(Libevent 2.2 REQUIRED COMPONENTS core)
 #  include_directories(${LIBEVENT_INCLUDE_DIRS})  # Can be omitted
 #  target_link_libraries(myapp ${LIBEVENT_LIBRARIES})
-#    or target_link_libraries(myapp libevent::core)
+#    or target_link_libraries(myapp @PROJECT_NAME@::core)
 #
 # find_package() can handle dependencies automatically. For example, given the 'openssl' component,
 # all dependencies (libevent_core, libssl, libcrypto and openssl include directories) will be found.
@@ -121,7 +121,7 @@ macro(set_case_insensitive_found _comp)
 endmacro()
 
 foreach(_comp ${_EVENT_COMPONENTS})
-    list(APPEND LIBEVENT_LIBRARIES "libevent::${_comp}")
+    list(APPEND LIBEVENT_LIBRARIES "@PROJECT_NAME@::${_comp}")
     set_case_insensitive_found(${_comp})
 endforeach()
 
@@ -129,11 +129,11 @@ if(LIBEVENT_LIBRARIES)
     set(LIBEVENT_LIBRARY ${LIBEVENT_LIBRARIES})
 
     # Avoid including targets more than once.
-    if(NOT TARGET libevent::core)
+    if(NOT TARGET @PROJECT_NAME@::core)
         # Include the project Targets file, this contains definitions for IMPORTED targets.
         include(${CMAKE_CURRENT_LIST_DIR}/LibeventTargets-${_LIB_TYPE}.cmake)
     endif()
-    get_target_property(LIBEVENT_INCLUDE_DIRS libevent::core INTERFACE_INCLUDE_DIRECTORIES)
+    get_target_property(LIBEVENT_INCLUDE_DIRS @PROJECT_NAME@::core INTERFACE_INCLUDE_DIRECTORIES)
     get_filename_component(LIBEVENT_INSTALL_PREFIX "${LIBEVENT_INCLUDE_DIRS}" PATH)
     message_if_needed(STATUS "Found libevent ${LIBEVENT_VERSION} in ${LIBEVENT_INSTALL_PREFIX}")
 else()
