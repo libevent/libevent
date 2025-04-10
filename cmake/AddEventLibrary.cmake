@@ -177,5 +177,10 @@ macro(add_event_library LIB_NAME)
     add_library(${LIB_NAME} INTERFACE)
     target_link_libraries(${LIB_NAME} INTERFACE ${ADD_EVENT_LIBRARY_INTERFACE})
 
+    if(NOT "${LIB_NAME}" STREQUAL "event")
+        string(REPLACE "event_" "" PURE_NAME "${LIB_NAME}")
+        add_library("${PROJECT_NAME}::${PURE_NAME}" ALIAS "${LIB_NAME}")
+    endif()
+
     generate_pkgconfig("${LIB_NAME}")
 endmacro()
