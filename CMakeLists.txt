@@ -453,6 +453,7 @@ else()
         arpa/inet.h
         poll.h
         port.h
+        sys/auxv.h
         sys/socket.h
         sys/random.h
         sys/un.h

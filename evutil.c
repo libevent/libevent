@@ -53,6 +53,9 @@
 #include <netioapi.h>
 #endif
 
+#ifdef EVENT__HAVE_SYS_AUXV_H
+#include <sys/auxv.h> // for getauxval()
+#endif
 #ifdef EVENT__HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -2693,6 +2696,8 @@ evutil_issetugid(void)
 {
 #ifdef EVENT__HAVE_ISSETUGID
 	return issetugid();
+#elif defined(EVENT__HAVE_SYS_AUXV_H) && defined(AT_SECURE)
+	return getauxval(AT_SECURE);
 #else
 
 #ifdef EVENT__HAVE_GETEUID
