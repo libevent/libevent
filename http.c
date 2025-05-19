@@ -536,7 +536,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	}
 }
 
-/** Return true if the list of headers in 'headers', intepreted with respect
+/** Return true if the list of headers in 'headers', interpreted with respect
  * to flags, means that we should send a "connection: close" when the request
  * is done. */
 static int
@@ -1212,7 +1212,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	if (req->body_size > req->evcon->max_body_size ||
 	    (!req->chunked && req->ntoread >= 0 &&
 		(size_t)req->ntoread > req->evcon->max_body_size)) {
-		/* XXX: The above casted comparison must checked for overflow */
+		/* XXX: The above cast comparison must checked for overflow */
 		/* failed body length test */
 
 		evhttp_lingering_fail(evcon, req);

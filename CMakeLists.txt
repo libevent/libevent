@@ -1345,7 +1345,7 @@ if (NOT EVENT__DISABLE_TESTS)
     # Test programs.
     #
     # all of these, including the cmakelists.txt should be moved
-    # into the dirctory 'tests' first.
+    # into the directory 'tests' first.
     #
     # doing this, we can remove all the DISABLE_TESTS stuff, and simply
     # do something like:

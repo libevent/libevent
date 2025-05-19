@@ -220,7 +220,7 @@ check_bucket_levels_cb(evutil_socket_t fd, short events, void *arg)
 	ev_ssize_t w = bufferevent_get_write_limit(bev);
 	ev_ssize_t rm = bufferevent_get_max_to_read(bev);
 	ev_ssize_t wm = bufferevent_get_max_to_write(bev);
-	/* XXXX check that no value is above the cofigured burst
+	/* XXXX check that no value is above the configured burst
 	 * limit */
 	total_rbucket_level += r;
 	total_wbucket_level += w;

@@ -843,7 +843,7 @@ rpc_test(void)
 
 		if (EVTAG_GET(run, large_number, &large_number) == -1 ||
 		    large_number != 0xdead0a0bcafebeefLL) {
-			tt_abort_msg("Incorrrect large_number.");
+			tt_abort_msg("Incorrect large_number.");
 		}
 
 		if (EVTAG_ARRAY_LEN(run, other_numbers) != 2) {
