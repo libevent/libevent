@@ -913,10 +913,9 @@ evconnlistener_new_async(struct event_base *base,
 			event_warnx("Couldn't create accepting socket");
 			goto err_free_accepting;
 		}
+		EnterCriticalSection(&lev->accepting[i]->lock);
 		if (cb && start_accepting(lev->accepting[i]) < 0) {
 			event_warnx("Couldn't start accepting on socket");
-			EnterCriticalSection(&lev->accepting[i]->lock);
-			free_and_unlock_accepting_socket(lev->accepting[i]);
 			goto err_free_accepting;
 		}
 		++lev->base.refcnt;
