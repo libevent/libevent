@@ -2819,6 +2819,7 @@ test_base_features(void *arg)
 		    event_base_get_features(base) & EV_FEATURE_ET);
 	} else {
 		base = event_base_new();
+		tt_assert(base);
 		tt_int_op(0, ==, event_base_get_features(base) & EV_FEATURE_ET);
 	}
 
