@@ -3470,7 +3470,7 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 	}
 
 	if (len >= 0) {
-		if (uri + len < uri) {
+		if ((size_t)uri + len < (size_t)uri) {
 			goto out;
 		}
 
@@ -3483,7 +3483,7 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 			goto out;
 		}
 
-		if (uri + slen < uri) {
+		if ((size_t)uri + slen < (size_t)uri) {
 			goto out;
 		}
 
