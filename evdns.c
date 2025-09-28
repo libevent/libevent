@@ -2873,6 +2873,12 @@ client_tcp_read_packet_cb(struct bufferevent *bev, void *ctx)
 		reply_parse(server->base, msg, msg_len);
 		mm_free(msg);
 		msg = NULL;
+		if (server->connection == NULL) {
+			/* Some errors occurred in reply_parse, and TCP connection has been
+			 * close. Stop reading from it. */
+			EVDNS_UNLOCK(server->base);
+			return;
+		}
 		conn->awaiting_packet_size = 0;
 	}
 
