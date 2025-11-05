@@ -4,7 +4,9 @@ macro(add_linker_flags)
 	foreach(flag ${ARGN})
 		string(REGEX REPLACE "[-.+/:= ]" "_" _flag_esc "${flag}")
 
+if (NOT CMAKE_VERSION VERSION_LESS 3.18)
 		check_linker_flag(C "${flag}" check_c_linker_flag_${_flag_esc})
+endif()
 
 		if (check_c_linker_flag_${_flag_esc})
 			set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${flag}")
