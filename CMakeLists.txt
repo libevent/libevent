@@ -35,14 +35,6 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
-# Usually it is OK to define it unconditionally, but the problem is that we use
-# CMAKE_DEBUG_POSTFIX in *.pc.in
-if (CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
-    if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
-        set(CMAKE_DEBUG_POSTFIX d)
-    endif()
-endif()
-
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
     "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
 
