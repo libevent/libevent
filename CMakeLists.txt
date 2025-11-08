@@ -27,6 +27,9 @@ endif()
 if (POLICY CMP0075)
     cmake_policy(SET CMP0075 NEW)
 endif()
+if (POLICY CMP0090)
+	cmake_policy(SET CMP0090 NEW)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
