@@ -285,8 +285,8 @@
 /* Define to 1 if you have the `_gmtime64' function. */
 #cmakedefine EVENT__HAVE__GMTIME64 1
 
-/* Define to 1 if you have the `BCryptGenRandom' function. */
-#cmakedefine EVENT__HAVE_BCRYPTGENRANDOM 1
+/* Define to 1 if you link with `bcrypt.lib'. */
+#cmakedefine EVENT__HAVE_BCRYPT_LIB 1
 
 /* Define to 1 if the system has the type `struct addrinfo'. */
 #cmakedefine EVENT__HAVE_STRUCT_ADDRINFO 1

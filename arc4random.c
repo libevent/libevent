@@ -52,7 +52,7 @@
 #ifndef ARC4RANDOM_NO_INCLUDES
 #include "evconfig-private.h"
 #ifdef _WIN32
-#ifndef EVENT__HAVE_BCRYPTGENRANDOM
+#ifndef EVENT__HAVE_BCRYPT_LIB
 #include <wincrypt.h>
 #else
 #include <bcrypt.h>
@@ -157,7 +157,7 @@ static int
 arc4_seed_win32(void)
 {
 	unsigned char buf[ADD_ENTROPY];
-#ifndef EVENT__HAVE_BCRYPTGENRANDOM
+#ifndef EVENT__HAVE_BCRYPT_LIB
 	/* This is adapted from Tor's crypto_seed_rng() */
 	static int provider_set = 0;
 	static HCRYPTPROV provider;
