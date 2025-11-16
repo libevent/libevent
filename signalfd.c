@@ -163,8 +163,8 @@ close_fd:
 unblock:
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 free_mem:
-        mm_free(sig->sh_old[signo]);
-        sig->sh_old[signo] = NULL;
+	mm_free(sig->sh_old[signo]);
+	sig->sh_old[signo] = NULL;
 	return -1;
 }
 
