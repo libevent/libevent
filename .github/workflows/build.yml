@@ -953,7 +953,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add mbedtls py3-pip automake-1.16.5 autoconf-2.72p0 libtool pkgconf
+            pkg_add mbedtls py3-pip automake autoconf-2.72p0 libtool pkg-config
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
