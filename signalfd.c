@@ -124,9 +124,7 @@ sigfd_add(struct event_base *base, int signo, short old, short events, void *p)
 
 	if (sigaction(signo, NULL, sig->sh_old[signo]) == -1) {
 		event_warn("sigaction() failed");
-		mm_free(sig->sh_old[signo]);
-		sig->sh_old[signo] = NULL;
-		return -1;
+		goto free_mem;
 	}
 
 	/* Block the signal from being handled according to its default
@@ -135,7 +133,7 @@ sigfd_add(struct event_base *base, int signo, short old, short events, void *p)
 	sigaddset(&mask, signo);
 	if (sigprocmask(SIG_BLOCK, &mask, NULL)) {
 		event_warn("sigprocmask() failed");
-		return -1;
+		goto free_mem;
 	}
 
 	sigfd = signalfd(-1, &mask, SFD_NONBLOCK | SFD_CLOEXEC);
@@ -164,6 +162,9 @@ close_fd:
 	close(sigfd);
 unblock:
 	sigprocmask(SIG_UNBLOCK, &mask, NULL);
+free_mem:
+	mm_free(sig->sh_old[signo]);
+	sig->sh_old[signo] = NULL;
 	return -1;
 }
 
