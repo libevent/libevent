@@ -1978,7 +1978,7 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done, retval = 0;
 	struct evwatch_prepare_cb_info prepare_info;
-	struct evwatch_check_cb_info check_info;
+	struct evwatch_check_cb_info check_info = { NULL };
 	struct evwatch *watcher;
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
