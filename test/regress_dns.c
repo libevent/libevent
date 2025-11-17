@@ -576,6 +576,7 @@ static struct regress_dns_server_table tcp_search_table[] = {
 	{ "large.c.example.com", "A",
 		REPEAT_256("11.22.33.45") "," REPEAT_256("12.22.33.45") "," REPEAT_256("13.22.33.45") "," REPEAT_256("14.22.33.45"), 0, 0},
 	{ "lost.request.com", "err", "67", 0, 0},
+	{ "notimpl.request.com", "err", "4", 0, 0},
 	{ NULL, NULL, NULL, 0, 0 }
 };
 
@@ -3085,6 +3086,45 @@ end:
 }
 
 static void
+test_tcp_notimpl(void *arg)
+{
+	struct generic_dns_callback_result r;
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = evdns_base_new(base, 0);
+	ev_uint16_t portnum = 0;
+	struct evdns_request *req = NULL;
+	char buf[64];
+
+	exit_base = base;
+
+	tt_assert(base);
+	tt_assert(dns);
+
+	tt_assert(
+		regress_dnsserver(base, &portnum, search_table, tcp_search_table));
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	req = evdns_base_resolve_ipv4(
+		dns, "notimpl.request.com", DNS_QUERY_USEVC, generic_dns_callback, &r);
+	tt_assert(req);
+
+	n_replies_left = 1;
+	event_base_dispatch(base);
+
+	tt_assert(DNS_ERR_NOTIMPL == r.result);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+
+	regress_clean_dnsserver();
+}
+
+
+static void
 test_edns(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -3369,6 +3409,8 @@ struct testcase_t dns_testcases[] = {
 	{ "tcp_resolve_many_clients", test_tcp_resolve_many_clients,
 	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
 	{ "tcp_timeout", test_tcp_timeout,
+	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE | TT_NO_LOGS, &basic_setup, NULL },
+	{ "tcp_notimpl", test_tcp_notimpl,
 	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE | TT_NO_LOGS, &basic_setup, NULL },
 
 	{ "set_SO_RCVBUF_SO_SNDBUF", test_set_so_rcvbuf_so_sndbuf,

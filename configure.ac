@@ -182,7 +182,7 @@ LIBEVENT_OPENSSL
 LIBEVENT_MBEDTLS
 
 dnl Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/auxv.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
 
 case "${host_os}" in
     linux*) ;;
