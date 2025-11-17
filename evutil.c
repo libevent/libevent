@@ -2114,7 +2114,7 @@ evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 	r = vsnprintf(buf, buflen, format, ap);
 #endif
 	// If r >= buflen, the output is truncated, and it is manually guaranteed to end with '\0'
-	if(r >=(int)buflen){
+	if (r >=(int)buflen) {
  	   buf[buflen-1] = '\0';
 	}
 	return r;
