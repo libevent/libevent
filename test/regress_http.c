@@ -76,6 +76,12 @@
 #define SKIP_UNDER_WINDOWS 0
 #endif
 
+#ifdef __ANDROID__
+#define SKIP_UNDER_ANDROID TT_SKIP
+#else
+#define SKIP_UNDER_ANDROID 0
+#endif
+
 /* set if a test needs to call loopexit on a base */
 static struct event_base *exit_base;
 
@@ -6139,8 +6145,8 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(virtual_host),
 #ifndef _WIN32
-	HTTP(unix_socket),
-	HTTP(unix_socket_preexist),
+	HTTP_OPT(unix_socket, SKIP_UNDER_ANDROID),
+	HTTP_OPT(unix_socket_preexist, SKIP_UNDER_ANDROID),
 #endif
 	HTTP(post),
 	HTTP(put),
