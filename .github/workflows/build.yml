@@ -1118,7 +1118,13 @@ jobs:
           set -ex
           adb start-server
           emulator -avd test -no-window -gpu off -noaudio -no-boot-anim -no-metrics -camera-back none -memory 512 &
-          adb wait-for-device
+          EMULATOR_PID=$!
+          if ! timeout 600 adb wait-for-device; then
+            echo "Emulator timed out"
+            kill $EMULATOR_PID || true
+            adb kill-server || true
+            exit 1
+          fi
           cp -rL . /tmp/libevent_flat
           tar -chf - -C /tmp libevent_flat | adb shell tar -xf - -C /data/local/tmp
           adb shell chmod +x /data/local/tmp/libevent_flat/build/bin/regress
