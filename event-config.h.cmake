@@ -192,6 +192,9 @@
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #cmakedefine EVENT__HAVE_NETINET_TCP_H 1
 
+/* Define to 1 if you have the <sys/auxv.h> header file. */
+#cmakedefine EVENT__HAVE_SYS_AUXV_H 1
+
 /* Define to 1 if you have the <sys/un.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_UN_H 1
 

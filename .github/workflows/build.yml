@@ -272,13 +272,13 @@ jobs:
 
       - name: Prepare vcpkg
         # Newer versions expect a vcpkg manifest, so stick to v7, that could handle vcpkgArguments
-        uses: lukka/run-vcpkg@v7
+        uses: lukka/run-vcpkg@v11
         id: runvcpkg
         with:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
           vcpkgTriplet: x64-windows
-          vcpkgGitCommitId: c8696863d371ab7f46e213d8f5ca923c4aef2a00  # 2023.12.12
+          vcpkgGitCommitId: 74e6536215718009aae747d86d84b78376bf9e09  # 2025.10.17
 
       - name: Build
         shell: powershell
@@ -710,7 +710,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg install -y  mbedtls cmake python3
+            pkg install -y mbedtls3 cmake python3
           usesh: true
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -796,7 +796,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg install -y  mbedtls  python3 autoconf automake libtool pkgconf
+            pkg install -y mbedtls3 python3 autoconf automake libtool pkgconf
           usesh: true
           run: |
             ./autogen.sh
@@ -953,7 +953,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add mbedtls py3-pip automake-1.16.5 autoconf-2.72p0 libtool pkgconf
+            pkg_add mbedtls py3-pip automake autoconf-2.72p0 libtool pkg-config
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
