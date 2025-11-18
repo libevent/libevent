@@ -1125,9 +1125,9 @@ jobs:
             adb kill-server || true
             exit 1
           fi
-          cp -rL . /tmp/libevent_flat
+          cp -rL ./build /tmp/libevent_flat
           tar -chf - -C /tmp libevent_flat | adb shell tar -xf - -C /data/local/tmp
-          adb shell "LD_LIBRARY_PATH=/data/local/tmp/libevent_flat/build/lib /data/local/tmp/libevent_flat/build/bin/regress"
+          adb shell "LD_LIBRARY_PATH=/data/local/tmp/libevent_flat/lib /data/local/tmp/libevent_flat/bin/regress"
           adb emu kill
           adb kill-server
 
