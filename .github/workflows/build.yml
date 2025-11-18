@@ -1088,7 +1088,6 @@ jobs:
           cmake --build build
 
       - name: Enable KVM
-        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
         run: |
           echo "AVD_IMAGE=$(sdkmanager --list | grep -o "system-images;android-[0-9.]*;default;${ANDROID_ABI}" | sort -V | tail -1)" >> $GITHUB_ENV
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -1096,7 +1095,6 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: AVD cache
-        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
         uses: actions/cache@v4
         id: avd-cache
         with:
@@ -1106,14 +1104,13 @@ jobs:
           key: avd-${{ matrix.EVENT_MATRIX }}
 
       - name: AVD Image
-        if: matrix.EVENT_MATRIX == 'x86_64-linux-android' && steps.avd-cache.outputs.cache-hit != 'true'
+        if: steps.avd-cache.outputs.cache-hit != 'true'
         run: |
           sdkmanager "$AVD_IMAGE"
           sdkmanager --licenses
           echo "no" | avdmanager --verbose create avd --force -n test -k "$AVD_IMAGE"
 
       - name: AVD Tests
-        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
         run: |
           set -ex
           adb start-server
