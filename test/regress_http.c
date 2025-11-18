@@ -2351,10 +2351,14 @@ static void http_unix_socket_test_(struct basic_test_data *data, int preexisting
 	struct evhttp *myhttp;
 	char tmp_sock_path[512];
 	char uri_loc[1024];
+	const char *tmpdir = getenv("TMPDIR");
 	evutil_socket_t client_fd = EVUTIL_INVALID_SOCKET;
+	if (!tmpdir || *tmpdir == '\0') {
+		tmpdir = "/tmp";
+	}
 
 	// Avoid overlap with parallel runs
-	evutil_snprintf(tmp_sock_path, sizeof(tmp_sock_path), "/tmp/eventtmp.%i.sock", getpid());
+	evutil_snprintf(tmp_sock_path, sizeof(tmp_sock_path), "%s/eventtmp.%i.sock", tmpdir, getpid());
 	evutil_snprintf(uri_loc, sizeof(uri_loc), "http://unix:%s:/?arg=val", tmp_sock_path);
 
 	myhttp = evhttp_new(data->base);
