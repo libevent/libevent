@@ -1126,7 +1126,7 @@ jobs:
           adb shell readelf -l /data/local/tmp/libevent_flat/build/bin/regress | grep -i interpreter || true
           adb shell ls -la /data/local/tmp//libevent_flat/build/bin/regress
           adb shell ls -la /data/local/tmp//libevent_flat/build/lib
-          adb shell /data/local/tmp/libevent_flat/build/bin/regress
+          adb shell "LD_LIBRARY_PATH=/data/local/tmp/libevent_flat/build/lib /data/local/tmp/libevent_flat/build/bin/regress"
           adb emu kill
           adb kill-server
 
