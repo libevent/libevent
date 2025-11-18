@@ -1052,19 +1052,37 @@ jobs:
 
       - name: Install latest NDK and Setup
         run: |
+          case "${{ matrix.EVENT_MATRIX }}" in
+            arm-linux-androideabi)
+              ANDROID_ABI=armeabi-v7a
+              ;;
+            aarch64-linux-android)
+              ANDROID_ABI=arm64-v8a
+              ;;
+            i686-linux-android)
+              ANDROID_ABI=x86
+              ;;
+            x86_64-linux-android)
+              ANDROID_ABI=x86_64
+              ;;
+            *)
+              echo "Unknown triple: ${{ matrix.EVENT_MATRIX }}" >&2
+              exit 1
+              ;;
+          esac
           latest_ndk=$(sdkmanager --list | grep -o "ndk;[0-9.]*" | sort -V | tail -1)
           echo "Installing $latest_ndk"
           sdkmanager "$latest_ndk"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(echo $latest_ndk | cut -d';' -f2)" | tee $GITHUB_ENV
           echo "ANDROID_BUILD_TOOLS_VERSION=$(sdkmanager --list | grep -o 'build-tools;[0-9.]* ' | sort -V | tail -1 | sed 's/build-tools;//g')" | tee $GITHUB_ENV
-          echo "ANDROID_AVD_IMAGE_PREFIX=$(sdkmanager --list | grep -o "system-images;android-[0-9]*;default;")"
+          echo "ANDROID_ABI=$ANDROID_ABI" | tee $GITHUB_ENV
           echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${ANDROID_BUILD_TOOLS_VERSION}" >> $GITHUB_PATH
 
       - name: Bash
         shell: bash
         run: |
           NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
-          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE' -DANDROID_PLATFORM=latest"
+          EVENT_CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=latest"
           echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
           cmake -B build $EVENT_CMAKE_OPTIONS
           cmake --build build
@@ -1072,8 +1090,7 @@ jobs:
       - name: Enable KVM
         if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
         run: |
-          echo "AVD_IMAGE=$(sdkmanager --list | grep -o "system-images;android-[0-9.]*;default;x86_64" | sort -V | tail -1)" >> $GITHUB_ENV
-          echo "AVD_CACHE_KEY=$(echo "$AVD_IMAGE" | sed -s 's/system-images;//g')" >> $GITHUB_ENV
+          echo "AVD_IMAGE=$(sdkmanager --list | grep -o "system-images;android-[0-9.]*;default;${ANDROID_ABI}" | sort -V | tail -1)" >> $GITHUB_ENV
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
@@ -1086,7 +1103,7 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-${AVD_CACHE_KEY}
+          key: avd-${{ matrix.EVENT_MATRIX }}
 
       - name: AVD Image
         if: matrix.EVENT_MATRIX == 'x86_64-linux-android' && steps.avd-cache.outputs.cache-hit != 'true'
@@ -1106,7 +1123,9 @@ jobs:
           tar -chf - -C /tmp libevent_flat | adb shell tar -xf - -C /data/local/tmp
           adb shell chmod +x /data/local/tmp/libevent_flat/build/bin/regress
           adb shell file /data/local/tmp/libevent_flat/build/bin/regress
+          adb shell readelf -l /data/local/tmp/libevent_flat/build/bin/regress | grep -i interpreter || true
           adb shell ls -la /data/local/tmp//libevent_flat/build/bin/regress
+          adb shell ls -la /data/local/tmp//libevent_flat/build/lib
           adb shell /data/local/tmp/libevent_flat/build/bin/regress
           adb emu kill
           adb kill-server
