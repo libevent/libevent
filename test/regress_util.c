@@ -476,6 +476,10 @@ test_evutil_snprintf(void *ptr)
 	tt_str_op(buf, ==, "8000 -9000");
 	tt_int_op(r, ==, 10);
 
+	r = evutil_snprintf(buf, sizeof(buf), "%s", "0123456789abcde_0123456");
+	tt_str_op(buf, ==, "0123456789abcde");
+	tt_int_op(r, ==, strlen("0123456789abcde_0123456"));
+
       end:
 	;
 }
