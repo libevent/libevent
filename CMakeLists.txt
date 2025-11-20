@@ -1200,6 +1200,11 @@ if (NOT EVENT__DISABLE_SAMPLES)
                 sample/ssl-client-mbedtls.c)
     endif()
 
+    if (EVENT__HAVE_PTHREADS)
+        add_sample_prog(event_pthreads http-load-balancer
+                sample/http-load-balancer.c)
+    endif()
+
     set(SAMPLES_WOPT
         dns-example
         ws-chat-server
