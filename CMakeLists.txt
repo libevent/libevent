@@ -533,6 +533,7 @@ if (WIN32)
     list(APPEND SYMBOLS_TO_CHECK
         _gmtime64
         _gmtime64_s
+        BCryptGenRandom
     )
 else()
     list(APPEND SYMBOLS_TO_CHECK
