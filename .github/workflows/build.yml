@@ -1050,21 +1050,86 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install latest NDK
+      - name: Install latest NDK and Setup
         run: |
+          case "${{ matrix.EVENT_MATRIX }}" in
+            arm-linux-androideabi)
+              ANDROID_ABI=armeabi-v7a
+              ;;
+            aarch64-linux-android)
+              ANDROID_ABI=arm64-v8a
+              ;;
+            i686-linux-android)
+              ANDROID_ABI=x86
+              ;;
+            x86_64-linux-android)
+              ANDROID_ABI=x86_64
+              ;;
+            *)
+              echo "Unknown triple: ${{ matrix.EVENT_MATRIX }}" >&2
+              exit 1
+              ;;
+          esac
           latest_ndk=$(sdkmanager --list | grep -o "ndk;[0-9.]*" | sort -V | tail -1)
           echo "Installing $latest_ndk"
           sdkmanager "$latest_ndk"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(echo $latest_ndk | cut -d';' -f2)" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$(echo $latest_ndk | cut -d';' -f2)" | tee $GITHUB_ENV
+          echo "ANDROID_BUILD_TOOLS_VERSION=$(sdkmanager --list | grep -o 'build-tools;[0-9.]* ' | sort -V | tail -1 | sed 's/build-tools;//g')" | tee $GITHUB_ENV
+          echo "ANDROID_ABI=$ANDROID_ABI" | tee $GITHUB_ENV
+          echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/build-tools/${ANDROID_BUILD_TOOLS_VERSION}" >> $GITHUB_PATH
 
       - name: Bash
         shell: bash
         run: |
           NDK_TRIPLE="${{ matrix.EVENT_MATRIX }}"
-          EVENT_CMAKE_OPTIONS="'-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake' '-DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE'"
+          EVENT_CMAKE_OPTIONS="-DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake -DCMAKE_HOST_SYSTEM_NAME=$NDK_TRIPLE -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=latest"
           echo [cmake]: cmake -B build $EVENT_CMAKE_FLAGS
           cmake -B build $EVENT_CMAKE_OPTIONS
-          cmake --build build --target event_static
+          cmake --build build
+
+      - name: Enable KVM
+        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
+        run: |
+          echo "AVD_IMAGE=$(sdkmanager --list | grep -o "system-images;android-[0-9.]*;default;${ANDROID_ABI}" | sort -V | tail -1)" >> $GITHUB_ENV
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: AVD cache
+        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.EVENT_MATRIX }}
+
+      - name: AVD Image
+        if: matrix.EVENT_MATRIX == 'x86_64-linux-android' && steps.avd-cache.outputs.cache-hit != 'true'
+        run: |
+          sdkmanager "$AVD_IMAGE"
+          sdkmanager --licenses
+          echo "no" | avdmanager --verbose create avd --force -n test -k "$AVD_IMAGE"
+
+      - name: AVD Tests
+        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
+        run: |
+          set -ex
+          adb start-server
+          emulator -avd test -no-window -gpu off -noaudio -no-boot-anim -no-metrics -camera-back none -memory 512 &
+          EMULATOR_PID=$!
+          if ! timeout 600 adb wait-for-device; then
+            echo "Emulator timed out"
+            kill $EMULATOR_PID || true
+            adb kill-server || true
+            exit 1
+          fi
+          cp -rL ./build /tmp/libevent_flat
+          tar -chf - -C /tmp libevent_flat | adb shell tar -xf - -C /data/local/tmp
+          adb shell "LD_LIBRARY_PATH=/data/local/tmp/libevent_flat/lib /data/local/tmp/libevent_flat/bin/regress"
+          adb emu kill
+          adb kill-server
 
 
   # ABI job without deploy
