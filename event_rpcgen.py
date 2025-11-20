@@ -289,7 +289,7 @@ struct %(name)s *
 
         filep.write("}\n\n")
 
-        # Unmarshaling
+        # Unmarshalling
         filep.write(
             """int
 %(name)s_unmarshal(struct %(name)s *tmp, struct evbuffer *evbuf)

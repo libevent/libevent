@@ -2025,7 +2025,7 @@ evdns_request_data_build(const struct evdns_base *base,
 	u32 t32_;  /* used by the macros */
 
 	APPEND16(trans_id);
-	APPEND16(0x0100);  /* standard query, recusion needed */
+	APPEND16(0x0100);  /* standard query, recursion needed */
 	APPEND16(1);  /* one question */
 	APPEND16(0);  /* no answers */
 	APPEND16(0);  /* no authority */

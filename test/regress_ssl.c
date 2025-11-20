@@ -755,7 +755,7 @@ end:
 	bufferevent_free(client.bev);
 	bufferevent_free(server.bev);
 
-	/* XXX: by some reason otherise there is a leak */
+	/* XXX: by some reason otherwise there is a leak */
 	if (!(type & REGRESS_OPENSSL_FILTER))
 		event_base_loop(base, EVLOOP_ONCE);
 }
