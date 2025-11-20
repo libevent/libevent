@@ -1006,14 +1006,17 @@ test_evutil_getaddrinfo(void *arg)
 	struct evutil_addrinfo hints;
 	int r;
 
+#ifndef __ANDROID__
 	/* Try NULL hint (win32 bug) */
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	r = evutil_getaddrinfo("www.google.com", NULL, NULL, &ai);
+	/* returns EAI_AGAIN on android so don't check */
 	tt_int_op(r, ==, 0);
 	tt_assert(ai);
 	evutil_freeaddrinfo(ai);
 	ai = NULL;
+#endif
 
 	/* Try using it as a pton. */
 	memset(&hints, 0, sizeof(hints));
