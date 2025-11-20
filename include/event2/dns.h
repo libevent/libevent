@@ -150,6 +150,10 @@ extern "C" {
 /* For integer types. */
 #include <event2/util.h>
 
+#ifndef EVDNS_NAME_MAX
+#define EVDNS_NAME_MAX 255
+#endif
+
 /** Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
 /** The name server was unable to interpret the query */
@@ -183,6 +187,11 @@ extern "C" {
 #define DNS_PTR 2
 #define DNS_IPv6_AAAA 3
 #define DNS_CNAME 4
+#define DNS_NS 5
+#define DNS_SOA 6
+#define DNS_MX 7
+#define DNS_TXT 8
+#define DNS_SRV 9
 
 /** Disable searching for the query. */
 #define DNS_QUERY_NO_SEARCH 0x01
@@ -192,6 +201,8 @@ extern "C" {
 #define DNS_QUERY_IGNTC 0x04
 /** Make a separate callback for CNAME in answer */
 #define DNS_CNAME_CALLBACK 0x80
+/** Make a callback with CNAME before main answer (use with DNS_CNAME_CALLBACK) */
+#define DNS_CNAME_CALLBACK_FIRST 0x100
 
 /* Allow searching */
 #define DNS_OPTION_SEARCH 1
@@ -469,6 +480,48 @@ struct evdns_request *evdns_base_resolve_ipv4(struct evdns_base *base, const cha
 EVENT2_EXPORT_SYMBOL
 struct evdns_request *evdns_base_resolve_ipv6(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
+/**
+  Lookup an NS record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an CNAME record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_cname(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an SOA record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_soa(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
 struct in_addr;
 struct in6_addr;
 
@@ -500,6 +553,48 @@ struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, const 
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an MX record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_mx(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an TXT record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_txt(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an SRV record for a given name.
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or combination of DNS_QUERY_* flags.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_request *evdns_base_resolve_srv(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
   Cancels a pending DNS resolution request.
@@ -657,6 +752,11 @@ void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 struct evdns_server_request;
 struct evdns_server_question;
+struct evdns_reply_ns;
+struct evdns_reply_soa;
+struct evdns_reply_mx;
+struct evdns_reply_txt;
+struct evdns_reply_srv;
 
 /**
    A callback to implement a DNS server.  The callback function receives a DNS
@@ -682,6 +782,8 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_TYPE_MX	  15
 #define EVDNS_TYPE_TXT	  16
 #define EVDNS_TYPE_AAAA	  28
+#define EVDNS_TYPE_SRV	  33
+#define EVDNS_TYPE_OPT	  41
 
 #define EVDNS_QTYPE_AXFR 252
 #define EVDNS_QTYPE_ALL	 255
@@ -774,9 +876,19 @@ int evdns_server_request_add_a_reply(struct evdns_server_request *req, const cha
 EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, const void *addrs, int ttl);
 EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_ns_reply(struct evdns_server_request *req, const char *name, const char *nsname, int ttl);
+EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_soa_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_soa *soa, int in_authority, int ttl);
+EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
 EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_mx_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_mx *mx, int ttl);
+EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_txt_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_txt *txt, int ttl);
+EVENT2_EXPORT_SYMBOL
 int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
+EVENT2_EXPORT_SYMBOL
+int evdns_server_request_add_srv_reply(struct evdns_server_request *req, const char *name, struct evdns_reply_srv *srv, int ttl);
 
 /**
    Send back a response to a DNS request, and free the request structure.

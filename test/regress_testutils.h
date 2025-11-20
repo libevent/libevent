@@ -28,6 +28,7 @@
 #define REGRESS_TESTUTILS_H_INCLUDED_
 
 #include "event2/dns.h"
+#include "event2/dns_struct.h"
 
 struct regress_dns_server_table {
 	const char *q;
@@ -77,5 +78,33 @@ int regress_get_listener_addr(struct evconnlistener *lev,
 int parse_csv_address_list(const char *s, int family,
     void *addrs, size_t addrs_size);
 
-#endif /* REGRESS_TESTUTILS_H_INCLUDED_ */
+/* Parse comma-separated list of NS records
+ * in format "<ttl> <name>", ex. "600 ns1.abcd.com,300 ns2.safeweb.com". */
+int parse_csv_ns_list(const char *s, struct evdns_reply_ns *ns,
+    size_t ns_size);
 
+/* Parse comma-separated list of SOA records
+ * in format "<ns> <mail> <serial> <refresh> <retry> <expire> <minimum>",
+ * ex. "dns1.icann.org hostmaster.icann.org 2024120101 10800 3600 604800 1800". */
+int parse_csv_soa_list(const char *s, struct evdns_reply_soa *soa,
+    size_t soa_size);
+
+/* Parse comma-separated list of MX records
+ * in format "<ttl> <pref> <name>",
+ * ex. "3600 10 mx1.icann.org". */
+int parse_csv_mx_list(const char *s, struct evdns_reply_mx *mx,
+    size_t mx_size);
+
+/* Parse comma-separated list of TXT records
+ * in format "<ttl> <text>", text may have several parts splitted by '\t' char
+ * ex. "600 uuid=753585f9-8636-486b-b75a-32c915a432b4\tpart2=some text". */
+int parse_csv_txt_list(const char *s, struct evdns_reply_txt *txt,
+    size_t txt_size);
+
+/* Parse comma-separated list of SRV records
+ * in format "<ttl> <priority> <weight> <port> <name>",
+ * ex. "3600 5 0 389 ldap.domain.com". */
+int parse_csv_srv_list(const char *s, struct evdns_reply_srv *srv,
+    size_t srv_size);
+
+#endif /* REGRESS_TESTUTILS_H_INCLUDED_ */

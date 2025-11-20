@@ -68,8 +68,40 @@ main_callback(int result, char type, int count, int ttl,
 	for (i = 0; i < count; ++i) {
 		if (type == DNS_IPv4_A) {
 			printf("%s: %s\n", n, debug_ntoa(((u32*)addrs)[i]));
+		} else if (type == DNS_NS) {
+			struct evdns_reply_ns *ns = addrs;
+			printf("NS %s: %s ttl=%d\n", n, ns[i].name, ns[i].ttl);
+		} else if (type == DNS_CNAME) {
+			printf("CNAME %s: %s ttl=%d\n", n, (char*)addrs, ttl);
+		} else if (type == DNS_SOA) {
+			struct evdns_reply_soa *soa = addrs;
+			printf("SOA %s: %s %s sn=%u ttl=%d\n", n, soa[i].nsname,
+				soa[i].email, soa[i].serial, ttl);
 		} else if (type == DNS_PTR) {
 			printf("%s: %s\n", n, ((char**)addrs)[i]);
+		} else if (type == DNS_MX) {
+			struct evdns_reply_mx *mx = addrs;
+			printf("MX %s: %s pref=%u ttl=%d\n", n, mx[i].name,
+				mx[i].pref, ttl);
+		} else if (type == DNS_TXT) {
+			struct evdns_reply_txt *txt = addrs;
+			printf("TXT %s: %s parts=%u ttl=%d\n", n,
+				txt[i].parts == 1 ? txt[i].text : "",
+				txt[i].parts, ttl);
+			if (txt[i].parts > 1) {
+				char *part = txt[i].text;
+				for (int j = 0; j < txt[i].parts; ++j) {
+					printf("\tpart=%d \"%s\"\n", j, part);
+					part += strlen(part) + 1; // skip '/0'
+				}
+			}
+		} else if (type == DNS_SRV) {
+			struct evdns_reply_srv *srv = addrs;
+			printf("SRV %s: %s priority=%u weight=%u port=%u ttl=%d\n",
+				n, srv[i].name, srv[i].priority, srv[i].weight,
+				srv[i].port, ttl);
+		} else {
+			printf("Unknown type: %d\n", type);
 		}
 	}
 	if (!count) {
@@ -115,25 +147,103 @@ static void
 evdns_server_callback(struct evdns_server_request *req, void *data)
 {
 	int i, r;
+	char label1[EVDNS_NAME_MAX + 1];
+	char label2[EVDNS_NAME_MAX + 1];
 	(void)data;
-	/* dummy; give 192.168.11.11 as an answer for all A questions,
-	 *	give foo.bar.example.com as an answer for all PTR questions. */
 	for (i = 0; i < req->nquestions; ++i) {
-		u32 ans = htonl(0xc0a80b0bUL);
 		if (req->questions[i]->type == EVDNS_TYPE_A &&
 		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give 192.168.11.11 as an answer for all A questions */
+			u32 ans = htonl(0xc0a80b0bUL);
 			printf(" -- replying for %s (A)\n", req->questions[i]->name);
 			r = evdns_server_request_add_a_reply(req, req->questions[i]->name,
 										  1, &ans, 10);
 			if (r<0)
-				printf("eeep, didn't work.\n");
+				printf("eeep, A didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_NS &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give ns1.example.com and ns2.example.com as an answer for all NS questions */
+			printf(" -- replying for %s (NS)\n", req->questions[i]->name);
+			r = evdns_server_request_add_ns_reply(req, req->questions[i]->name,
+				"ns1.example.com", 100);
+			if (r<0) printf("eeep, NS1 didn't work.\n");
+			r = evdns_server_request_add_ns_reply(req, req->questions[i]->name,
+				"ns2.example.com", 200);
+			if (r<0) printf("eeep, NS2 didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_CNAME &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give example.com as an answer for www.example.com CNAME questions */
+			if (!strncasecmp(req->questions[i]->name, "www.", 4)) {
+				printf(" -- replying for %s (CNAME)\n", req->questions[i]->name);
+				r = evdns_server_request_add_cname_reply(req, req->questions[i]->name,
+					req->questions[i]->name + 4, 300);
+				if (r<0) printf("eeep, CNAME didn't work.\n");
+			}
+		} else if (req->questions[i]->type == EVDNS_TYPE_SOA &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give ns1.example.com and admin@example.com as an answer for all SOA questions */
+			struct evdns_reply_soa soa = {
+				.nsname = label1,
+				.email = label2,
+				.serial = 2024120233,
+				.refresh = 7200, // 2h
+				.retry = 3600, // 1h
+				.expire = 1209600 , // 14d
+				.minimum = 3600, // 1h
+			};
+			snprintf(label1, EVDNS_NAME_MAX, "%s", "ns1.example.com");
+			snprintf(label2, EVDNS_NAME_MAX, "%s", "admin.example.com");
+			printf(" -- replying for %s (SOA)\n", req->questions[i]->name);
+			r = evdns_server_request_add_soa_reply(req, req->questions[i]->name,
+				&soa, 0, soa.minimum);
+			if (r<0) printf("eeep, SOA didn't work.\n");
 		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
 		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give foo.bar.example.com as an answer for all PTR questions. */
 			printf(" -- replying for %s (PTR)\n", req->questions[i]->name);
 			r = evdns_server_request_add_ptr_reply(req, NULL, req->questions[i]->name,
 											"foo.bar.example.com", 10);
 			if (r<0)
 				printf("ugh, no luck");
+		} else if (req->questions[i]->type == EVDNS_TYPE_MX &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give mx1.example.com and mx2.example.com as an answer for all MX questions */
+			struct evdns_reply_mx mx1 = {.name = label1,.pref = 10};
+			struct evdns_reply_mx mx2 = {.name = label2,.pref = 20};
+			snprintf(label1, EVDNS_NAME_MAX, "%s", "mx1.example.com");
+			snprintf(label2, EVDNS_NAME_MAX, "%s", "mx2.example.com");
+			printf(" -- replying for %s (MX)\n", req->questions[i]->name);
+			r = evdns_server_request_add_mx_reply(req, req->questions[i]->name, &mx1, 600);
+			if (r<0) printf("eeep, MX1 didn't work.\n");
+			r = evdns_server_request_add_mx_reply(req, req->questions[i]->name, &mx2, 1200);
+			if (r<0) printf("eeep, MX2 didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_TXT &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give spf and two parts text as an answer for all TXT questions */
+			struct evdns_reply_txt txt1 = {.parts = 1, .text = label1 };
+			struct evdns_reply_txt txt2 = {.parts = 2, .text = label2 };
+			snprintf(label1, EVDNS_NAME_MAX, "%s", "v=spf1 +a +mx -all");
+			snprintf(label2, EVDNS_NAME_MAX, "%s%c%s", "part1=hello world",
+				'\0',"part2=second part");
+			printf(" -- replying for %s (TXT)\n", req->questions[i]->name);
+			r = evdns_server_request_add_txt_reply(req, req->questions[i]->name, &txt1, 600);
+			if (r<0) printf("eeep, TXT1 didn't work.\n");
+			r = evdns_server_request_add_txt_reply(req, req->questions[i]->name, &txt2, 1200);
+			if (r<0) printf("eeep, TXT2 didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_SRV &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
+		/* give 5 0 .example.com and mx2.example.com as an answer for all MX questions */
+			struct evdns_reply_srv srv = { .name = label1 };
+			if (!strcmp(req->questions[i]->name,"_ldap._tcp.example.com")) {
+				srv.priority = 1; srv.weight = 0; srv.port = 389;
+				snprintf(label1, EVDNS_NAME_MAX, "%s", "ldap.example.com");
+			} else if (!strcmp(req->questions[i]->name,"_rsync._tcp.example.com")) {
+				srv.priority = 5; srv.weight = 10; srv.port = 873;
+				snprintf(label1, EVDNS_NAME_MAX, "%s", "storage.example.com");
+			} else continue;
+			printf(" -- replying for %s (SRV)\n", req->questions[i]->name);
+			r = evdns_server_request_add_srv_reply(req, req->questions[i]->name, &srv, 600);
+			if (r<0) printf("eeep, SRV didn't work.\n");
 		} else {
 			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
 				   req->questions[i]->type, req->questions[i]->dns_question_class);
@@ -162,6 +272,7 @@ main(int c, char **v) {
 		int servertest;
 		const char *resolv_conf;
 		const char *ns;
+		int resolve_type;
 	};
 	struct options o;
 	int opt;
@@ -171,12 +282,12 @@ main(int c, char **v) {
 	memset(&o, 0, sizeof(o));
 
 	if (c < 2) {
-		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] hostname\n", v[0]);
+		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] [-t type] hostname\n", v[0]);
 		fprintf(stderr, "syntax: %s [-T]\n", v[0]);
 		return 1;
 	}
 
-	while ((opt = getopt(c, v, "xvc:Ts:g")) != -1) {
+	while ((opt = getopt(c, v, "xvc:Ts:t:g")) != -1) {
 		switch (opt) {
 			case 'x': o.reverse = 1; break;
 			case 'v': ++verbose; break;
@@ -184,6 +295,17 @@ main(int c, char **v) {
 			case 'T': o.servertest = 1; break;
 			case 'c': o.resolv_conf = optarg; break;
 			case 's': o.ns = optarg; break;
+			case 't':
+				if (!strcasecmp(optarg, "A")) o.resolve_type = DNS_IPv4_A;
+				// else if (!strcasecmp(optarg, "AAAA")) o.resolve_type = DNS_IPv6_AAAA;
+				else if (!strcasecmp(optarg, "NS")) o.resolve_type = DNS_NS;
+				else if (!strcasecmp(optarg, "CNAME")) o.resolve_type = DNS_CNAME;
+				else if (!strcasecmp(optarg, "SOA")) o.resolve_type = DNS_SOA;
+				else if (!strcasecmp(optarg, "MX")) o.resolve_type = DNS_MX;
+				else if (!strcasecmp(optarg, "TXT")) o.resolve_type = DNS_TXT;
+				else if (!strcasecmp(optarg, "SRV")) o.resolve_type = DNS_SRV;
+				else fprintf(stderr, "Unknown -%c value %s\n", opt, optarg);
+				break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
 	}
@@ -265,6 +387,38 @@ main(int c, char **v) {
 			fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
 			evdns_getaddrinfo(evdns_base, v[optind], NULL, &hints,
 			    gai_callback, v[optind]);
+		} else if (o.resolve_type != 0) {
+			switch(o.resolve_type) {
+			case DNS_IPv4_A:
+				fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_ipv4(evdns_base, v[optind], DNS_CNAME_CALLBACK, main_callback, v[optind]);
+				break;
+			case DNS_NS:
+				fprintf(stderr, "resolving NS (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_ns(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_CNAME:
+				fprintf(stderr, "resolving CNAME (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_cname(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_SOA:
+				fprintf(stderr, "resolving SOA (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_soa(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_MX:
+				fprintf(stderr, "resolving MX (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_mx(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_TXT:
+				fprintf(stderr, "resolving TXT (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_txt(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			case DNS_SRV:
+				fprintf(stderr, "resolving SRV (fwd) %s...\n",v[optind]);
+				evdns_base_resolve_srv(evdns_base, v[optind], 0, main_callback, v[optind]);
+				break;
+			default: fprintf(stderr, "Unknown resolve type %d\n", o.resolve_type);
+			}
 		} else {
 			fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
 			evdns_base_resolve_ipv4(evdns_base, v[optind], DNS_CNAME_CALLBACK, main_callback, v[optind]);
