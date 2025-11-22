@@ -5412,9 +5412,27 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 	}
 	if (res) {
 		cache = mm_calloc(1, sizeof(struct evdns_cache));
+		if (!cache) {
+		    event_warn("%s: mm_calloc failed", __func__);
+		    EVDNS_UNLOCK(dns_base);
+		    return;
+		}
 		cache->base = dns_base;
 		cache->name = mm_strdup(nodename);
+		if (!cache->name) {
+		    event_warn("%s: mm_strdup failed", __func__);
+		    mm_free(cache);
+		    EVDNS_UNLOCK(dns_base);
+		    return;
+		}
 		cache->ai = evutil_dup_addrinfo_(res);
+		if (!cache->ai) {
+		    event_warn("%s: evutil_dup_addrinfo_ failed", __func__);
+		    mm_free(cache->name);
+		    mm_free(cache);
+		    EVDNS_UNLOCK(dns_base);
+		    return NULL;
+		}
 		SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
 		evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
 		timerclear(&tv);

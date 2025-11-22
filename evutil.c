@@ -1789,9 +1789,18 @@ evutil_dup_addrinfo_(struct evutil_addrinfo *ai)
 	for (; ai; ai = ai->ai_next) {
 		int len = sizeof(struct evutil_addrinfo) + ai->ai_addrlen;
 		struct evutil_addrinfo *n = mm_calloc(1, len);
+		if (!n) {
+		    event_warn("%s: mm_calloc failed", __func__);
+		    return NULL;
+		}
 		memcpy(n, ai, len);
 		if (ai->ai_canonname) {
 			n->ai_canonname = mm_strdup(ai->ai_canonname);
+			if (!n->ai_canonname) {
+			    event_warn("%s: mm_strdup failed", __func__);
+			    mm_free(n);
+			    return NULL;
+			}
 		}
 		n->ai_addr = (struct sockaddr*)(((char*)n) + sizeof(struct evutil_addrinfo));
 		if (!first) {
