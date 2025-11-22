@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Based on software by Adam Langly. Adam's original message:
+/* Based on software by Adam Langley. Adam's original message:
  *
  * Async DNS Library
  * Adam Langley <agl@imperialviolet.org>
