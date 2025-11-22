@@ -2622,7 +2622,7 @@ evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len)
 	return search;
 }
 
-/* Subract <b>howfar</b> from the position of <b>pos</b> within
+/* Subtract <b>howfar</b> from the position of <b>pos</b> within
  * <b>buf</b>. Returns 0 on success, -1 on failure.
  *
  * This isn't exposed yet, because of potential inefficiency issues.

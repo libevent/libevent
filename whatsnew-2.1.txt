@@ -258,7 +258,7 @@
 
   A finalized event cannot be re-added or activated.  The finalizer
   callback must not add events, activate events, or attempt to
-  "resucitate" the event being finalized in any way.
+  "resuscitate" the event being finalized in any way.
 
   If any finalizer callbacks are pending as the event_base is being
   freed, they will be invoked.  You can override this behavior with the
@@ -544,7 +544,7 @@
 
 2.3. Microoptimizations
 
-  Internal event list maintainance no longer use the antipattern where
+  Internal event list maintenance no longer use the antipattern where
   we have one function with multiple totally independent behaviors
   depending on an argument:
       #define OP1 1
