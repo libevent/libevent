@@ -565,6 +565,7 @@ create_bev(struct event_base *base, evutil_socket_t fd, int ssl_mask, int flags_
 	} else if (ssl_mask & HTTP_MBEDTLS) {
 #ifdef EVENT__HAVE_MBEDTLS
 		mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(get_mbedtls_config(MBEDTLS_SSL_IS_CLIENT));
+		mbedtls_ssl_set_hostname(ssl, "example.com");
 		if (ssl_mask & HTTP_SSL_FILTER) {
 			struct bufferevent *underlying =
 			  bufferevent_socket_new(base, fd, flags);

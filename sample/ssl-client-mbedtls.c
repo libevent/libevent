@@ -26,13 +26,17 @@
 #include <mbedtls/config.h>
 #include <mbedtls/certs.h>
 #endif
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#else
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
+#endif
 #include <mbedtls/platform.h>
 
 #include <mbedtls-compat.h>
 #include <mbedtls/debug.h>
 #include <mbedtls/ssl.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
 #include <mbedtls/error.h>
 
 #include <string.h>
@@ -142,10 +146,12 @@ main(void)
 {
 	int ret;
 	mbedtls_net_context server_fd;
-	const char *pers = "ssl_client1";
 
+#if MBEDTLS_VERSION_MAJOR < 4
+	const char *pers = "ssl_client1";
 	mbedtls_entropy_context entropy;
 	mbedtls_ctr_drbg_context ctr_drbg;
+#endif
 	mbedtls_dyncontext* ssl;
 	mbedtls_ssl_config conf;
 	mbedtls_x509_crt cacert;
@@ -179,6 +185,10 @@ main(void)
 	mbedtls_net_init(&server_fd);
 	mbedtls_ssl_config_init(&conf);
 	mbedtls_x509_crt_init(&cacert);
+
+#if MBEDTLS_VERSION_MAJOR >= 4
+	psa_crypto_init();
+#else
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
 	mbedtls_printf("\n  . Seeding the random number generator...");
@@ -192,6 +202,7 @@ main(void)
 	}
 
 	mbedtls_printf(" ok\n");
+#endif
 
 	/*
 	 * 0. Initialize certificates
@@ -242,7 +253,9 @@ main(void)
 	 * but makes interop easier in this simplified example */
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+#endif
 	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 
 	ssl = bufferevent_mbedtls_dyncontext_new(&conf);
@@ -288,8 +301,10 @@ exit:
 
 	mbedtls_x509_crt_free(&cacert);
 	mbedtls_ssl_config_free(&conf);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_entropy_free(&entropy);
+#endif
 
 #if defined(_WIN32)
 	mbedtls_printf("  + Press Enter to exit this program.\n");

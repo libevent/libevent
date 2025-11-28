@@ -12,7 +12,11 @@
 #  pragma GCC diagnostic ignored "-Wcpp"
 # endif
 
+#if MBEDTLS_VERSION_MAJOR >= 4
+# include <mbedtls/compat-3-crypto.h>
+#else
 # include <mbedtls/compat-2.x.h>
+#endif
 
 # if defined(__clang__)
 #  pragma clang diagnostic pop

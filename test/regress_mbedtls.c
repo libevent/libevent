@@ -29,8 +29,12 @@
 #include "event2/util.h"
 #include <mbedtls/version.h>
 #include <mbedtls/ssl.h>
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#else
 #include <mbedtls/entropy.h>
 #include <mbedtls/ctr_drbg.h>
+#endif
 #include <mbedtls/debug.h>
 #include "regress.h"
 #include "tinytest.h"
@@ -79,11 +83,14 @@ static void *mbedtls_test_setup(const struct testcase_t *testcase);
 static int mbedtls_test_cleanup(const struct testcase_t *testcase, void *ptr);
 const struct testcase_setup_t mbedtls_setup = {
 	mbedtls_test_setup, mbedtls_test_cleanup};
+#define SSL_SET_HOSTNAME(ssl) mbedtls_ssl_set_hostname((ssl), "example.com")
 #define ssl_setup mbedtls_setup
 #include "regress_ssl.c"
 static mbedtls_ssl_config *the_mbedtls_conf[2] = {NULL, NULL};
+#if MBEDTLS_VERSION_MAJOR < 4
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
+#endif
 static mbedtls_x509_crt *the_cert;
 static mbedtls_pk_context *the_key;
 
@@ -98,6 +105,7 @@ mbedtls_debug(
 		line, loglen, str));
 }
 
+#if MBEDTLS_VERSION_MAJOR < 4
 static int
 mbedtls_rng(void* ctx, unsigned char* buffer, size_t len)
 {
@@ -111,6 +119,7 @@ mbedtls_rng(void* ctx, unsigned char* buffer, size_t len)
 	evutil_secure_rng_get_bytes(buffer, len);
 	return 0;
 }
+#endif
 
 static mbedtls_pk_context *
 mbedtls_getkey(void)
@@ -122,7 +131,7 @@ mbedtls_getkey(void)
 	ret = mbedtls_pk_parse_key(pk,
 		(const unsigned char *)KEY, sizeof(KEY),
 		NULL, 0
-#if MBEDTLS_VERSION_MAJOR >= 3
+#if MBEDTLS_VERSION_MAJOR >= 3 && MBEDTLS_VERSION_MAJOR < 4
 		, mbedtls_rng, NULL
 #endif
 		);
@@ -156,7 +165,6 @@ mbedtls_getcert(mbedtls_pk_context *pk)
 {
 	const char *name = "commonName=example.com";
 	time_t now = time(NULL);
-	char now_string[32] = "";
 	char not_before[32] = "";
 	char not_after[32] = "";
 	unsigned char certbuf[8192];
@@ -164,10 +172,19 @@ mbedtls_getcert(mbedtls_pk_context *pk)
 	mbedtls_x509_crt *crt = NULL;
 	int ret = 0;
 
+#if MBEDTLS_VERSION_MAJOR >= 4
+	unsigned char serial_buf[8];
+	uint64_t serial_val = (uint64_t)now;
+	int i;
+#else
+	char now_string[32] = "";
 	mbedtls_mpi serial;
+#endif
 	mbedtls_x509write_cert write_cert;
 
+#if MBEDTLS_VERSION_MAJOR < 4
 	snprintf(now_string, sizeof(now_string), "%lld", (long long)now);
+#endif
 
 	create_tm_from_unix_epoch(&tm, now);
 	strftime(not_before, sizeof(not_before), "%Y%m%d%H%M%S", &tm);
@@ -178,12 +195,22 @@ mbedtls_getcert(mbedtls_pk_context *pk)
 	mbedtls_x509write_crt_init(&write_cert);
 	mbedtls_x509write_crt_set_version(&write_cert, 2);
 
+#if MBEDTLS_VERSION_MAJOR >= 4
+	for (i = 7; i >= 0; i--) {
+		serial_buf[i] = serial_val & 0xff;
+		serial_val >>= 8;
+	}
+	ret = mbedtls_x509write_crt_set_serial_raw(&write_cert, serial_buf,
+		sizeof(serial_buf));
+	tt_assert(ret == 0);
+#else
 	mbedtls_mpi_init(&serial);
 	ret = mbedtls_mpi_read_string(&serial, 10, now_string);
 	tt_assert(ret == 0);
 	ret = mbedtls_x509write_crt_set_serial(&write_cert, &serial);
 	tt_assert(ret == 0);
 	mbedtls_mpi_free(&serial);
+#endif
 
 	ret = mbedtls_x509write_crt_set_subject_name(&write_cert, name);
 	tt_assert(ret == 0);
@@ -198,11 +225,15 @@ mbedtls_getcert(mbedtls_pk_context *pk)
 	mbedtls_x509write_crt_set_issuer_key(&write_cert, pk);
 	mbedtls_x509write_crt_set_subject_key(&write_cert, pk);
 
+#if MBEDTLS_VERSION_MAJOR >= 4
+	ret = mbedtls_x509write_crt_pem(&write_cert, certbuf, sizeof(certbuf));
+#else
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
 		(const unsigned char *)name, strlen(name));
 	tt_assert(ret == 0);
 	ret = mbedtls_x509write_crt_pem(&write_cert, certbuf, sizeof(certbuf),
 		mbedtls_ctr_drbg_random, &ctr_drbg);
+#endif
 	tt_assert(ret == 0);
 	mbedtls_x509write_crt_free(&write_cert);
 
@@ -235,8 +266,10 @@ get_mbedtls_config(int endpoint)
 		(void *)(endpoint == MBEDTLS_SSL_IS_SERVER ? "server" : "client"));
 	mbedtls_ssl_config_defaults(the_mbedtls_conf[endpoint], endpoint,
 		MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ssl_conf_rng(
 		the_mbedtls_conf[endpoint], mbedtls_ctr_drbg_random, &ctr_drbg);
+#endif
 #if MBEDTLS_VERSION_MAJOR < 3
 	/* Mbed-TLS 3 doesn't support anything below TLS v1.2 */
 	if (disable_tls_11_and_12) {
@@ -264,10 +297,14 @@ mbedtls_test_setup(const struct testcase_t *testcase)
 {
 	init_mbedtls();
 
+#if MBEDTLS_VERSION_MAJOR >= 4
+	psa_crypto_init();
+#else
 	mbedtls_entropy_init(&entropy);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 	mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy,
 		(const unsigned char *)"libevent", sizeof("libevent"));
+#endif
 
 	the_key = mbedtls_getkey();
 	EVUTIL_ASSERT(the_key);
