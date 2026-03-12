@@ -97,7 +97,7 @@
 #include "../evthread-internal.h"
 
 struct evutil_weakrand_state test_weakrand_state;
-
+#define PATH_MAX 1024
 long
 timeval_msec_diff(const struct timeval *start, const struct timeval *end)
 {
