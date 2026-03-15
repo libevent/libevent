@@ -180,6 +180,9 @@ do_fd_clear(struct event_base *base,
 void *
 win32_init(struct event_base *base)
 {
+	WSADATA wsaData;
+	if(WSAStartup(MAKEWORD(2, 2), &wsaData)!=0)
+		return NULL;
 	struct win32op *winop;
 	size_t size;
 	if (!(winop = mm_calloc(1, sizeof(struct win32op))))
