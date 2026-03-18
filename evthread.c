@@ -175,6 +175,7 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 		evthread_cond_fns_.alloc_condition = cbs->alloc_condition;
 		evthread_cond_fns_.free_condition = cbs->free_condition;
 		evthread_cond_fns_.signal_condition = cbs->signal_condition;
+		evthread_cond_fns_.wait_condition = cbs->wait_condition;
 	}
 	return 0;
 }
