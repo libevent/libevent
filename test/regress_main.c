@@ -25,6 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "util-internal.h"
+#include <limits.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
