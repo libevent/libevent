@@ -317,6 +317,7 @@ libevent_mbedtls_la_CPPFLAGS = $(AM_CPPFLAGS) $(MBEDTLS_INCS)
 endif
 
 noinst_HEADERS +=				\
+	WIN32-Code/stdatomic.h		\
 	WIN32-Code/getopt.h			\
 	WIN32-Code/getopt.c			\
 	WIN32-Code/getopt_long.c	\
@@ -350,7 +351,7 @@ noinst_HEADERS +=				\
 	openssl-compat.h			\
 	mbedtls-compat.h			\
 	sha1.h						\
-	ssl-compat.h			    \
+	ssl-compat.h				\
 	wepoll.h
 
 EVENT1_HDRS = \
