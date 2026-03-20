@@ -566,6 +566,35 @@ end:
 	;
 }
 
+#define N_PARALLEL_BASES 20
+
+static THREAD_FN
+create_base_thread(void *arg)
+{
+	struct event_base *base;
+	struct event ev;
+
+	base = event_base_new();
+	assert(base);
+	event_assign(&ev, base, -1, 0, NULL, NULL);
+	event_add(&ev, NULL);
+	event_del(&ev);
+	event_base_free(base);
+	THREAD_RETURN();
+}
+
+static void
+thread_debug_mode_too_late_race(void *arg)
+{
+	THREAD_T threads[N_PARALLEL_BASES];
+	int i;
+
+	for (i = 0; i < N_PARALLEL_BASES; ++i)
+		THREAD_START(threads[i], create_base_thread, NULL);
+	for (i = 0; i < N_PARALLEL_BASES; ++i)
+		THREAD_JOIN(threads[i]);
+}
+
 #define TEST(name, f)							\
 	{ #name, thread_##name, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE|(f),	\
 	  &basic_setup, NULL }
@@ -590,6 +619,8 @@ struct testcase_t thread_testcases[] = {
 	 ******/
 	TEST(no_events, TT_RETRIABLE),
 #endif
+	{ "debug_mode_too_late_race", thread_debug_mode_too_late_race,
+	  TT_FORK|TT_NEED_THREADS, &basic_setup, NULL },
 	END_OF_TESTCASES
 };
 
