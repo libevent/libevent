@@ -27,6 +27,7 @@
 #define MM_INTERNAL_H_INCLUDED_
 
 #include <sys/types.h>
+#include <event2/visibility.h>
 
 #ifdef __cplusplus
 extern "C" {

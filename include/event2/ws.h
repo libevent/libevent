@@ -1,6 +1,10 @@
 #ifndef EVENT2_WS_H_INCLUDED_
 #define EVENT2_WS_H_INCLUDED_
 
+#include <event2/visibility.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
