@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
+        os: [ubuntu-22.04]
         EVENT_MATRIX:
           - DIST
           - NONE
@@ -47,16 +47,9 @@ jobs:
           - COMPILER_CLANG
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
-        include:
-          - os: ubuntu-22.04
-            EVENT_MATRIX: OPENSSL_3
-          # use recent ubuntu with recent clang for recent sanitizers
-          - os: ubuntu-22.04
-            EVENT_MATRIX: TSAN
-          - os: ubuntu-22.04
-            EVENT_MATRIX: ASAN
-          - os: ubuntu-22.04
-            EVENT_MATRIX: UBSAN
+          - TSAN
+          - ASAN
+          - UBSAN
 
     steps:
       - uses: actions/checkout@v4
@@ -988,12 +981,11 @@ jobs:
           path: build
 
   apple-cmake-job:
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     if: "!contains(github.event.head_commit.message, 'ci/macos skip') && !contains(github.event.head_commit.message, 'ci/macos/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
         EVENT_MATRIX:
           - iphoneos
           - appletvos
@@ -1008,7 +1000,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
+          key: cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -1019,9 +1011,14 @@ jobs:
         shell: bash
         run: |
           CMAKE_OSX_SYSROOT="${{ matrix.EVENT_MATRIX }}"
+          case "$CMAKE_OSX_SYSROOT" in
+            watchos)  CMAKE_OSX_DEPLOYMENT_TARGET="7.0" ;;
+            xros)     CMAKE_OSX_DEPLOYMENT_TARGET="1.0" ;;
+            *)        CMAKE_OSX_DEPLOYMENT_TARGET="14.0" ;;
+          esac
 
-          echo [cmake]: cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT
-          cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT)
+          echo [cmake]: cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT -D CMAKE_OSX_DEPLOYMENT_TARGET=$CMAKE_OSX_DEPLOYMENT_TARGET
+          cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT -D CMAKE_OSX_DEPLOYMENT_TARGET=$CMAKE_OSX_DEPLOYMENT_TARGET || (rm -rf build && cmake -B build -G Xcode -D CMAKE_OSX_SYSROOT=$CMAKE_OSX_SYSROOT -D CMAKE_OSX_DEPLOYMENT_TARGET=$CMAKE_OSX_DEPLOYMENT_TARGET)
           cmake --build build -t event_static
 
   android-cmake-job:
