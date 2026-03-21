@@ -239,6 +239,19 @@ HT_PROTOTYPE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
     eq_debug_entry, 0.5, mm_malloc, mm_realloc, mm_free)
 
+static void event_debug_mode_too_late_set(void)
+{
+	/* event_base_new_with_config() should have already set event_debug_mode_too_late under lock */
+#ifndef EVENT__DISABLE_DEBUG_MODE
+	if (!event_debug_mode_too_late) {
+		EVLOCK_LOCK(event_debug_map_lock_, 0);
+		if (!event_debug_mode_too_late)
+			event_debug_mode_too_late = 1;
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+	}
+#endif
+}
+
 /* record that ev is now setup (that is, ready for an add) */
 static void event_debug_note_setup_(const struct event *ev)
 {
@@ -264,7 +277,7 @@ static void event_debug_note_setup_(const struct event *ev)
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
 
 out:
-	event_debug_mode_too_late = 1;
+	event_debug_mode_too_late_set();
 }
 /* record that ev is no longer setup */
 static void event_debug_note_teardown_(const struct event *ev)
@@ -282,7 +295,7 @@ static void event_debug_note_teardown_(const struct event *ev)
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
 
 out:
-	event_debug_mode_too_late = 1;
+	event_debug_mode_too_late_set();
 }
 /* Macro: record that ev is now added */
 static void event_debug_note_add_(const struct event *ev)
@@ -308,7 +321,7 @@ static void event_debug_note_add_(const struct event *ev)
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
 
 out:
-	event_debug_mode_too_late = 1;
+	event_debug_mode_too_late_set();
 }
 /* record that ev is no longer added */
 static void event_debug_note_del_(const struct event *ev)
@@ -334,7 +347,7 @@ static void event_debug_note_del_(const struct event *ev)
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
 
 out:
-	event_debug_mode_too_late = 1;
+	event_debug_mode_too_late_set();
 }
 /* assert that ev is setup (i.e., okay to add or inspect) */
 static void event_debug_assert_is_setup_(const struct event *ev)
@@ -614,9 +627,12 @@ event_base_new_with_config(const struct event_config *cfg)
 	int i;
 	struct event_base *base;
 	int should_check_environment;
-
+	/* event_base_new_with_config() should always be first to set event_debug_mode_too_late */
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	event_debug_mode_too_late = 1;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	if (!event_debug_mode_too_late)
+			event_debug_mode_too_late = 1;
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
 #endif
 
 	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL) {
