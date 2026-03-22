@@ -264,14 +264,16 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Prepare vcpkg
-        # Newer versions expect a vcpkg manifest, so stick to v7, that could handle vcpkgArguments
         uses: lukka/run-vcpkg@v11
         id: runvcpkg
         with:
-          vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
-          vcpkgTriplet: x64-windows
           vcpkgGitCommitId: 74e6536215718009aae747d86d84b78376bf9e09  # 2025.10.17
+
+      - name: Install vcpkg packages
+        run: >-
+          ${{ runner.workspace }}/vcpkg/vcpkg install
+          zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
 
       - name: Build
         shell: powershell
