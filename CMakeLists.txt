@@ -437,6 +437,7 @@ if (WIN32)
         winsock2.h
         ws2tcpip.h
         afunix.h
+        bcrypt.h
     )
 else()
     list(APPEND FILES_TO_CHECK
@@ -525,6 +526,7 @@ if (WIN32)
     list(APPEND SYMBOLS_TO_CHECK
         _gmtime64
         _gmtime64_s
+        BCryptGenRandom
     )
 else()
     list(APPEND SYMBOLS_TO_CHECK

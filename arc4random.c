@@ -52,7 +52,11 @@
 #ifndef ARC4RANDOM_NO_INCLUDES
 #include "evconfig-private.h"
 #ifdef _WIN32
+#ifndef EVENT__HAVE_BCRYPTGENRANDOM
+#include <wincrypt.h>
+#else
 #include <bcrypt.h>
+#endif
 #include <process.h>
 #include <winerror.h>
 #else
@@ -153,9 +157,25 @@ static int
 arc4_seed_win32(void)
 {
 	unsigned char buf[ADD_ENTROPY];
+#ifndef EVENT__HAVE_BCRYPTGENRANDOM
+	/* This is adapted from Tor's crypto_seed_rng() */
+	static int provider_set = 0;
+	static HCRYPTPROV provider;
+
+	if (!provider_set) {
+		if (!CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL,
+			CRYPT_VERIFYCONTEXT)) {
+			if (GetLastError() != (DWORD)NTE_BAD_KEYSET)
+				return -1;
+		}
+		provider_set = 1;
+	}
+	if (!CryptGenRandom(provider, sizeof(buf), buf))
+#else
 
 	if (BCryptGenRandom(NULL, buf, sizeof(buf),
 		BCRYPT_USE_SYSTEM_PREFERRED_RNG))
+#endif
 		return -1;
 	arc4_addrandom(buf, sizeof(buf));
 	evutil_memclear_(buf, sizeof(buf));
