@@ -1,4 +1,5 @@
 #include <event2/event.h>
+#include <stdlib.h>
 #if defined(EVENT_EXPORT_TEST_COMPONENT_EXTRA)
 #include "event2/http.h"
 #include "event2/rpc.h"
