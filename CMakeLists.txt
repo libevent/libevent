@@ -437,6 +437,7 @@ if (WIN32)
         winsock2.h
         ws2tcpip.h
         afunix.h
+        bcrypt.h
     )
 else()
     list(APPEND FILES_TO_CHECK
