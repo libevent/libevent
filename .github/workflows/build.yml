@@ -1092,18 +1092,8 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: AVD cache
-        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
-        uses: actions/cache@v4
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ matrix.EVENT_MATRIX }}
-
       - name: AVD Image
-        if: matrix.EVENT_MATRIX == 'x86_64-linux-android' && steps.avd-cache.outputs.cache-hit != 'true'
+        if: matrix.EVENT_MATRIX == 'x86_64-linux-android'
         run: |
           sdkmanager "$AVD_IMAGE"
           sdkmanager --licenses
