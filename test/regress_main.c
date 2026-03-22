@@ -25,6 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "util-internal.h"
+#include <limits.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -132,10 +133,15 @@ int
 regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 {
 #ifndef _WIN32
-	char tmpfilename[32];
+	char tmpfilename[PATH_MAX];
 	int fd;
+	const char *tmpdir = getenv("TMPDIR");
 	*filename_out = NULL;
-	strcpy(tmpfilename, "/tmp/eventtmp.XXXXXX");
+	// Fallback if TMPDIR is not set
+	if (!tmpdir || *tmpdir == '\0') {
+		tmpdir = "/tmp";
+	}
+	snprintf(tmpfilename, sizeof(tmpfilename), "%s/eventtmp.XXXXXX", tmpdir);
 #ifdef EVENT__HAVE_UMASK
 	umask(0077);
 #endif

@@ -40,10 +40,15 @@
 #include <event2/http.h>
 
 #ifdef USE_MBEDTLS
+#include <mbedtls/version.h>
 #include <mbedtls/error.h>
 #include <mbedtls/ssl.h>
+#if MBEDTLS_VERSION_MAJOR >= 4
+#include <psa/crypto.h>
+#else
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
+#endif
 #else
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -276,8 +281,10 @@ main(int argc, char **argv)
 #ifdef USE_MBEDTLS
 	mbedtls_dyncontext* ssl = NULL;
 	mbedtls_ssl_config config;
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ctr_drbg_context ctr_drbg;
 	mbedtls_entropy_context entropy;
+#endif
 	mbedtls_x509_crt cacert;
 #else
 	SSL_CTX *ssl_ctx = NULL;
@@ -294,8 +301,10 @@ main(int argc, char **argv)
 
 #ifdef USE_MBEDTLS
 	mbedtls_x509_crt_init(&cacert);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 	mbedtls_entropy_init(&entropy);
+#endif
 	mbedtls_ssl_config_init(&config);
 #else
 	enum { HTTP, HTTPS } type = HTTP;
@@ -408,10 +417,15 @@ main(int argc, char **argv)
 	uri[sizeof(uri) - 1] = '\0';
 
 #ifdef USE_MBEDTLS
+#if MBEDTLS_VERSION_MAJOR >= 4
+	psa_crypto_init();
+#else
 	mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)"libevent", sizeof("libevent"));
+#endif
 	mbedtls_ssl_config_defaults(&config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ssl_conf_rng(&config, mbedtls_ctr_drbg_random, &ctr_drbg);
-
+#endif
 	if (crt == NULL) {
 		/* mbedtls has no function to read system CA certificates.
 		 * so if there is no crt, we skip cert verify
@@ -638,7 +652,9 @@ cleanup:
 
 #ifdef USE_MBEDTLS
 	mbedtls_ssl_config_free(&config);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ctr_drbg_free(&ctr_drbg);
+#endif
 	mbedtls_x509_crt_free(&cacert);
 #else
 	if (ssl_ctx)

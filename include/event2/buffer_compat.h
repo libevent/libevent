@@ -27,6 +27,7 @@
 #ifndef EVENT2_BUFFER_COMPAT_H_INCLUDED_
 #define EVENT2_BUFFER_COMPAT_H_INCLUDED_
 
+#include <stddef.h>
 #include <event2/visibility.h>
 
 /** @file event2/buffer_compat.h

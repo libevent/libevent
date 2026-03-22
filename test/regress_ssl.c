@@ -92,6 +92,10 @@ static const char KEY[] =
     "lhdEOj7mAgHwGwwVZWOgs9Lq6vfztnSuhqjha1daESY6kDscPIQ=\n"
     "-----END RSA PRIVATE KEY-----\n";
 
+#ifndef SSL_SET_HOSTNAME
+#define SSL_SET_HOSTNAME(ssl) ((void)0)
+#endif
+
 static int disable_tls_11_and_12 = 0;
 static int disable_tls_13 = 0;
 static int test_is_done;
@@ -356,6 +360,7 @@ regress_bufferevent_openssl(void *arg)
 #endif
 
 	ssl1 = SSL_new(get_ssl_ctx(SSL_IS_CLIENT));
+	SSL_SET_HOSTNAME(ssl1);
 	ssl2 = SSL_new(get_ssl_ctx(SSL_IS_SERVER));
 
 	SSL_use_certificate(ssl2, the_cert);
@@ -529,6 +534,7 @@ regress_bufferevent_openssl_connect(void *arg)
 	tt_assert(evconnlistener_get_fd(listener) >= 0);
 
 	ssl = SSL_new(get_ssl_ctx(SSL_IS_CLIENT));
+	SSL_SET_HOSTNAME(ssl);
 	tt_assert(ssl);
 
 	bev = bufferevent_ssl_socket_new(
@@ -713,6 +719,7 @@ regress_bufferevent_openssl_wm(void *arg)
 	tt_assert(evconnlistener_get_fd(listener) >= 0);
 
 	ssl = SSL_new(get_ssl_ctx(SSL_IS_CLIENT));
+	SSL_SET_HOSTNAME(ssl);
 	tt_assert(ssl);
 
 	if (type & REGRESS_OPENSSL_FILTER) {
@@ -755,7 +762,7 @@ end:
 	bufferevent_free(client.bev);
 	bufferevent_free(server.bev);
 
-	/* XXX: by some reason otherise there is a leak */
+	/* XXX: by some reason otherwise there is a leak */
 	if (!(type & REGRESS_OPENSSL_FILTER))
 		event_base_loop(base, EVLOOP_ONCE);
 }

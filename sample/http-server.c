@@ -219,7 +219,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 		goto err;
 	/* Don't allow any ".."s in the path, to avoid exposing stuff outside
 	 * of the docroot.  This test is both overzealous and underzealous:
-	 * it forbids aceptable paths like "/this/one..here", but it doesn't
+	 * it forbids acceptable paths like "/this/one..here", but it doesn't
 	 * do anything to prevent symlink following." */
 	if (strstr(decoded_path, ".."))
 		goto err;

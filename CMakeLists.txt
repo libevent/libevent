@@ -19,7 +19,7 @@
 #       start libevent.sln
 #
 
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
@@ -291,16 +291,8 @@ if (${MSVC})
            ${msvc_static_runtime})
 
     if (EVENT__MSVC_STATIC_RUNTIME)
-        foreach (flag_var
-                 CMAKE_C_FLAGS_DEBUG
-                 CMAKE_C_FLAGS_RELEASE
-                 CMAKE_C_FLAGS_MINSIZEREL
-                 CMAKE_C_FLAGS_RELWITHDEBINFO
-        )
-            if (${flag_var} MATCHES "/MD")
-                string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-            endif()
-        endforeach()
+        cmake_policy(SET CMP0091 NEW)
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
 endif()
 
@@ -1350,7 +1342,7 @@ if (NOT EVENT__DISABLE_TESTS)
     # Test programs.
     #
     # all of these, including the cmakelists.txt should be moved
-    # into the dirctory 'tests' first.
+    # into the directory 'tests' first.
     #
     # doing this, we can remove all the DISABLE_TESTS stuff, and simply
     # do something like:

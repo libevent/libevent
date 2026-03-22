@@ -426,7 +426,7 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 
 #if defined(HAVE_WIN32_MONOTONIC)
 /* =====
-   Turn we now to Windows.  Want monontonic time on Windows?
+   Turn we now to Windows.  Want monotonic time on Windows?
 
    Windows has QueryPerformanceCounter(), which gives time most high-
    resolution time.  It's a pity it's not so monotonic in practice; it's

@@ -3786,7 +3786,7 @@ struct testcase_t evtag_testcases[] = {
 };
 
 /* Apparently there is a bug in OSX that leads to subsequent ALRM signal
- * delievered even though it_interval is set to 0, so let's retry the tests */
+ * delivered even though it_interval is set to 0, so let's retry the tests */
 #if defined(__APPLE__)
 #define RETRY_ON_DARWIN TT_RETRIABLE
 #else

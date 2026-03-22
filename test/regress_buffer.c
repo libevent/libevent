@@ -1195,7 +1195,7 @@ test_evbuffer_add_file(void *ptr)
 	}
 	if (strstr(impl, "offset_in_segment")) {
 		/* If offset_in_segment is set, we add a subsection of the
-		 * file semgment starting from a point other than byte 0 of
+		 * file segment starting from a point other than byte 0 of
 		 * the segment. */
 		view_from_offset = 1;
 	}

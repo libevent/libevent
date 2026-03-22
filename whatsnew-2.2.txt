@@ -63,7 +63,7 @@
 
 1.2. Ability to configure read/write buffer sizes for evbuffer/bufferevents
 
-  This allows to increase the IO throughtput.
+  This allows to increase the IO throughput.
 
   Here is some numbers for the single max read in evbuffer impact:
     function client() { becat "$@" | pv > /dev/null; }

@@ -137,7 +137,7 @@ struct evrpc_req_generic {
 	 */
 	struct evrpc_hook_meta *hook_meta;
 
-	/* the unmarshaled request object */
+	/* the unmarshalled request object */
 	void *request;
 
 	/* the empty reply object that needs to be filled in */

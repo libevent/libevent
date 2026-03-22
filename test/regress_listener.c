@@ -597,7 +597,11 @@ struct testcase_t listener_testcases[] = {
 
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
 	{ "reuseport_on_unix_socket", regress_listener_reuseport_on_unix_socket,
-		TT_FORK|TT_NEED_BASE,
+		TT_FORK|TT_NEED_BASE
+#ifdef __ANDROID__
+		|TT_SKIP
+#endif
+		,
 		&basic_setup, NULL, },
 #endif
 
