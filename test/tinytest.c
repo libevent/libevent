@@ -41,6 +41,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
+#include <poll.h>
 #endif
 
 #if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
@@ -480,28 +482,58 @@ tinytest_set_aliases(const struct testlist_alias_t *aliases)
 	cfg_aliases = aliases;
 }
 
-/* ====== Parallel test runner (Unix only) ====== */
-#if !defined(_WIN32) && !defined(NO_FORKING)
+/* ====== Parallel test runner ====== */
+#ifndef NO_FORKING
 
 struct parallel_slot {
-	pid_t pid;
 	char testname[LONGEST_TEST_NAME];
-	char tmppath[256];
+	char *output;
+	size_t output_len;
+	size_t output_cap;
+#ifdef _WIN32
+	HANDLE process;
+	HANDLE pipe_rd;
+#else
+	pid_t pid;
+	int pipe_fd;
+#endif
 };
 
 static void
-dump_file_(const char *path)
+par_buf_append_(struct parallel_slot *s, const char *data, size_t len)
 {
-	char buf[4096];
-	int fd;
-	ssize_t n;
-
-	fd = open(path, O_RDONLY);
-	if (fd < 0)
+	if (!len)
 		return;
-	while ((n = read(fd, buf, sizeof(buf))) > 0)
-		fwrite(buf, 1, (size_t)n, stdout);
-	close(fd);
+	if (s->output_len + len >= s->output_cap) {
+		size_t newcap = s->output_cap ? s->output_cap * 2 : 4096;
+		char *p;
+		while (newcap < s->output_len + len + 1)
+			newcap *= 2;
+		p = realloc(s->output, newcap);
+		if (!p)
+			return;
+		s->output = p;
+		s->output_cap = newcap;
+	}
+	memcpy(s->output + s->output_len, data, len);
+	s->output_len += len;
+	s->output[s->output_len] = '\0';
+}
+
+static void
+par_slot_free_(struct parallel_slot *s)
+{
+	free(s->output);
+	s->output = NULL;
+	s->output_len = 0;
+	s->output_cap = 0;
+#ifdef _WIN32
+	s->process = NULL;
+	s->pipe_rd = NULL;
+#else
+	s->pid = -1;
+	s->pipe_fd = -1;
+#endif
 }
 
 static int
@@ -513,7 +545,11 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 	struct parallel_slot *slots = NULL;
 	char **tests = NULL;
 	int rc = 1;
+#ifndef _WIN32
+	struct pollfd *pfds = NULL;
+#endif
 
+	/* Count enabled tests */
 	for (i = 0; groups[i].prefix; ++i)
 		for (j = 0; groups[i].cases[j].name; ++j)
 			if ((groups[i].cases[j].flags & TT_ENABLED_) &&
@@ -526,10 +562,10 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 		return 0;
 	}
 
+	/* Build test name array */
 	tests = calloc((size_t)ntests, sizeof(char *));
 	if (!tests)
 		goto out;
-
 	{
 		int idx = 0;
 		for (i = 0; groups[i].prefix; ++i)
@@ -551,134 +587,356 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 	njobs = opt_parallel;
 	if (njobs > ntests)
 		njobs = ntests;
+#ifdef _WIN32
+	if (njobs > MAXIMUM_WAIT_OBJECTS) {
+		fprintf(stderr, "Warning: capping parallelism at %d on Windows\n",
+			(int)MAXIMUM_WAIT_OBJECTS);
+		njobs = MAXIMUM_WAIT_OBJECTS;
+	}
+#endif
 
 	slots = calloc((size_t)njobs, sizeof(*slots));
 	if (!slots)
 		goto out;
 	for (i = 0; i < njobs; i++)
-		slots[i].pid = -1;
+		par_slot_free_(&slots[i]);
+#ifndef _WIN32
+	pfds = calloc((size_t)njobs, sizeof(*pfds));
+	if (!pfds)
+		goto out;
+#endif
 
 	if (opt_verbosity >= 1)
 		printf("Running %d tests with %d workers\n", ntests, njobs);
 
 	while (next < ntests || running > 0) {
+		/* Launch new workers */
 		while (running < njobs && next < ntests) {
-			int tmpfd, test_idx;
-			pid_t pid;
+			int test_idx;
 
-			for (slot = 0; slot < njobs; slot++)
-				if (slots[slot].pid == -1)
+			for (slot = 0; slot < njobs; slot++) {
+#ifdef _WIN32
+				if (slots[slot].process == NULL)
+#else
+				if (slots[slot].pid <= 0)
+#endif
 					break;
+			}
 
 			test_idx = next++;
 			snprintf(slots[slot].testname,
 				sizeof(slots[slot].testname),
 				"%s", tests[test_idx]);
-			snprintf(slots[slot].tmppath,
-				sizeof(slots[slot].tmppath),
-				"/tmp/tinytest_XXXXXX");
+			slots[slot].output = NULL;
+			slots[slot].output_len = 0;
+			slots[slot].output_cap = 0;
 
-			tmpfd = mkstemp(slots[slot].tmppath);
-			if (tmpfd < 0) {
-				perror("mkstemp");
-				p_bad++;
-				continue;
-			}
+#ifdef _WIN32
+			{
+				SECURITY_ATTRIBUTES sa;
+				HANDLE pipe_wr;
+				STARTUPINFOA si;
+				PROCESS_INFORMATION pi;
+				char cmdline[LONGEST_TEST_NAME + 512];
+				int pos;
 
-			pid = fork();
-			if (pid < 0) {
-				perror("fork");
-				close(tmpfd);
-				unlink(slots[slot].tmppath);
-				p_bad++;
-				continue;
-			}
+				sa.nLength = sizeof(sa);
+				sa.bInheritHandle = TRUE;
+				sa.lpSecurityDescriptor = NULL;
 
-			if (pid == 0) {
-				const char *child_argv[16];
-				int ac = 0;
-				char timeout_s[32], retries_s[32];
-				char delay_s[32], repeat_s[32];
+				if (!CreatePipe(&slots[slot].pipe_rd,
+					&pipe_wr, &sa, 0)) {
+					printf("  [FAILED %s] (CreatePipe)\n",
+						slots[slot].testname);
+					p_bad++;
+					continue;
+				}
+				SetHandleInformation(slots[slot].pipe_rd,
+					HANDLE_FLAG_INHERIT, 0);
 
-				dup2(tmpfd, STDOUT_FILENO);
-				dup2(tmpfd, STDERR_FILENO);
-				close(tmpfd);
-
-				child_argv[ac++] = exe;
+				pos = snprintf(cmdline, sizeof(cmdline),
+					"%s", commandname);
 				if (opt_nofork)
-					child_argv[ac++] = "--no-fork";
+					pos += snprintf(cmdline + pos,
+						sizeof(cmdline) - pos,
+						" --no-fork");
+				pos += snprintf(cmdline + pos,
+					sizeof(cmdline) - pos,
+					" --timeout %u", opt_timeout);
+				if (opt_retries != 3)
+					pos += snprintf(cmdline + pos,
+						sizeof(cmdline) - pos,
+						" --retries %u", opt_retries);
+				if (opt_retries_delay != 1)
+					pos += snprintf(cmdline + pos,
+						sizeof(cmdline) - pos,
+						" --retries-delay %u",
+						opt_retries_delay);
+				if (opt_repeat)
+					pos += snprintf(cmdline + pos,
+						sizeof(cmdline) - pos,
+						" --repeat %u", opt_repeat);
+				snprintf(cmdline + pos,
+					sizeof(cmdline) - pos,
+					" %s", tests[test_idx]);
 
-				snprintf(timeout_s, sizeof(timeout_s),
-					"%u", opt_timeout);
-				child_argv[ac++] = "--timeout";
-				child_argv[ac++] = timeout_s;
+				memset(&si, 0, sizeof(si));
+				si.cb = sizeof(si);
+				si.dwFlags = STARTF_USESTDHANDLES;
+				si.hStdOutput = pipe_wr;
+				si.hStdError = pipe_wr;
+				si.hStdInput =
+					GetStdHandle(STD_INPUT_HANDLE);
 
-				if (opt_retries != 3) {
-					snprintf(retries_s, sizeof(retries_s),
-						"%u", opt_retries);
-					child_argv[ac++] = "--retries";
-					child_argv[ac++] = retries_s;
+				if (!CreateProcessA(commandname, cmdline,
+					NULL, NULL, TRUE, 0,
+					NULL, NULL, &si, &pi)) {
+					printf("  [FAILED %s] (CreateProcess)\n",
+						slots[slot].testname);
+					CloseHandle(pipe_wr);
+					CloseHandle(slots[slot].pipe_rd);
+					slots[slot].pipe_rd = NULL;
+					p_bad++;
+					continue;
 				}
-				if (opt_retries_delay != 1) {
-					snprintf(delay_s, sizeof(delay_s),
-						"%u", opt_retries_delay);
-					child_argv[ac++] = "--retries-delay";
-					child_argv[ac++] = delay_s;
-				}
-				if (opt_repeat) {
-					snprintf(repeat_s, sizeof(repeat_s),
-						"%u", opt_repeat);
-					child_argv[ac++] = "--repeat";
-					child_argv[ac++] = repeat_s;
-				}
-
-				child_argv[ac++] = slots[slot].testname;
-				child_argv[ac] = NULL;
-
-				execvp(exe, (char *const *)child_argv);
-				_exit(127);
+				CloseHandle(pipe_wr);
+				CloseHandle(pi.hThread);
+				slots[slot].process = pi.hProcess;
 			}
+#else
+			{
+				int pipefd[2];
+				pid_t pid;
 
-			close(tmpfd);
-			slots[slot].pid = pid;
+				if (pipe(pipefd) < 0) {
+					perror("pipe");
+					p_bad++;
+					continue;
+				}
+
+				pid = fork();
+				if (pid < 0) {
+					perror("fork");
+					close(pipefd[0]);
+					close(pipefd[1]);
+					p_bad++;
+					continue;
+				}
+
+				if (pid == 0) {
+					const char *child_argv[16];
+					int ac = 0;
+					char timeout_s[32], retries_s[32];
+					char delay_s[32], repeat_s[32];
+
+					close(pipefd[0]);
+					dup2(pipefd[1], STDOUT_FILENO);
+					dup2(pipefd[1], STDERR_FILENO);
+					if (pipefd[1] != STDOUT_FILENO &&
+					    pipefd[1] != STDERR_FILENO)
+						close(pipefd[1]);
+
+					child_argv[ac++] = exe;
+					if (opt_nofork)
+						child_argv[ac++] = "--no-fork";
+					snprintf(timeout_s, sizeof(timeout_s),
+						"%u", opt_timeout);
+					child_argv[ac++] = "--timeout";
+					child_argv[ac++] = timeout_s;
+					if (opt_retries != 3) {
+						snprintf(retries_s,
+							sizeof(retries_s),
+							"%u", opt_retries);
+						child_argv[ac++] = "--retries";
+						child_argv[ac++] = retries_s;
+					}
+					if (opt_retries_delay != 1) {
+						snprintf(delay_s,
+							sizeof(delay_s), "%u",
+							opt_retries_delay);
+						child_argv[ac++] =
+							"--retries-delay";
+						child_argv[ac++] = delay_s;
+					}
+					if (opt_repeat) {
+						snprintf(repeat_s,
+							sizeof(repeat_s),
+							"%u", opt_repeat);
+						child_argv[ac++] = "--repeat";
+						child_argv[ac++] = repeat_s;
+					}
+					child_argv[ac++] =
+						slots[slot].testname;
+					child_argv[ac] = NULL;
+
+					execvp(exe,
+						(char *const *)child_argv);
+					_exit(127);
+				}
+
+				close(pipefd[1]);
+				slots[slot].pid = pid;
+				slots[slot].pipe_fd = pipefd[0];
+			}
+#endif
 			running++;
 		}
 
-		if (running > 0) {
-			int status;
-			pid_t pid = waitpid(-1, &status, 0);
-			if (pid <= 0) {
-				if (errno == EINTR)
+		if (running == 0)
+			break;
+
+		/* Drain pipes and reap finished children */
+#ifdef _WIN32
+		{
+			HANDLE handles[MAXIMUM_WAIT_OBJECTS];
+			int handle_map[MAXIMUM_WAIT_OBJECTS];
+			DWORD nh = 0, ret;
+
+			for (i = 0; i < njobs; i++) {
+				if (slots[i].process == NULL)
 					continue;
-				break;
+				/* Drain available data */
+				for (;;) {
+					char buf[4096];
+					DWORD avail = 0, nread = 0;
+					if (!PeekNamedPipe(slots[i].pipe_rd,
+						NULL, 0, NULL, &avail, NULL)
+						|| avail == 0)
+						break;
+					if (!ReadFile(slots[i].pipe_rd, buf,
+						sizeof(buf), &nread, NULL)
+						|| nread == 0)
+						break;
+					par_buf_append_(&slots[i],
+						buf, nread);
+				}
+				handles[nh] = slots[i].process;
+				handle_map[nh] = i;
+				nh++;
 			}
 
-			for (slot = 0; slot < njobs; slot++)
-				if (slots[slot].pid == pid)
-					break;
-			if (slot >= njobs)
+			if (nh == 0)
 				continue;
 
-			if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-				p_ok++;
-				if (opt_verbosity >= 1)
-					printf("  %s: OK\n",
-						slots[slot].testname);
-				else if (opt_verbosity == 0)
-					printf(".");
-			} else {
-				p_bad++;
-				printf("  [FAILED %s]\n",
-					slots[slot].testname);
-				if (opt_verbosity >= 1)
-					dump_file_(slots[slot].tmppath);
-			}
-			fflush(stdout);
+			ret = WaitForMultipleObjects(nh, handles, FALSE, 50);
 
-			unlink(slots[slot].tmppath);
-			slots[slot].pid = -1;
-			running--;
+			if (ret >= WAIT_OBJECT_0 &&
+			    ret < WAIT_OBJECT_0 + nh) {
+				DWORD exitcode;
+				char buf[4096];
+				DWORD nread;
+
+				slot = handle_map[ret - WAIT_OBJECT_0];
+
+				while (ReadFile(slots[slot].pipe_rd, buf,
+					sizeof(buf), &nread, NULL) &&
+					nread > 0)
+					par_buf_append_(&slots[slot],
+						buf, nread);
+
+				GetExitCodeProcess(slots[slot].process,
+					&exitcode);
+				CloseHandle(slots[slot].process);
+				CloseHandle(slots[slot].pipe_rd);
+
+				if (exitcode == 0) {
+					p_ok++;
+					if (opt_verbosity >= 1)
+						printf("  %s: OK\n",
+							slots[slot].testname);
+					else if (opt_verbosity == 0)
+						printf(".");
+				} else {
+					p_bad++;
+					printf("  [FAILED %s]\n",
+						slots[slot].testname);
+					if (opt_verbosity >= 1 &&
+					    slots[slot].output_len > 0)
+						fwrite(slots[slot].output, 1,
+							slots[slot].output_len,
+							stdout);
+				}
+				fflush(stdout);
+				par_slot_free_(&slots[slot]);
+				running--;
+			}
 		}
+#else
+		{
+			/* Build pollfd array */
+			for (i = 0; i < njobs; i++) {
+				pfds[i].fd = (slots[i].pid > 0) ?
+					slots[i].pipe_fd : -1;
+				pfds[i].events = POLLIN;
+				pfds[i].revents = 0;
+			}
+
+			if (poll(pfds, (nfds_t)njobs, 100) < 0 &&
+			    errno != EINTR)
+				break;
+
+			/* Read available data from all pipes */
+			for (i = 0; i < njobs; i++) {
+				if (pfds[i].revents & (POLLIN | POLLHUP)) {
+					char buf[4096];
+					ssize_t n = read(slots[i].pipe_fd,
+						buf, sizeof(buf));
+					if (n > 0)
+						par_buf_append_(&slots[i],
+							buf, (size_t)n);
+				}
+			}
+
+			/* Reap any exited children */
+			for (;;) {
+				int status;
+				pid_t pid = waitpid(-1, &status, WNOHANG);
+				if (pid <= 0)
+					break;
+
+				for (slot = 0; slot < njobs; slot++)
+					if (slots[slot].pid == pid)
+						break;
+				if (slot >= njobs)
+					continue;
+
+				/* Drain remaining pipe data */
+				for (;;) {
+					char buf[4096];
+					ssize_t n = read(
+						slots[slot].pipe_fd,
+						buf, sizeof(buf));
+					if (n <= 0)
+						break;
+					par_buf_append_(&slots[slot],
+						buf, (size_t)n);
+				}
+				close(slots[slot].pipe_fd);
+
+				if (WIFEXITED(status) &&
+				    WEXITSTATUS(status) == 0) {
+					p_ok++;
+					if (opt_verbosity >= 1)
+						printf("  %s: OK\n",
+							slots[slot].testname);
+					else if (opt_verbosity == 0)
+						printf(".");
+				} else {
+					p_bad++;
+					printf("  [FAILED %s]\n",
+						slots[slot].testname);
+					if (opt_verbosity >= 1 &&
+					    slots[slot].output_len > 0)
+						fwrite(slots[slot].output, 1,
+							slots[slot].output_len,
+							stdout);
+				}
+				fflush(stdout);
+				par_slot_free_(&slots[slot]);
+				running--;
+			}
+		}
+#endif
 	}
 
 	if (opt_verbosity == 0)
@@ -692,16 +950,39 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 	rc = (p_bad == 0) ? 0 : 1;
 
 out:
+	if (slots) {
+		for (i = 0; i < njobs; i++) {
+#ifdef _WIN32
+			if (slots[i].process != NULL) {
+				TerminateProcess(slots[i].process, 1);
+				WaitForSingleObject(slots[i].process,
+					INFINITE);
+				CloseHandle(slots[i].process);
+				CloseHandle(slots[i].pipe_rd);
+			}
+#else
+			if (slots[i].pid > 0) {
+				kill(slots[i].pid, SIGTERM);
+				waitpid(slots[i].pid, NULL, 0);
+				close(slots[i].pipe_fd);
+			}
+#endif
+			free(slots[i].output);
+		}
+		free(slots);
+	}
 	if (tests) {
 		for (i = 0; i < ntests; i++)
 			free(tests[i]);
 		free(tests);
 	}
-	free(slots);
+#ifndef _WIN32
+	free(pfds);
+#endif
 	return rc;
 }
 
-#endif /* !_WIN32 && !NO_FORKING */
+#endif /* !NO_FORKING */
 
 int
 tinytest_main(int c, const char **v, struct testgroup_t *groups)
@@ -798,7 +1079,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 	setvbuf(stdout, NULL, _IONBF, 0);
 #endif
 
-#if !defined(_WIN32) && !defined(NO_FORKING)
+#ifndef NO_FORKING
 	if (opt_parallel > 0)
 		return run_tests_parallel_(v[0], groups);
 #endif
