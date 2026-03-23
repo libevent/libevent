@@ -655,7 +655,7 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 					HANDLE_FLAG_INHERIT, 0);
 
 				pos = snprintf(cmdline, sizeof(cmdline),
-					"%s -j 0", commandname);
+					"%s -j 0 --quiet", commandname);
 				if (opt_nofork)
 					pos += snprintf(cmdline + pos,
 						sizeof(cmdline) - pos,
@@ -739,6 +739,7 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 					child_argv[ac++] = exe;
 					child_argv[ac++] = "-j";
 					child_argv[ac++] = "0";
+					child_argv[ac++] = "--quiet";
 					if (opt_nofork)
 						child_argv[ac++] = "--no-fork";
 					snprintf(timeout_s, sizeof(timeout_s),
