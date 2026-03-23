@@ -459,13 +459,16 @@ jobs:
         shell: powershell
         run: |
           $EVENT_CMAKE_OPTIONS=""
-          if ( "${{ matrix.EVENT_MATRIX }}" -ne "DISABLE_OPENSSL" ) {
+          if ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_OPENSSL" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
           }
-          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NO_SSL" ) {
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NO_SSL" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           }
-          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NONE" ) {
+            $EVENT_CMAKE_OPTIONS=""
+          }
+          else {
             $EVENT_CMAKE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
           }
           $env:PATH="D:\a\_temp\msys64\mingw64\bin;D:\a\_temp\msys64\usr\bin;$env:PATH"
