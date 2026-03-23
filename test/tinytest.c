@@ -39,6 +39,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 #endif
 
 #if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
@@ -75,6 +77,7 @@ static unsigned int opt_timeout = DEFAULT_TESTCASE_TIMEOUT; /**< Timeout for eve
 static unsigned int opt_retries = 3; /**< How much test with TT_RETRIABLE should be retried */
 static unsigned int opt_retries_delay = 1; /**< How much seconds to delay before retrying */
 static unsigned int opt_repeat = 0; /**< How much times to repeat the test */
+static int opt_parallel = 0; /**< Number of parallel workers (0=sequential) */
 const char *verbosity_flag = "";
 
 const struct testlist_alias_t *cfg_aliases=NULL;
@@ -411,6 +414,7 @@ usage(struct testgroup_t *groups, int list_groups)
 	puts("  --retries <n>");
 	puts("  --retries-delay <n>");
 	puts("  --repeat <n>");
+	puts("  -j, --parallel <n>");
 	puts("");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
 	puts("  To skip a test, prefix its name with a colon.");
@@ -476,6 +480,229 @@ tinytest_set_aliases(const struct testlist_alias_t *aliases)
 	cfg_aliases = aliases;
 }
 
+/* ====== Parallel test runner (Unix only) ====== */
+#if !defined(_WIN32) && !defined(NO_FORKING)
+
+struct parallel_slot {
+	pid_t pid;
+	char testname[LONGEST_TEST_NAME];
+	char tmppath[256];
+};
+
+static void
+dump_file_(const char *path)
+{
+	char buf[4096];
+	int fd;
+	ssize_t n;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return;
+	while ((n = read(fd, buf, sizeof(buf))) > 0)
+		fwrite(buf, 1, (size_t)n, stdout);
+	close(fd);
+}
+
+static int
+run_tests_parallel_(const char *exe, struct testgroup_t *groups)
+{
+	int i, j, slot, njobs;
+	int ntests = 0, next = 0, running = 0;
+	int p_ok = 0, p_bad = 0;
+	struct parallel_slot *slots = NULL;
+	char **tests = NULL;
+	int rc = 1;
+
+	for (i = 0; groups[i].prefix; ++i)
+		for (j = 0; groups[i].cases[j].name; ++j)
+			if ((groups[i].cases[j].flags & TT_ENABLED_) &&
+			    !(groups[i].cases[j].flags & (TT_SKIP|TT_OFF_BY_DEFAULT)))
+				ntests++;
+
+	if (ntests == 0) {
+		if (opt_verbosity >= 1)
+			printf("No tests to run.\n");
+		return 0;
+	}
+
+	tests = calloc((size_t)ntests, sizeof(char *));
+	if (!tests)
+		goto out;
+
+	{
+		int idx = 0;
+		for (i = 0; groups[i].prefix; ++i)
+			for (j = 0; groups[i].cases[j].name; ++j)
+				if ((groups[i].cases[j].flags & TT_ENABLED_) &&
+				    !(groups[i].cases[j].flags & (TT_SKIP|TT_OFF_BY_DEFAULT))) {
+					size_t len = strlen(groups[i].prefix) +
+						strlen(groups[i].cases[j].name) + 1;
+					tests[idx] = malloc(len);
+					if (!tests[idx])
+						goto out;
+					snprintf(tests[idx], len, "%s%s",
+						groups[i].prefix,
+						groups[i].cases[j].name);
+					idx++;
+				}
+	}
+
+	njobs = opt_parallel;
+	if (njobs > ntests)
+		njobs = ntests;
+
+	slots = calloc((size_t)njobs, sizeof(*slots));
+	if (!slots)
+		goto out;
+	for (i = 0; i < njobs; i++)
+		slots[i].pid = -1;
+
+	if (opt_verbosity >= 1)
+		printf("Running %d tests with %d workers\n", ntests, njobs);
+
+	while (next < ntests || running > 0) {
+		while (running < njobs && next < ntests) {
+			int tmpfd, test_idx;
+			pid_t pid;
+
+			for (slot = 0; slot < njobs; slot++)
+				if (slots[slot].pid == -1)
+					break;
+
+			test_idx = next++;
+			snprintf(slots[slot].testname,
+				sizeof(slots[slot].testname),
+				"%s", tests[test_idx]);
+			snprintf(slots[slot].tmppath,
+				sizeof(slots[slot].tmppath),
+				"/tmp/tinytest_XXXXXX");
+
+			tmpfd = mkstemp(slots[slot].tmppath);
+			if (tmpfd < 0) {
+				perror("mkstemp");
+				p_bad++;
+				continue;
+			}
+
+			pid = fork();
+			if (pid < 0) {
+				perror("fork");
+				close(tmpfd);
+				unlink(slots[slot].tmppath);
+				p_bad++;
+				continue;
+			}
+
+			if (pid == 0) {
+				const char *child_argv[16];
+				int ac = 0;
+				char timeout_s[32], retries_s[32];
+				char delay_s[32], repeat_s[32];
+
+				dup2(tmpfd, STDOUT_FILENO);
+				dup2(tmpfd, STDERR_FILENO);
+				close(tmpfd);
+
+				child_argv[ac++] = exe;
+				if (opt_nofork)
+					child_argv[ac++] = "--no-fork";
+
+				snprintf(timeout_s, sizeof(timeout_s),
+					"%u", opt_timeout);
+				child_argv[ac++] = "--timeout";
+				child_argv[ac++] = timeout_s;
+
+				if (opt_retries != 3) {
+					snprintf(retries_s, sizeof(retries_s),
+						"%u", opt_retries);
+					child_argv[ac++] = "--retries";
+					child_argv[ac++] = retries_s;
+				}
+				if (opt_retries_delay != 1) {
+					snprintf(delay_s, sizeof(delay_s),
+						"%u", opt_retries_delay);
+					child_argv[ac++] = "--retries-delay";
+					child_argv[ac++] = delay_s;
+				}
+				if (opt_repeat) {
+					snprintf(repeat_s, sizeof(repeat_s),
+						"%u", opt_repeat);
+					child_argv[ac++] = "--repeat";
+					child_argv[ac++] = repeat_s;
+				}
+
+				child_argv[ac++] = slots[slot].testname;
+				child_argv[ac] = NULL;
+
+				execvp(exe, (char *const *)child_argv);
+				_exit(127);
+			}
+
+			close(tmpfd);
+			slots[slot].pid = pid;
+			running++;
+		}
+
+		if (running > 0) {
+			int status;
+			pid_t pid = waitpid(-1, &status, 0);
+			if (pid <= 0) {
+				if (errno == EINTR)
+					continue;
+				break;
+			}
+
+			for (slot = 0; slot < njobs; slot++)
+				if (slots[slot].pid == pid)
+					break;
+			if (slot >= njobs)
+				continue;
+
+			if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+				p_ok++;
+				if (opt_verbosity >= 1)
+					printf("  %s: OK\n",
+						slots[slot].testname);
+				else if (opt_verbosity == 0)
+					printf(".");
+			} else {
+				p_bad++;
+				printf("  [FAILED %s]\n",
+					slots[slot].testname);
+				if (opt_verbosity >= 1)
+					dump_file_(slots[slot].tmppath);
+			}
+			fflush(stdout);
+
+			unlink(slots[slot].tmppath);
+			slots[slot].pid = -1;
+			running--;
+		}
+	}
+
+	if (opt_verbosity == 0)
+		puts("");
+
+	if (p_bad)
+		printf("%d/%d TESTS FAILED.\n", p_bad, p_bad + p_ok);
+	else if (opt_verbosity >= 1)
+		printf("%d tests ok.\n", p_ok);
+
+	rc = (p_bad == 0) ? 0 : 1;
+
+out:
+	if (tests) {
+		for (i = 0; i < ntests; i++)
+			free(tests[i]);
+		free(tests);
+	}
+	free(slots);
+	return rc;
+}
+
+#endif /* !_WIN32 && !NO_FORKING */
+
 int
 tinytest_main(int c, const char **v, struct testgroup_t *groups)
 {
@@ -536,6 +763,23 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					return -1;
 				}
 				opt_repeat = (unsigned)atoi(v[i]);
+			} else if (!strcmp(v[i], "-j") || !strcmp(v[i], "--parallel")) {
+				++i;
+				if (i >= c) {
+					fprintf(stderr, "--parallel requires argument\n");
+					return -1;
+				}
+				opt_parallel = atoi(v[i]);
+				if (opt_parallel < 1) {
+					fprintf(stderr, "--parallel requires a positive number\n");
+					return -1;
+				}
+			} else if (!strncmp(v[i], "-j", 2) && v[i][2] != '\0') {
+				opt_parallel = atoi(v[i] + 2);
+				if (opt_parallel < 1) {
+					fprintf(stderr, "-j requires a positive number\n");
+					return -1;
+				}
 			} else {
 				fprintf(stderr, "Unknown option %s. Try --help\n", v[i]);
 				return -1;
@@ -552,6 +796,11 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 
 #ifdef _IONBF
 	setvbuf(stdout, NULL, _IONBF, 0);
+#endif
+
+#if !defined(_WIN32) && !defined(NO_FORKING)
+	if (opt_parallel > 0)
+		return run_tests_parallel_(v[0], groups);
 #endif
 
 	++in_tinytest_main;
