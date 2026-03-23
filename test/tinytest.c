@@ -646,7 +646,7 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 
 				if (!CreatePipe(&slots[slot].pipe_rd,
 					&pipe_wr, &sa, 0)) {
-					printf("  [FAILED %s] (CreatePipe)\n",
+					printf("[FAILED %s] (CreatePipe)\n",
 						slots[slot].testname);
 					p_bad++;
 					continue;
@@ -691,7 +691,7 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 				if (!CreateProcessA(commandname, cmdline,
 					NULL, NULL, TRUE, 0,
 					NULL, NULL, &si, &pi)) {
-					printf("  [FAILED %s] (CreateProcess)\n",
+					printf("[FAILED %s] (CreateProcess)\n",
 						slots[slot].testname);
 					CloseHandle(pipe_wr);
 					CloseHandle(slots[slot].pipe_rd);
@@ -845,13 +845,13 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 				if (exitcode == 0) {
 					p_ok++;
 					if (opt_verbosity >= 1)
-						printf("  %s: OK\n",
+						printf("%s: OK\n",
 							slots[slot].testname);
 					else if (opt_verbosity == 0)
 						printf(".");
 				} else {
 					p_bad++;
-					printf("  [FAILED %s]\n",
+					printf("[FAILED %s]\n",
 						slots[slot].testname);
 					if (opt_verbosity >= 1 &&
 					    slots[slot].output_len > 0)
@@ -920,13 +920,13 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 				    WEXITSTATUS(status) == 0) {
 					p_ok++;
 					if (opt_verbosity >= 1)
-						printf("  %s: OK\n",
+						printf("%s: OK\n",
 							slots[slot].testname);
 					else if (opt_verbosity == 0)
 						printf(".");
 				} else {
 					p_bad++;
-					printf("  [FAILED %s]\n",
+					printf("[FAILED %s]\n",
 						slots[slot].testname);
 					if (opt_verbosity >= 1 &&
 					    slots[slot].output_len > 0)
