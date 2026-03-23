@@ -79,7 +79,7 @@ static unsigned int opt_timeout = DEFAULT_TESTCASE_TIMEOUT; /**< Timeout for eve
 static unsigned int opt_retries = 3; /**< How much test with TT_RETRIABLE should be retried */
 static unsigned int opt_retries_delay = 1; /**< How much seconds to delay before retrying */
 static unsigned int opt_repeat = 0; /**< How much times to repeat the test */
-static int opt_parallel = 0; /**< Number of parallel workers (0=sequential) */
+static int opt_parallel = -1; /**< Parallel workers: -1=auto, 0=sequential, >0=N workers */
 const char *verbosity_flag = "";
 
 const struct testlist_alias_t *cfg_aliases=NULL;
@@ -416,7 +416,7 @@ usage(struct testgroup_t *groups, int list_groups)
 	puts("  --retries <n>");
 	puts("  --retries-delay <n>");
 	puts("  --repeat <n>");
-	puts("  -j, --parallel <n>");
+	puts("  -j, --parallel <n>  (default: min(4*nproc, 64); 0=sequential)");
 	puts("");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
 	puts("  To skip a test, prefix its name with a colon.");
@@ -655,7 +655,7 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 					HANDLE_FLAG_INHERIT, 0);
 
 				pos = snprintf(cmdline, sizeof(cmdline),
-					"%s", commandname);
+					"%s -j 0", commandname);
 				if (opt_nofork)
 					pos += snprintf(cmdline + pos,
 						sizeof(cmdline) - pos,
@@ -737,6 +737,8 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 						close(pipefd[1]);
 
 					child_argv[ac++] = exe;
+					child_argv[ac++] = "-j";
+					child_argv[ac++] = "0";
 					if (opt_nofork)
 						child_argv[ac++] = "--no-fork";
 					snprintf(timeout_s, sizeof(timeout_s),
@@ -1051,14 +1053,14 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					return -1;
 				}
 				opt_parallel = atoi(v[i]);
-				if (opt_parallel < 1) {
-					fprintf(stderr, "--parallel requires a positive number\n");
+				if (opt_parallel < 0) {
+					fprintf(stderr, "--parallel requires a non-negative number\n");
 					return -1;
 				}
 			} else if (!strncmp(v[i], "-j", 2) && v[i][2] != '\0') {
 				opt_parallel = atoi(v[i] + 2);
-				if (opt_parallel < 1) {
-					fprintf(stderr, "-j requires a positive number\n");
+				if (opt_parallel < 0) {
+					fprintf(stderr, "-j requires a non-negative number\n");
 					return -1;
 				}
 			} else {
@@ -1080,6 +1082,21 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 #endif
 
 #ifndef NO_FORKING
+	if (opt_parallel < 0) {
+		long nproc = 0;
+#ifdef _WIN32
+		SYSTEM_INFO sysinfo;
+		GetSystemInfo(&sysinfo);
+		nproc = sysinfo.dwNumberOfProcessors;
+#elif defined(_SC_NPROCESSORS_ONLN)
+		nproc = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+		if (nproc < 1)
+			nproc = 1;
+		opt_parallel = (int)(nproc * 4);
+		if (opt_parallel > 64)
+			opt_parallel = 64;
+	}
 	if (opt_parallel > 0)
 		return run_tests_parallel_(v[0], groups);
 #endif
