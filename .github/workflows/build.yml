@@ -458,18 +458,15 @@ jobs:
       - name: Build
         shell: powershell
         run: |
-          $EVENT_CMAKE_OPTIONS=""
+          $EVENT_CMAKE_OPTIONS=@()
           if ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_OPENSSL" ) {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+            $EVENT_CMAKE_OPTIONS=@("-DEVENT__DISABLE_OPENSSL=ON")
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NO_SSL" ) {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
+            $EVENT_CMAKE_OPTIONS=@("-DEVENT__DISABLE_OPENSSL=ON", "-DEVENT__DISABLE_MBEDTLS=ON")
           }
-          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NONE" ) {
-            $EVENT_CMAKE_OPTIONS=""
-          }
-          else {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
+            $EVENT_CMAKE_OPTIONS=@("-DEVENT__${{ matrix.EVENT_MATRIX }}=ON")
           }
           $env:PATH="D:\a\_temp\msys64\mingw64\bin;D:\a\_temp\msys64\usr\bin;$env:PATH"
           mkdir build -ea 0
