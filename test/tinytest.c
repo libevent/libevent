@@ -31,6 +31,14 @@
 #include <string.h>
 #include <assert.h>
 
+#ifndef TINYTEST_LOCAL
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/time.h>
+#endif
+#endif
+
 #ifndef NO_FORKING
 
 #ifdef _WIN32
@@ -93,6 +101,31 @@ const char *cur_test_name = NULL;
 static void usage(struct testgroup_t *groups, int list_groups)
 	__attribute__((noreturn));
 static int process_test_option(struct testgroup_t *groups, const char *test);
+
+#ifdef TINYTEST_LOCAL
+static struct evutil_monotonic_timer mono_timer_;
+static int mono_timer_initialized_ = 0;
+#endif
+
+static double
+gettime_(void)
+{
+	struct timeval tv;
+#ifdef TINYTEST_LOCAL
+	if (!mono_timer_initialized_) {
+		evutil_configure_monotonic_time_(&mono_timer_, 0);
+		mono_timer_initialized_ = 1;
+	}
+	evutil_gettime_monotonic_(&mono_timer_, &tv);
+#elif defined(_WIN32)
+	ULONGLONG ms = GetTickCount64();
+	tv.tv_sec = (long)(ms / 1000);
+	tv.tv_usec = (long)((ms % 1000) * 1000);
+#else
+	gettimeofday(&tv, NULL);
+#endif
+	return tv.tv_sec + tv.tv_usec / 1000000.0;
+}
 
 #ifdef _WIN32
 /* Copy of argv[0] for win32. */
@@ -340,6 +373,9 @@ testcase_run_one(const struct testgroup_t *group,
 		cur_test_name = testcase->name;
 	}
 
+	{
+	double t_start = gettime_();
+
 #ifndef NO_FORKING
 	if ((testcase->flags & TT_FORK) && !(opt_forked||opt_nofork)) {
 		outcome = testcase_run_forked_(group, testcase);
@@ -352,13 +388,15 @@ testcase_run_one(const struct testgroup_t *group,
 
 	if (outcome == OK) {
 		if (opt_verbosity>0 && !opt_forked)
-			puts(opt_verbosity==1?"OK":"");
+			printf("OK (%.3fs)\n", gettime_() - t_start);
 	} else if (outcome == SKIP) {
 		if (opt_verbosity>0 && !opt_forked)
 			puts("SKIPPED");
 	} else {
 		if (!opt_forked && (testcase->flags & TT_RETRIABLE) && !test_attempts)
-			printf("\n  [%s FAILED]\n", testcase->name);
+			printf("FAIL (%.3fs)\n  [%s FAILED]\n",
+				gettime_() - t_start, testcase->name);
+	}
 	}
 
 	if (opt_forked) {
@@ -490,6 +528,7 @@ struct parallel_slot {
 	char *output;
 	size_t output_len;
 	size_t output_cap;
+	double start_time;
 #ifdef _WIN32
 	HANDLE process;
 	HANDLE pipe_rd;
@@ -782,6 +821,7 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 				slots[slot].pipe_fd = pipefd[0];
 			}
 #endif
+			slots[slot].start_time = gettime_();
 			running++;
 		}
 
@@ -842,22 +882,28 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 				CloseHandle(slots[slot].process);
 				CloseHandle(slots[slot].pipe_rd);
 
+				{
+				double elapsed = gettime_() -
+					slots[slot].start_time;
 				if (exitcode == 0) {
 					p_ok++;
 					if (opt_verbosity >= 1)
-						printf("%s: OK\n",
-							slots[slot].testname);
+						printf("%s: OK (%.3fs)\n",
+							slots[slot].testname,
+							elapsed);
 					else if (opt_verbosity == 0)
 						printf(".");
 				} else {
 					p_bad++;
-					printf("[FAILED %s]\n",
-						slots[slot].testname);
+					printf("[FAILED %s] (%.3fs)\n",
+						slots[slot].testname,
+						elapsed);
 					if (opt_verbosity >= 1 &&
 					    slots[slot].output_len > 0)
 						fwrite(slots[slot].output, 1,
 							slots[slot].output_len,
 							stdout);
+				}
 				}
 				fflush(stdout);
 				par_slot_free_(&slots[slot]);
@@ -916,23 +962,29 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 				}
 				close(slots[slot].pipe_fd);
 
+				{
+				double elapsed = gettime_() -
+					slots[slot].start_time;
 				if (WIFEXITED(status) &&
 				    WEXITSTATUS(status) == 0) {
 					p_ok++;
 					if (opt_verbosity >= 1)
-						printf("%s: OK\n",
-							slots[slot].testname);
+						printf("%s: OK (%.3fs)\n",
+							slots[slot].testname,
+							elapsed);
 					else if (opt_verbosity == 0)
 						printf(".");
 				} else {
 					p_bad++;
-					printf("[FAILED %s]\n",
-						slots[slot].testname);
+					printf("[FAILED %s] (%.3fs)\n",
+						slots[slot].testname,
+						elapsed);
 					if (opt_verbosity >= 1 &&
 					    slots[slot].output_len > 0)
 						fwrite(slots[slot].output, 1,
 							slots[slot].output_len,
 							stdout);
+				}
 				}
 				fflush(stdout);
 				par_slot_free_(&slots[slot]);
