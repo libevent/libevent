@@ -799,18 +799,14 @@ jobs:
             make
 
       - name: Test
-        uses: nick-fields/retry@v3
-        with:
-          max_attempts: 5
-          timeout_minutes: 60
-          shell: bash
-          command: |
-            ssh freebsd sh <<EOF
-            cd $GITHUB_WORKSPACE
-            JOBS=1
-            cd build
-            make verify
-            EOF
+        shell: bash
+        run: |
+          ssh freebsd sh <<EOF
+          cd $GITHUB_WORKSPACE
+          JOBS=1
+          cd build
+          make verify
+          EOF
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -893,27 +889,23 @@ jobs:
             cmake --build .
 
       - name: Test
-        uses: nick-fields/retry@v3
-        with:
-          max_attempts: 5
-          timeout_minutes: 60
-          shell: bash
-          command: |
-            ssh openbsd sh <<EOF
-            ulimit -n 102400
-            cd $GITHUB_WORKSPACE
-            JOBS=1
-            export CTEST_PARALLEL_LEVEL=$JOBS
-            export CTEST_OUTPUT_ON_FAILURE=1
-            cd build
-            if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
-              python3 ../test-export/test-export.py static
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
-              python3 ../test-export/test-export.py shared
-            else
-              cmake --build . --target verify
-            fi
-            EOF
+        shell: bash
+        run: |
+          ssh openbsd sh <<EOF
+          ulimit -n 102400
+          cd $GITHUB_WORKSPACE
+          JOBS=1
+          export CTEST_PARALLEL_LEVEL=$JOBS
+          export CTEST_OUTPUT_ON_FAILURE=1
+          cd build
+          if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
+            python3 ../test-export/test-export.py static
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
+            python3 ../test-export/test-export.py shared
+          else
+            cmake --build . --target verify
+          fi
+          EOF
 
       - uses: actions/upload-artifact@v4
         if: failure()
