@@ -446,7 +446,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v5
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -459,7 +459,10 @@ jobs:
         shell: powershell
         run: |
           $EVENT_CMAKE_OPTIONS=""
-          if ( "${{ matrix.EVENT_MATRIX }}" -ne "NO_SSL" ) {
+          if ( "${{ matrix.EVENT_MATRIX }}" -ne "DISABLE_OPENSSL" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NO_SSL" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
