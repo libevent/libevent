@@ -426,9 +426,7 @@ jobs:
 
   mingw-cmake-job:
     runs-on: windows-latest
-    # FIXME: disabled for now, see [1].
-    #   [1]: https://github.com/libevent/libevent/issues/1207
-    if: "false && !contains(github.event.head_commit.message, 'ci/mingw skip') && !contains(github.event.head_commit.message, 'ci/mingw/cmake skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/mingw skip') && !contains(github.event.head_commit.message, 'ci/mingw/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -448,7 +446,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v5
 
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
@@ -460,12 +458,15 @@ jobs:
       - name: Build
         shell: powershell
         run: |
-          $EVENT_CMAKE_OPTIONS=""
-          if ( "${{ matrix.EVENT_MATRIX }}" -ne "NO_SSL" ) {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
+          $EVENT_CMAKE_OPTIONS=@()
+          if ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_OPENSSL" ) {
+            $EVENT_CMAKE_OPTIONS=@("-DEVENT__DISABLE_OPENSSL=ON")
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NO_SSL" ) {
+            $EVENT_CMAKE_OPTIONS=@("-DEVENT__DISABLE_OPENSSL=ON", "-DEVENT__DISABLE_MBEDTLS=ON")
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
+            $EVENT_CMAKE_OPTIONS=@("-DEVENT__${{ matrix.EVENT_MATRIX }}=ON")
           }
           $env:PATH="D:\a\_temp\msys64\mingw64\bin;D:\a\_temp\msys64\usr\bin;$env:PATH"
           mkdir build -ea 0
@@ -498,6 +499,7 @@ jobs:
       - name: Test
         shell: powershell
         run: |
+          $env:PATH="D:\a\_temp\msys64\mingw64\bin;D:\a\_temp\msys64\usr\bin;$env:PATH"
           cd build
           ctest --output-on-failure
 

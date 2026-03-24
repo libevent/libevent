@@ -28,6 +28,7 @@
 #define REGRESS_THREAD_H_INCLUDED_
 
 #if defined(_WIN32) /** _WIN32 */
+#include <process.h>
 #define THREAD_T void * /* HANDLE */
 #define THREAD_FN unsigned __stdcall
 #define THREAD_RETURN() return (0)

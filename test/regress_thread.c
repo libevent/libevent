@@ -41,11 +41,6 @@
 #include <sys/wait.h>
 #endif
 
-#ifdef EVENT__HAVE_PTHREADS
-#include <pthread.h>
-#elif defined(_WIN32)
-#include <process.h>
-#endif
 #include <assert.h>
 #ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
