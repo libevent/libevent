@@ -141,7 +141,10 @@ jobs:
           persist-credentials: false
       - name: Install Depends
         run: |
-          sudo apt install doxygen libmbedtls-dev
+          wget -q https://www.doxygen.nl/files/doxygen-1.16.1.linux.bin.tar.gz
+          tar xzf doxygen-1.16.1.linux.bin.tar.gz
+          sudo cp doxygen-1.16.1/bin/doxygen /usr/local/bin/
+          sudo apt install libmbedtls-dev
 
       - name: Generate Doxygen
         shell: bash
