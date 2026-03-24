@@ -5975,7 +5975,9 @@ http_max_connections_test(void *arg)
 		tt_assert(evcon);
 
 		req = evhttp_request_new(http_request_done_newreqcb, &newreqcb_test_state);
-		evhttp_add_header(evhttp_request_get_output_headers(req), "Connection", "close");
+		/* No Connection: close — keep-alive ensures connection_cnt stays
+		 * elevated so the second connection reliably hits the limit,
+		 * even if its TCP handshake completes a tick later. */
 		evhttp_request_set_error_cb(req, http_request_error_newreqcb);
 
 		/* We give ownership of the request to the connection */
