@@ -674,10 +674,12 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 			{
 				SECURITY_ATTRIBUTES sa;
 				HANDLE pipe_wr;
-				STARTUPINFOA si;
+				STARTUPINFOEXA siex;
 				PROCESS_INFORMATION pi;
 				char cmdline[LONGEST_TEST_NAME + 512];
 				int pos;
+				SIZE_T attr_size = 0;
+				LPPROC_THREAD_ATTRIBUTE_LIST attr_list = NULL;
 
 				sa.nLength = sizeof(sa);
 				sa.bInheritHandle = TRUE;
@@ -719,24 +721,51 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 					sizeof(cmdline) - pos,
 					" %s", tests[test_idx]);
 
-				memset(&si, 0, sizeof(si));
-				si.cb = sizeof(si);
-				si.dwFlags = STARTF_USESTDHANDLES;
-				si.hStdOutput = pipe_wr;
-				si.hStdError = pipe_wr;
-				si.hStdInput =
+				memset(&siex, 0, sizeof(siex));
+				siex.StartupInfo.cb = sizeof(siex);
+				siex.StartupInfo.dwFlags =
+					STARTF_USESTDHANDLES;
+				siex.StartupInfo.hStdOutput = pipe_wr;
+				siex.StartupInfo.hStdError = pipe_wr;
+				siex.StartupInfo.hStdInput =
 					GetStdHandle(STD_INPUT_HANDLE);
 
+				InitializeProcThreadAttributeList(
+					NULL, 1, 0, &attr_size);
+				attr_list = malloc(attr_size);
+				if (attr_list &&
+				    InitializeProcThreadAttributeList(
+					attr_list, 1, 0, &attr_size)) {
+					UpdateProcThreadAttribute(
+						attr_list, 0,
+						PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+						&pipe_wr, sizeof(HANDLE),
+						NULL, NULL);
+					siex.lpAttributeList = attr_list;
+				}
+
 				if (!CreateProcessA(commandname, cmdline,
-					NULL, NULL, TRUE, 0,
-					NULL, NULL, &si, &pi)) {
+					NULL, NULL, TRUE,
+					EXTENDED_STARTUPINFO_PRESENT,
+					NULL, NULL,
+					&siex.StartupInfo, &pi)) {
 					printf("[FAILED %s] (CreateProcess)\n",
 						slots[slot].testname);
+					if (attr_list) {
+						DeleteProcThreadAttributeList(
+							attr_list);
+						free(attr_list);
+					}
 					CloseHandle(pipe_wr);
 					CloseHandle(slots[slot].pipe_rd);
 					slots[slot].pipe_rd = NULL;
 					p_bad++;
 					continue;
+				}
+				if (attr_list) {
+					DeleteProcThreadAttributeList(
+						attr_list);
+					free(attr_list);
 				}
 				CloseHandle(pipe_wr);
 				CloseHandle(pi.hThread);
@@ -866,16 +895,27 @@ run_tests_parallel_(const char *exe, struct testgroup_t *groups)
 			if (ret >= WAIT_OBJECT_0 &&
 			    ret < WAIT_OBJECT_0 + nh) {
 				DWORD exitcode;
-				char buf[4096];
-				DWORD nread;
 
 				slot = handle_map[ret - WAIT_OBJECT_0];
 
-				while (ReadFile(slots[slot].pipe_rd, buf,
-					sizeof(buf), &nread, NULL) &&
-					nread > 0)
+				for (;;) {
+					char buf[4096];
+					DWORD avail = 0, nread = 0;
+					if (!PeekNamedPipe(
+						slots[slot].pipe_rd,
+						NULL, 0, NULL,
+						&avail, NULL)
+						|| avail == 0)
+						break;
+					if (!ReadFile(
+						slots[slot].pipe_rd,
+						buf, sizeof(buf),
+						&nread, NULL)
+						|| nread == 0)
+						break;
 					par_buf_append_(&slots[slot],
 						buf, nread);
+				}
 
 				GetExitCodeProcess(slots[slot].process,
 					&exitcode);
