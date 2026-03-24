@@ -2317,6 +2317,11 @@ struct gaic_request_status {
 	int canceled;
 };
 
+struct gaic_delayed_response {
+	struct evdns_server_request *req;
+	struct event timer;
+};
+
 #define GAIC_MAGIC 0x1234abcd
 
 static int gaic_pending = 0;
@@ -2336,13 +2341,33 @@ end:
 }
 
 static void
+gaic_server_response_cb(evutil_socket_t fd, short what, void *arg)
+{
+	struct gaic_delayed_response *dr = arg;
+	ev_uint32_t answer = 0x7f000001;
+	evdns_server_request_add_a_reply(dr->req,
+	    dr->req->questions[0]->name, 1, &answer, 100);
+	evdns_server_request_respond(dr->req, 0);
+	free(dr);
+}
+
+/* Delay server responses so that cancel timers (1 usec) fire first.
+ * Without this, on fast loopback (especially FreeBSD/kqueue), I/O events
+ * are activated before timers in the same loop iteration, causing all
+ * responses to arrive before any cancellation can occur. */
+static void
 gaic_server_cb(struct evdns_server_request *req, void *arg)
 {
-	ev_uint32_t answer = 0x7f000001;
+	struct event_base *base = arg;
+	struct gaic_delayed_response *dr;
+	struct timeval tv = { 0, 10000 }; /* 10 ms */
+
 	tt_assert(req->nquestions);
-	evdns_server_request_add_a_reply(req, req->questions[0]->name, 1,
-	    &answer, 100);
-	evdns_server_request_respond(req, 0);
+	dr = calloc(1, sizeof(*dr));
+	tt_assert(dr);
+	dr->req = req;
+	event_assign(&dr->timer, base, -1, 0, gaic_server_response_cb, dr);
+	event_add(&dr->timer, &tv);
 	return;
 end:
 	evdns_server_request_respond(req, DNS_ERR_REFUSED);
