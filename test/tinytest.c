@@ -1175,6 +1175,8 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 #endif
 
 #ifndef NO_FORKING
+	/* FIXME: debug win32 issues and enable on CI */
+#if 0
 	if (opt_parallel < 0) {
 		long nproc = 0;
 #ifdef _WIN32
@@ -1190,6 +1192,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 		if (opt_parallel > 64)
 			opt_parallel = 64;
 	}
+#endif
 	if (opt_parallel > 0)
 		return run_tests_parallel_(v[0], groups);
 #endif
