@@ -208,7 +208,7 @@ static void evhttp_read_header(struct evhttp_connection *evcon,
 static int evhttp_add_header_internal(struct evkeyvalq *headers,
     const char *key, const char *value);
 static const char *evhttp_response_phrase_internal(int code);
-static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t, struct bufferevent *bev);
+static void evhttp_serve_request_(struct evhttp *, struct evhttp_connection *evcon);
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
@@ -2600,6 +2600,30 @@ evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 	return (NULL);
 }
 
+int
+evhttp_connection_set_peer(struct evhttp_connection *evcon, const char *address, ev_uint16_t port)
+{
+	if (evcon == NULL)
+		return -1;
+
+	if ((evcon->address != NULL || evcon->port != 0) && evcon->state != EVCON_DISCONNECTED) {
+		event_warn("%s: peer already exists", __func__);
+		return -1;
+	}
+
+	if (evcon->address != NULL) {
+		mm_free(evcon->address);
+		evcon->address = NULL;
+	}
+
+	if ((evcon->address = mm_strdup(address)) == NULL) {
+		event_warn("%s: strdup failed", __func__);
+		return -1;
+	}
+	evcon->port = port;
+	return 0;
+}
+
 struct evhttp_connection *
 evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev)
 {
@@ -2671,11 +2695,8 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	if (evcon == NULL)
 		goto error;
 
-	if ((evcon->address = mm_strdup(address)) == NULL) {
-		event_warn("%s: strdup failed", __func__);
+	if (evhttp_connection_set_peer(evcon, address, port))
 		goto error;
-	}
-	evcon->port = port;
 	evcon->dns_base = dnsbase;
 
 	return (evcon);
@@ -3872,14 +3893,25 @@ static void
 accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct sockaddr *peer_sa, int peer_socklen, void *arg)
 {
 	struct evhttp_bound_socket *bound = arg;
-
 	struct evhttp *http = bound->http;
-
 	struct bufferevent *bev = NULL;
+	struct evhttp_connection *evcon = NULL;
+
 	if (bound->bevcb)
 		bev = bound->bevcb(http->base, bound->bevcbarg);
 
-	evhttp_get_request(http, nfd, peer_sa, peer_socklen, bev);
+	evcon = evhttp_get_request_connection(http, nfd, peer_sa, peer_socklen, bev);
+	evhttp_serve_request_(http, evcon);
+}
+
+void
+evhttp_serve(struct evhttp *http, struct evhttp_connection *evcon)
+{
+	if (!(evcon->flags & EVHTTP_CON_INCOMING)) {
+		event_errx(1, "%s: must be an incoming connection", __func__);
+		return;
+	}
+	evhttp_serve_request_(http, evcon);
 }
 
 int
@@ -4612,13 +4644,13 @@ struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req)
  * The callback is executed once the whole request has been read.
  */
 
-static struct evhttp_connection*
+struct evhttp_connection*
 evhttp_get_request_connection(
 	struct evhttp* http,
 	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
 	struct bufferevent* bev)
 {
-	struct evhttp_connection *evcon;
+	struct evhttp_connection *evcon = NULL;
 
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
 	if (sa->sa_family == AF_UNIX) {
@@ -4651,7 +4683,7 @@ evhttp_get_request_connection(
 		if (hostname == NULL || portname == NULL) {
 			if (hostname) mm_free(hostname);
 			if (portname) mm_free(portname);
-			return (NULL);
+			goto err;
 		}
 
 		event_debug(("%s: new request from %s:%s on "EV_SOCK_FMT"\n",
@@ -4667,7 +4699,7 @@ evhttp_get_request_connection(
 		mm_free(portname);
 	}
 	if (evcon == NULL)
-		return (NULL);
+		goto err;
 
 	evcon->max_headers_size = http->default_max_headers_size;
 	evcon->max_body_size = http->default_max_body_size;
@@ -4688,8 +4720,40 @@ evhttp_get_request_connection(
 	return (evcon);
 
 err:
-	evhttp_connection_free(evcon);
+	if (evcon)
+		evhttp_connection_free(evcon);
+	event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT, __func__, EV_SOCK_ARG(fd));
+	evutil_closesocket(fd);
 	return (NULL);
+}
+
+/*
+ * Takes a bufferevent to read a request from.
+ * The callback is executed once the whole request has been read.
+ */
+
+struct evhttp_connection*
+evhttp_get_request_connection_reuse_bufferevent(
+	struct evhttp* http,
+	struct bufferevent* bev)
+{
+	struct evhttp_connection *evcon;
+
+	evcon = evhttp_connection_base_bufferevent_reuse_new(http->base, NULL, bev);
+	if (evcon == NULL)
+		return (NULL);
+
+	evcon->max_headers_size = http->default_max_headers_size;
+	evcon->max_body_size = http->default_max_body_size;
+	if (http->flags & EVHTTP_SERVER_LINGERING_CLOSE)
+		evcon->flags |= EVHTTP_CON_LINGERING_CLOSE;
+
+	/* we don't own the request */
+	evcon->flags &= ~EVHTTP_CON_OUTGOING;
+	evcon->flags |= EVHTTP_CON_INCOMING;
+	evcon->state = EVCON_READING_FIRSTLINE;
+
+	return (evcon);
 }
 
 static int
@@ -4733,19 +4797,10 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 }
 
 static void
-evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
-    struct sockaddr *sa, ev_socklen_t salen,
-    struct bufferevent *bev)
+evhttp_serve_request_(struct evhttp *http, struct evhttp_connection *evcon)
 {
-	struct evhttp_connection *evcon;
-
-	evcon = evhttp_get_request_connection(http, fd, sa, salen, bev);
-	if (evcon == NULL) {
-		event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT,
-		    __func__, EV_SOCK_ARG(fd));
-		evutil_closesocket(fd);
+	if (evcon == NULL) 
 		return;
-	}
 
 	/* the timeout can be used by the server to close idle connections */
 	if (evutil_timerisset(&http->timeout_read))
