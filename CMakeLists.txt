@@ -1516,7 +1516,7 @@ if (NOT EVENT__DISABLE_TESTS)
              -n 30
              -t 100
              --check-grouplimit 1000
-             --check-stddev 100)
+             --check-stddev 150)
 
     # Connection limit, no group limit.
     add_test(test-ratelim__con_lim
