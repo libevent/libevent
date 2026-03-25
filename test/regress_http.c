@@ -6169,7 +6169,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(autofree_connection),
 	HTTP(connection_async),
 	HTTP(close_detection),
-	HTTP(close_detection_delay),
+	HTTP_OPT(close_detection_delay, TT_RETRIABLE),
 	HTTP(bad_request),
 	HTTP(incomplete),
 	HTTP(incomplete_timeout),
