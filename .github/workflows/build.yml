@@ -339,6 +339,12 @@ jobs:
           cmake_configure 1
           cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
 
+      - name: Dump excluded port ranges
+        shell: powershell
+        run: |
+          netsh interface ipv4 show excludedportrange protocol=tcp
+          netsh interface ipv4 show excludedportrange protocol=udp
+
       - name: Test
         shell: powershell
         run: |
@@ -406,6 +412,12 @@ jobs:
           exit 0
           '
           D:\a\_temp\msys64\usr\bin\bash.exe -c $script
+
+      - name: Dump excluded port ranges
+        shell: powershell
+        run: |
+          netsh interface ipv4 show excludedportrange protocol=tcp
+          netsh interface ipv4 show excludedportrange protocol=udp
 
       - name: Test
         shell: powershell
@@ -495,6 +507,12 @@ jobs:
           }
           cmake_configure 1
           cmake --build .
+
+      - name: Dump excluded port ranges
+        shell: powershell
+        run: |
+          netsh interface ipv4 show excludedportrange protocol=tcp
+          netsh interface ipv4 show excludedportrange protocol=udp
 
       - name: Test
         shell: powershell
