@@ -107,6 +107,17 @@ struct bufferevent {
 	/** Events that are currently enabled: currently EV_READ and EV_WRITE
 	    are supported. */
 	short enabled;
+
+	/*proxy setting*/
+	ev_uint8_t proxy_type; //0 none;1 https; 2 socks5
+	ev_uint8_t proxy_ssltunnel;//0 tcp; 1 ssl
+	char *proxy_address;
+	int proxy_port;
+	char *proxy_target_address;
+	int proxy_target_port;
+	bufferevent_data_cb proxycb;
+	void* proxy_orig_readcb;
+	void* proxy_orig_errorcb;
 };
 
 #ifdef __cplusplus
