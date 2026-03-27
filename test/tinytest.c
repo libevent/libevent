@@ -1213,7 +1213,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 				for (;;) {
 					test_ret_err = testcase_run_one(group, testcase, attempts);
 
-					if (test_ret_err == OK)
+					if (test_ret_err == OK || test_ret_err == SKIP)
 						break;
 					if (!attempts--)
 						break;
