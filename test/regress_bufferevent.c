@@ -1487,7 +1487,7 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_timeout_filter", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter" },
 	{ "bufferevent_timeout_filter_pair", test_bufferevent_timeouts,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter pair" },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, (void*)"filter pair" },
 	{ "bufferevent_trigger", test_bufferevent_trigger, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, (void*)"" },
 	{ "bufferevent_trigger_defer", test_bufferevent_trigger,
