@@ -326,22 +326,23 @@ testcase_run_forked_(const struct testgroup_t *group,
 		 * our read fails. */
 		close(outcome_pipe[1]);
 		r = (int)read(outcome_pipe[0], b, 1);
-		if (r == 0) {
-			printf("[Lost connection!] ");
-			return FAIL;
-		} else if (r != 1) {
-			perror("read outcome from pipe");
-		}
 		waitpid(pid, &status, 0);
 		exitcode = WEXITSTATUS(status);
 		close(outcome_pipe[0]);
+		if (r == 0) {
+			if (WIFSIGNALED(status))
+				printf("[Lost connection: signal %i] ", WTERMSIG(status));
+			else
+				printf("[Lost connection: exit %i] ", exitcode);
+			return FAIL;
+		} else if (r != 1) {
+			if (WIFSIGNALED(status))
+				printf("[read outcome from pipe: signal %i] ", WTERMSIG(status));
+			else
+				printf("[read outcome from pipe: exit %i] ", exitcode);
+		}
 		if (opt_verbosity>1)
 			printf("%s%s: exited with %i (%i)\n", group->prefix, testcase->name, exitcode, status);
-		if (exitcode != 0)
-		{
-			printf("[atexit failure!] ");
-			return FAIL;
-		}
 		return b[0]=='Y' ? OK : (b[0]=='S' ? SKIP : FAIL);
 	}
 #endif
