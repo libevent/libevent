@@ -1875,7 +1875,7 @@ struct testcase_t util_testcases[] = {
 	{ "mm_calloc_enomem", test_event_calloc_enomem, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
 	{ "usleep", test_evutil_usleep, TT_RETRIABLE, NULL, NULL },
-	{ "monotonic_res", test_evutil_monotonic_res, 0, &basic_setup, (void*)"" },
+	{ "monotonic_res", test_evutil_monotonic_res, TT_RETRIABLE, &basic_setup, (void*)"" },
 	{ "monotonic_res_precise", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"precise" },
 	{ "monotonic_res_fallback", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"fallback" },
 	{ "monotonic_prc", test_evutil_monotonic_prc, TT_RETRIABLE, &basic_setup, (void*)"" },
