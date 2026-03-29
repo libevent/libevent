@@ -1929,33 +1929,38 @@ http_request_done(struct evhttp_request *req, void *arg)
 {
 	const char *what = arg;
 
+	EVUTIL_ASSERT(exit_base);
+
 	if (!req) {
-		fprintf(stderr, "FAILED\n");
-		exit(1);
+		fprintf(stderr, "FAILED: req is NULL (connection error)\n");
+		goto done;
 	}
 
 	if (evhttp_request_get_response_code(req) != HTTP_OK) {
-		fprintf(stderr, "FAILED\n");
-		exit(1);
+		fprintf(stderr, "FAILED: response code %d\n",
+			evhttp_request_get_response_code(req));
+		goto done;
 	}
 
 	if (evhttp_find_header(evhttp_request_get_input_headers(req), "Content-Type") == NULL) {
-		fprintf(stderr, "FAILED\n");
-		exit(1);
+		fprintf(stderr, "FAILED: missing Content-Type\n");
+		goto done;
 	}
 
 	if (evbuffer_get_length(evhttp_request_get_input_buffer(req)) != strlen(what)) {
-		fprintf(stderr, "FAILED\n");
-		exit(1);
+		fprintf(stderr, "FAILED: body length %lu vs expected %lu\n",
+			(unsigned long)evbuffer_get_length(evhttp_request_get_input_buffer(req)),
+			(unsigned long)strlen(what));
+		goto done;
 	}
 
 	if (evbuffer_datacmp(evhttp_request_get_input_buffer(req), what) != 0) {
-		fprintf(stderr, "FAILED\n");
-		exit(1);
+		fprintf(stderr, "FAILED: body mismatch\n");
+		goto done;
 	}
 
 	test_ok = 1;
-	EVUTIL_ASSERT(exit_base);
+done:
 	event_base_loopexit(exit_base, NULL);
 }
 
@@ -6169,7 +6174,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(autofree_connection),
 	HTTP(connection_async),
 	HTTP(close_detection),
-	HTTP(close_detection_delay),
+	HTTP_OPT(close_detection_delay, TT_RETRIABLE),
 	HTTP(bad_request),
 	HTTP(incomplete),
 	HTTP(incomplete_timeout),

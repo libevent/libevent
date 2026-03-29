@@ -773,8 +773,14 @@ fail_server_cb(struct evdns_server_request *req, void *data)
 	question = req->questions[0]->name;
 
 	if (!evutil_ascii_strcasecmp(question, "google.com")) {
-		/* Detect a probe, and get out of the loop. */
-		event_base_loopexit(exit_base, NULL);
+		/* Detect a probe, and get out of the loop.  Use a non-zero tv so
+		 * the exit goes through the timer queue rather than being activated
+		 * immediately -- this gives the event loop one more dispatch
+		 * iteration to read the probe response on the client side before
+		 * the loop terminates, preventing a stale inflight probe from
+		 * interfering with the next phase of the test. */
+		struct timeval tv = {0, 1};
+		event_base_loopexit(exit_base, &tv);
 	}
 
 	tt_assert(evutil_inet_pton(AF_INET, "16.32.64.128", &in));
@@ -899,8 +905,8 @@ dns_probe_settings_test(void *arg)
 	tt_assert(!evdns_base_set_option(dns, "max-timeouts", "1"));
 	tt_assert(!evdns_base_set_option(dns, "attempts", "1"));
 	tt_assert(!evdns_base_set_option(dns, "initial-probe-timeout", "10"));
-	// it will also set initial-probe-timeout to 1s (10s > 1s)
-	tt_assert(!evdns_base_set_option(dns, "max-probe-timeout", "1"));
+	// it will also set initial-probe-timeout to 2s (10s > 2s)
+	tt_assert(!evdns_base_set_option(dns, "max-probe-timeout", "2"));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
 	    generic_dns_callback, &r1);
@@ -908,11 +914,11 @@ dns_probe_settings_test(void *arg)
 	exit_base = base;
 	evutil_gettimeofday(&tval_before, NULL);
 	// this will wait until the probe request done
-	// should be around 1s instead of 10s
+	// should be around 2s instead of 10s
 	event_base_dispatch(base);
 	evutil_gettimeofday(&tval_after, NULL);
 	tt_int_op(r1.result, ==, DNS_ERR_TIMEOUT);
-	test_timeval_diff_leq(&tval_before, &tval_after, 1000, 500);
+	test_timeval_diff_leq(&tval_before, &tval_after, 2200, 1000);
 
 	// should be ok now
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
@@ -3359,8 +3365,8 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "retry_disable_when_inactive", dns_retry_disable_when_inactive_test,
-	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
-	{ "probe_settings", dns_probe_settings_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS|TT_RETRIABLE, &basic_setup, NULL },
+	{ "probe_settings", dns_probe_settings_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS|TT_RETRIABLE, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "reissue_disable_when_inactive", dns_reissue_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },

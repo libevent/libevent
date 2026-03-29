@@ -116,8 +116,10 @@ regress_get_udp_dnsserver(struct event_base *base,
 	my_addr.sin_port = htons(*portnum);
 	my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
+		int err = EVUTIL_SOCKET_ERROR();
 		evutil_closesocket(sock);
-		tt_abort_perror("bind");
+		TT_DIE(("bind: %s [%d]",
+			evutil_socket_error_to_string(err), err));
 	}
 	port = evdns_add_server_port_with_base(base, sock, 0, cb, arg);
 	if (!*portnum)
@@ -138,9 +140,9 @@ regress_get_tcp_dnsserver(struct event_base *base,
 	void *arg)
 {
 	struct evdns_server_port *port = NULL;
-	evutil_socket_t sock;
+	evutil_socket_t sock = -1;
 	struct sockaddr_in my_addr;
-	struct evconnlistener *listener;
+	struct evconnlistener *listener = NULL;
 
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
@@ -271,6 +273,77 @@ end:
 	tt_want(! evdns_server_request_drop(req));
 }
 
+/* Find an ephemeral port that is available for both UDP and TCP bind on
+ * 127.0.0.1.  On Windows, Hyper-V / WinNAT can reserve different port ranges
+ * for TCP and UDP, so a port obtained via one protocol may fall into an
+ * excluded range for the other (WSAEACCES).  Returns 0 on success. */
+static int
+regress_pick_port(ev_uint16_t *port, int need_udp, int need_tcp)
+{
+	struct sockaddr_in sin;
+	evutil_socket_t udp_sock = -1, tcp_sock = -1;
+	int i;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001UL);
+
+	/* Windows allocates ephemeral ports sequentially and Hyper-V/WinNAT
+	 * can exclude 200+ contiguous ports for one protocol but not the
+	 * other.  Retry enough times to skip past any excluded range. */
+	for (i = 0; i < 256; i++) {
+		sin.sin_port = 0;
+
+		if (need_udp) {
+			udp_sock = socket(AF_INET, SOCK_DGRAM, 0);
+			if (udp_sock < 0)
+				goto retry;
+			if (bind(udp_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+				int err = EVUTIL_SOCKET_ERROR();
+				printf("pick_port: udp bind failed port %d: %s [%d]\n",
+					ntohs(sin.sin_port),
+					evutil_socket_error_to_string(err), err);
+				goto retry;
+			}
+			*port = regress_get_socket_port(udp_sock);
+			sin.sin_port = htons(*port);
+		}
+
+		if (need_tcp) {
+			tcp_sock = socket(AF_INET, SOCK_STREAM, 0);
+			if (tcp_sock < 0)
+				goto retry;
+			if (bind(tcp_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+				int err = EVUTIL_SOCKET_ERROR();
+				printf("pick_port: tcp bind failed port %d: %s [%d]\n",
+					ntohs(sin.sin_port),
+					evutil_socket_error_to_string(err), err);
+				goto retry;
+			}
+			if (!need_udp) {
+				*port = regress_get_socket_port(tcp_sock);
+			}
+		}
+
+		if (udp_sock >= 0)
+			evutil_closesocket(udp_sock);
+		if (tcp_sock >= 0)
+			evutil_closesocket(tcp_sock);
+		return 0;
+
+retry:
+		if (udp_sock >= 0) {
+			evutil_closesocket(udp_sock);
+			udp_sock = -1;
+		}
+		if (tcp_sock >= 0) {
+			evutil_closesocket(tcp_sock);
+			tcp_sock = -1;
+		}
+	}
+	return -1;
+}
+
 int
 regress_dnsserver(struct event_base *base, ev_uint16_t *port,
 	struct regress_dns_server_table *udp_seach_table,
@@ -279,18 +352,29 @@ regress_dnsserver(struct event_base *base, ev_uint16_t *port,
 	if (!udp_seach_table && !tcp_seach_table)
 		goto error;
 
-	if (tcp_seach_table) {
-		tcp_dns_port = regress_get_tcp_dnsserver(base, port, &tcp_dns_sock,
-			regress_dns_server_cb, tcp_seach_table);
-		if (!tcp_dns_port)
-			goto error;
+	if (regress_pick_port(port, !!udp_seach_table, !!tcp_seach_table) < 0) {
+		printf("regress_dnsserver: pick_port failed\n");
+		goto error;
 	}
 
 	if (udp_seach_table) {
 		udp_dns_port = regress_get_udp_dnsserver(base, port, &udp_dns_sock,
 			regress_dns_server_cb, udp_seach_table);
-		if (!udp_dns_port)
+		if (!udp_dns_port) {
+			printf("regress_dnsserver: udp server bind failed port %d\n",
+				(int)*port);
 			goto error;
+		}
+	}
+
+	if (tcp_seach_table) {
+		tcp_dns_port = regress_get_tcp_dnsserver(base, port, &tcp_dns_sock,
+			regress_dns_server_cb, tcp_seach_table);
+		if (!tcp_dns_port) {
+			printf("regress_dnsserver: tcp server bind failed port %d\n",
+				(int)*port);
+			goto error;
+		}
 	}
 	return 1;
 

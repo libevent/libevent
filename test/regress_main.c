@@ -238,7 +238,6 @@ static void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
 		THREAD_TIME_CONSTRAINT_POLICY_COUNT);
 	if (kr != KERN_SUCCESS) {
 		mach_error("thread_policy_set:", kr);
-		exit(1);
 	}
 }
 
