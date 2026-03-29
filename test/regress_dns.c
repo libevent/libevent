@@ -773,8 +773,14 @@ fail_server_cb(struct evdns_server_request *req, void *data)
 	question = req->questions[0]->name;
 
 	if (!evutil_ascii_strcasecmp(question, "google.com")) {
-		/* Detect a probe, and get out of the loop. */
-		event_base_loopexit(exit_base, NULL);
+		/* Detect a probe, and get out of the loop.  Use a non-zero tv so
+		 * the exit goes through the timer queue rather than being activated
+		 * immediately -- this gives the event loop one more dispatch
+		 * iteration to read the probe response on the client side before
+		 * the loop terminates, preventing a stale inflight probe from
+		 * interfering with the next phase of the test. */
+		struct timeval tv = {0, 1};
+		event_base_loopexit(exit_base, &tv);
 	}
 
 	tt_assert(evutil_inet_pton(AF_INET, "16.32.64.128", &in));
