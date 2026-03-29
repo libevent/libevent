@@ -288,15 +288,23 @@ regress_pick_port(ev_uint16_t *port, int need_udp, int need_tcp)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(0x7f000001UL);
 
-	for (i = 0; i < 5; i++) {
+	/* Windows allocates ephemeral ports sequentially and Hyper-V/WinNAT
+	 * can exclude 200+ contiguous ports for one protocol but not the
+	 * other.  Retry enough times to skip past any excluded range. */
+	for (i = 0; i < 256; i++) {
 		sin.sin_port = 0;
 
 		if (need_udp) {
 			udp_sock = socket(AF_INET, SOCK_DGRAM, 0);
 			if (udp_sock < 0)
 				goto retry;
-			if (bind(udp_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+			if (bind(udp_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+				int err = EVUTIL_SOCKET_ERROR();
+				printf("pick_port: udp bind failed port %d: %s [%d]\n",
+					ntohs(sin.sin_port),
+					evutil_socket_error_to_string(err), err);
 				goto retry;
+			}
 			*port = regress_get_socket_port(udp_sock);
 			sin.sin_port = htons(*port);
 		}
@@ -305,8 +313,13 @@ regress_pick_port(ev_uint16_t *port, int need_udp, int need_tcp)
 			tcp_sock = socket(AF_INET, SOCK_STREAM, 0);
 			if (tcp_sock < 0)
 				goto retry;
-			if (bind(tcp_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+			if (bind(tcp_sock, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+				int err = EVUTIL_SOCKET_ERROR();
+				printf("pick_port: tcp bind failed port %d: %s [%d]\n",
+					ntohs(sin.sin_port),
+					evutil_socket_error_to_string(err), err);
 				goto retry;
+			}
 			if (!need_udp) {
 				*port = regress_get_socket_port(tcp_sock);
 			}
@@ -339,21 +352,29 @@ regress_dnsserver(struct event_base *base, ev_uint16_t *port,
 	if (!udp_seach_table && !tcp_seach_table)
 		goto error;
 
-	if (regress_pick_port(port, !!udp_seach_table, !!tcp_seach_table) < 0)
+	if (regress_pick_port(port, !!udp_seach_table, !!tcp_seach_table) < 0) {
+		printf("regress_dnsserver: pick_port failed\n");
 		goto error;
+	}
 
 	if (udp_seach_table) {
 		udp_dns_port = regress_get_udp_dnsserver(base, port, &udp_dns_sock,
 			regress_dns_server_cb, udp_seach_table);
-		if (!udp_dns_port)
+		if (!udp_dns_port) {
+			printf("regress_dnsserver: udp server bind failed port %d\n",
+				(int)*port);
 			goto error;
+		}
 	}
 
 	if (tcp_seach_table) {
 		tcp_dns_port = regress_get_tcp_dnsserver(base, port, &tcp_dns_sock,
 			regress_dns_server_cb, tcp_seach_table);
-		if (!tcp_dns_port)
+		if (!tcp_dns_port) {
+			printf("regress_dnsserver: tcp server bind failed port %d\n",
+				(int)*port);
 			goto error;
+		}
 	}
 	return 1;
 
