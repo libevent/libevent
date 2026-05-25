@@ -52,17 +52,17 @@ jobs:
           - UBSAN
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
 
       - name: Cache Dist Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: dist
           key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
@@ -149,12 +149,12 @@ jobs:
             cmake --build . --target verify
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && matrix.EVENT_MATRIX != 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure() && matrix.EVENT_MATRIX == 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-dist
@@ -169,11 +169,11 @@ jobs:
         os: [ubuntu-22.04]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: dist
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
@@ -216,7 +216,7 @@ jobs:
           cd build
           make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
@@ -243,11 +243,11 @@ jobs:
           - TEST_EXPORT_STATIC
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
@@ -365,7 +365,7 @@ jobs:
             $host.SetShouldExit($LastExitCode)
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
@@ -378,11 +378,11 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: mingw-autotools-v5
@@ -430,7 +430,7 @@ jobs:
           make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
           D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -451,11 +451,11 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v5
@@ -521,7 +521,7 @@ jobs:
           cd build
           ctest --output-on-failure
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -545,11 +545,11 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
@@ -609,7 +609,7 @@ jobs:
             cmake --build . --target verify
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -624,11 +624,11 @@ jobs:
         os: [macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-autotools-v3
@@ -656,7 +656,7 @@ jobs:
           cd build
           make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -680,11 +680,11 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
@@ -746,7 +746,7 @@ jobs:
           fi
           EOF
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -761,11 +761,11 @@ jobs:
         release: ["13.4", "14.1"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: freebsd-${{ matrix.release }}-autotools-v1
@@ -796,7 +796,7 @@ jobs:
           make verify
           EOF
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -828,11 +828,11 @@ jobs:
           # - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v1
@@ -895,7 +895,7 @@ jobs:
           fi
           EOF
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -910,11 +910,11 @@ jobs:
         release: [""]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: openbsd-${{ matrix.release }}-autotools-v1
@@ -949,7 +949,7 @@ jobs:
           make verify
           EOF
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -968,11 +968,11 @@ jobs:
           - watchos
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Cache Build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build
           key: cmake-${{ matrix.EVENT_MATRIX }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', '.github/**') }}-v4
@@ -1010,17 +1010,17 @@ jobs:
           - x86_64-linux-android
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install latest NDK and Setup
         run: |
@@ -1100,7 +1100,7 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Install Dependencies
@@ -1121,12 +1121,12 @@ jobs:
           ./extra/abi-check/abi_check.sh
         env:
           ABI_CHECK_ROOT: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: build
           path: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: build
           path: /tmp/le-abi-root/work/abi-check
