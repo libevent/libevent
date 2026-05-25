@@ -1,3 +1,316 @@
+Changes in version 2.1.12-stable (05 Jul 2020)
+
+ This release contains mostly bug fixes (I decided not to port some features
+ that can be ported even without ABI breakage, if you cannot find feature that
+ you are interested in, please give us a note!)
+
+ Since 2.1.12 libevent will use github actions as main CI, since
+ it recommends itself better then travis/appveyor (and had been removed from
+ upstream).
+
+ Look carefully at "slightly touches the behaviour" section.
+
+ Below you will find some of changes (this list has been cleaned up from the
+ patches that touches only tests and similar):
+
+ CI:
+  o Backport github actions to 2.1 (be3acd7c Azat Khuzhin)
+  o Merge branch 'event_rpcgen.py-cleanup' (f0ded5f3, 48e04887 Enji Cooper)
+  o Add API/ABI checker (using LVC) (709210d4, 2af1f6cc yuangongji)
+
+ test:
+  o tinytest: support timeout on Windows (794e8f75 yuangongji)
+  o Merge branch 'osx-clock' (e85afbe3 Azat Khuzhin)
+  o test-ratelim: calculate timers bias (for slow CPUs) to avoid false-positive (8ad26d0b Azat Khuzhin)
+
+ fixes:
+  o buffer: do not pass NULL to memcpy() from evbuffer_pullup() (5b063049 Azat Khuzhin)
+  o http: fix undefined-shift in EVUTIL_IS*_ helpers (6b8d02a7 Azat Khuzhin)
+  o Check error code of evhttp_add_header_internal() in evhttp_parse_query_impl() (97e28f09 Azat Khuzhin)
+  o http: fix EVHTTP_CON_AUTOFREE in case of timeout (and some else) (1be25938 Azat Khuzhin)
+  o evdns: Add additional validation for values of dns options (c2972453 ayuseleznev)
+  o There is typo in GetAdaptersAddresses windows library. It should be iphlpapi.dll (891adda9 Aleksandr-Melnikov)
+  o Merge branch 'EV_CLOSED-and-EV_ET-fixes' (db2efdf5 Azat Khuzhin)
+  o Fix memory corruption in EV_CLOSURE_EVENT_FINALIZE with debug enabled (8ccd8f56 Jan Kasiak)
+  o increase segment refcnt only if evbuffer_add_file_segment() succeeds (30662a3c yuangongji)
+  o evdns: fix a crash when evdns_base with waiting requests is freed (6f8e0e97 ayuseleznev)
+  o event_base_once: fix potential null pointer threat (2e9ceb16 chenguolong)
+  o http: do not assume body for CONNECT (1b42270b Azat Khuzhin)
+  o evbuffer_add_file: fix freeing of segment in the error path (5f017bde Azat Khuzhin)
+  o Fix checking return value of the evdns_base_resolv_conf_parse() (fc51bf2c Azat Khuzhin)
+  o Merge branch 'fix-signal-leak' (poll/select now needs reinit) (1c9cc07b Azat Khuzhin)
+
+ improvements:
+  o evutil_time: improve evutil_gettimeofday on Windows (a8219143 Nick Grifka)
+  o Support EV_CLOSED on linux for poll(2) (2530e7c6 Azat Khuzhin)
+  o Parse IPv6 scope IDs. (f602211f Philip Homburg)
+  o evutil_time: Implements usleep() using wait funtion on Windows (d42240d1 yuangongji)
+  o evutil_time: detect and use _gmtime64_s()/_gmtime64() (f4a6152c yuangongji)
+
+ slightly touches the behaviour:
+  o bufferevent: allow setting priority on socket and openssl type (4dd3acdd Nicolas J. Bouliane)
+  o Fix EV_CLOSED detection/reporting (epoll only) (1df324d4 Azat Khuzhin) (XXX)
+  o Revert "Warn if forked from the event loop during event_reinit()" (71f5c0d3 Azat Khuzhin)
+
+ samples:
+  o https-client: load certificates from the system cert store on Windows (e9478640 yuangongji)
+
+ build fixes:
+  o Do not use sysctl.h on linux (it had been deprecated) (d2871a37 Azat Khuzhin)
+  o cmake: avoid problems from use of CMAKE_USE_PTHREADS_INIT (a62ec765 Paul Osborne)
+  o Update list of cmake files for autotools dist archive (2016f017 Azat Khuzhin)
+  o LibeventConfig.cmake: restore CMAKE_FIND_LIBRARY_SUFFIXES and LIBEVENT_STATIC_LINK default (640f9cf6 Mario Emmenlauer)
+  o cmake: fix getaddrinfo checking error (dea51c2e yuangongji)
+  o autoconf: fix getaddrinfo checking errors on mingw (b9bf7fa7 yuangongji)
+  o Do not use shared global structures on CYGWIN (8a9b5655 Azat Khuzhin)
+  o Added uninstall target check to cmakelists (3f1fb1f9 Dimo Markov)
+  o Fix compilation without OPENSSL_API_COMPAT (921bdcdd Azat Khuzhin)
+  o cmake: improve package config file (1c047618, baec84f2 yuangongji)
+  o Link with iphlpapi only on windows (976f7d34 Azat Khuzhin)
+  o autotools: fails build when need but can not find openssl (93174bb5 yuangongji)
+  o Merge branch 'http-connect' (e2424229 Azat Khuzhin)
+  o Fix compat with NetBSD >= 10 (5febb4e1 Kamil Rytarowski)
+  o cmake: fix getrandom() detection (e0e5f3bd Azat Khuzhin)
+  o arc4random: replace sysctl() with getrandom (on linux) (66ec78fd Azat Khuzhin)
+  o Upgrade autoconf (after upgrading minimum required to 2.67) (45da7d9d yuangongji)
+  o eliminate some C4267 warnings in Windows (9e468c77 yuangongji)
+  o autotools: attach doxygen target into all target (5d1e8570 yuangongji)
+  o cmake: attach doxygen target into all target (7a85300a yuangongji)
+  o Change the minimum version of automake to 1.13 and autoconf to 2.67 (fdb8fb66 ygj6)
+  o Add Uninstall.cmake.in into dist archive (877f2355 Azat Khuzhin)
+
+Changes in version 2.1.11-stable (01 Aug 2019)
+
+ This release contains one ABI breakage fix (that had been introduced in
+ 2.1.10, and strictly speaking this release breaks ABI again to make it
+ compatible with 2.1.9 and less, please take a look at 18104973 for more
+ details). Apart from that it contains some bug fixes, that grouped below.
+
+ And even though the return value for evbuffer_setcb() had been changed it
+ should ABI compatible (anyway that function is in -compat.h header).
+
+ There is also one patch that introduce new functionality, this is 546a366c,
+ to tune SO_RCVBUF/SO_SNDBUF in evdns, but one can count it as a bug-fix on
+ the application level, since before you cannot tune this settings and hence
+ you could stumble on problems.
+
+ ABI breakage:
+  o Protect min_heap_push_ against integer overflow. (8c899768 Tobias Stoeckmann)
+  o Revert "Protect min_heap_push_ against integer overflow." (18104973 Azat Khuzhin)
+
+ functionality:
+  o evdns: add new options -- so-rcvbuf/so-sndbuf (546a366c Azat Khuzhin)
+
+ build:
+  o Change autoconf version to 2.62 and automake version to 1.11.2 (2a333008 yuangongji)
+  o cmake: install shared library only if it was requested (596855f7 Azat Khuzhin)
+  o Missing <winerror.h> on win7/MinGW(MINGW32_NT-6.1)/MSYS (9559349c yuangongji)
+  o cmake: set library names to be the same as with autotools (305251b9 yuangongji)
+  o Enable _GNU_SOURCE for Android (f013fc7d Keith Smiley)
+  o Enable kqueue for APPLE targets (3aa68a82 Keith Smiley)
+  o autotools: do not install bufferevent_ssl.h under --disable-openssl (5349a07e Azat Khuzhin)
+  o cmake: link against shell32.lib/advapi32.lib (c9ce638c Azat Khuzhin)
+  o Add README.md into dist archive (3660a4cc Azat Khuzhin)
+  o cmake: add missing autotools targets (doxygen, uninstall, event_rpcgen.py) (2d65071c yuangongji)
+  o m4/libevent_openssl.m4: fix detection of openssl (d4056e59 Fabrice Fontaine)
+  o Fix detection of the __has_attribute() for apple clang [ci skip] (7fd7c5ef Azat Khuzhin)
+
+ lib:
+  o buffer: fix possible NULL dereference in evbuffer_setcb() on ENOMEM (598f247d Azat Khuzhin)
+  o Warn if forked from the event loop during event_reinit() (b75922ae Azat Khuzhin)
+  o evutil: set the have_checked_interfaces in evutil_check_interfaces()
+    (ef498aa2, a09265ac jeremyerb)
+
+ samples:
+  o https-client: correction error checking (a8a04565 wenyg)
+
+
+Changes in version 2.1.10-stable (26 May 2019)
+
+ This release contains mostly fixes (some evbuffer oddity, AF_UNIX handling in
+ http server, some UB fixes and others) but also some new functionality
+ (without ABI breakage as usual) and now dist archive can be used for building
+ on windows (getopt had been added into it).
+
+ Above you will find changelog for this particular release (but with some
+ trivial fixes pruned out from it - to make it a little bit more informative).
+
+ To view full changelog please use git:
+   git log --format='  o %s (%h %aN)' release-2.1.9-beta...release-2.1.10-stable
+
+ dist:
+  o Add getopt into dist archive (7042ff24 Azat Khuzhin)
+
+ functionality:
+  o evdns: add DNS_OPTION_NAMESERVERS_NO_DEFAULT/EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+  (58e81106 Azat Khuzhin)
+  o Add support for EV_TIMEOUT to event_base_active_by_fd (3f893f0a John Ohl)
+
+ fixes:
+  o Merge branch 'evbuffer-fixes-806-v2' (2fea04b3 Azat Khuzhin)
+  o Merge branch 'issue-807-accept4-getnameinfo-AF_UNIX' (7c4da937, e2790a7f
+    Azat Khuzhin)
+  o kqueue: Avoid undefined behaviour. (e70e18e9 Tobias Stoeckmann)
+  o Prevent integer overflow in kq_build_changes_list. (43a55a23 Tobias Stoeckmann)
+  o evdns: fix lock/unlock mismatch in evdns_close_server_port() (54103883 zhuizhuhaomeng)
+  o Merge remote-tracking branch 'official/pr/804' -- Enforce limit of NSIG
+    signals (87fa93a8 Tobias Stoeckmann)
+  o Protect min_heap_push_ against integer overflow. (0b46bb8c Tobias Stoeckmann)
+  o le-proxy: initiate use of the Winsock DLL (2a1e1530 linxiaohui)
+  o Fix leaks in error path of the bufferevent_init_common_() (bb0f8fe7 Azat Khuzhin)
+  o buffer: make evbuffer_prepend() of zero-length array no-op (61fa7b7d Azat Khuzhin)
+  o Merge branch 'evbuffer-empty-chain-handling' (6a3dd717 Azat Khuzhin)
+  o Don't loose top error in SSL (3d1a7a1d Yury Korzhetsky)
+  o Remove needless check for arc4_seeded_ok (6602a97d Seong-Joong Kim)
+  o Merge pull request #769 from sungjungk/fix-return-handling (91084140 Nathan French)
+
+ build:
+  o Define `_GNU_SOURCE` properly/consistently per autoconf (00ba9fa2 Enji Cooper)
+  o signal: guard __cdecl definition with #ifdef (d89045a6 Azat Khuzhin)
+  o Link test/regress with event_core/event_extra over event (22380996 Azat Khuzhin)
+
+ tests:
+  o Use kill() over raise() for raising the signal (fixes osx 10.14 with
+    kqueue) (3db5296b, a45f6733 Azat Khuzhin)
+  o tinytest: implement per-test timeout (via alarm() under !win32 only)
+    (b64dbfb6, 75d7e1ff Azat Khuzhin)
+
+Changes in version 2.1.9-beta (10 February 2019)
+
+ This changelog will differs from other releases in the next few clauses:
+ - contains only highlighted changes (so now it will not contains a lot of
+   patches that fixes some stuff in regression tests, typos, leaks fixes in
+   samples and so forth)
+ - no authors (since merge commits breaks them anyway, but AUTHORS sections in
+   README will be kept up to date)
+ - group name trimmed from commit subjects trimmed
+ - it's been 2 years since the previoius release, so it is pretty huge
+
+ And I think that this is more useful, so from now on it will always has the
+ same look (until there will too many objections of course).
+
+ To view full changelog please use git:
+   git log --format='  o %s (%h %aN)' release-2.1.8-stable...release-2.1.9-beta
+
+
+ dist archive:
+  o Add cmake rules into dist archive (bf3a67cf)
+  o Add missing print-winsock-errors.c into dist archive (822d6462)
+  o Include openssl-compat.h into dist archive (08658136)
+
+ core:
+  o Merge branch 'check-O_NONBLOCK-in-debug' (a39898f3, a8155c62)
+  o Merge branch 'event-ET-#636-v2' (ca4b6404)
+  o Fix visibility issues under (mostly on win32)
+    (349081e1g, 802be13ag, a1f28e2f)
+  o Define __EXT_POSIX2 for QNX (a2176f2c)
+  o Cleanup __func__ detection (b3af7bdd)
+  o Add convenience macros for user-triggered events (06ec5de6)
+  o Notify event base if there are no more events, so it can exit without delay (d9d1c09e)
+  o Fix base unlocking in event_del() if event_base_set() runned in another thread (4f0f40e3)
+  o If precise_time is false, we should not set EVENT_BASE_FLAG_PRECISE_TIMER (27dee54d)
+  o Fix race in access to ev_res from event loop with event_active() (43d92a6d)
+  o Return from event_del() after the last event callback termination (876c7ac7)
+
+ http:
+  o Merge branch 'http-EVHTTP_CON_READ_ON_WRITE_ERROR-fixes-v2' (eb7b472b)
+  o Preserve socket error from listen across closesocket cleanup (2ccd00a6)
+  o fix connection retries when there more then one request for connection (d30e7bba)
+  o improve error path for bufferevent_{setfd,enable,disable}() (a8cc449e)
+  o Fix conceivable UAF of the bufferevent in evhttp_connection_free() (6ac2ec25)
+  o Merge branch 'http-request-line-parsing' (cdcfbafe)
+  o Fix evhttp_connection_get_addr() fox incomming http connections (4215c003)
+  o fix leaks in evhttp_uriencode() (123362e9)
+  o CONNECT method only takes an authority (7d1ffe64)
+  o Allow bodies for GET/DELETE/OPTIONS/CONNECT (23eb38b9)
+  o Do not crash when evhttp_send_reply_start() is called after a timeout. (826f1134)
+  o Fix crashing http server when callback do not reply in place (5b40744d, b2581380)
+  o fix handling of close_notify (ssl) in http with openssl bufferevents (7e91622b)
+
+ evrpc:
+  o use *_new_with_arg() to match function prototype (a95cc9e3)
+  o avoid NULL dereference on request is not EVHTTP_REQ_POST (e05136c7)
+
+ regression tests:
+  o Merge branch 'TT_RETRIABLE' (6ea1ec68, f9b592aa)
+
+ bufferevent:
+  o Merge branch 'iocp-fixes' (6bfac964)
+  o Merge branch 'be-wm-overrun-v2' (3f692fff)
+  o bufferevent_socket_connect{,_hostname}() missing event callback and use ret code (1dde74ef)
+  o don't fail be_null_filter if bytes are copied (b92b0792)
+  o Call underlying bev ctrl GET_FD on filtered bufferevents (ebfac517)
+
+ bufferevent_openssl/openssl:
+  o Merge branch 'ssl_bufferevent_wm_filter-fix' (30020a35)
+  o be_openssl: avoid leaking of SSL structure (e86ccfe5)
+  o Fix build with LibreSSL 2.7 (894ca48a)
+  o Add missing includes into openssl-compat.h (01bc36c1)
+  o Explicitly call SSL_clear when reseting the fd. (29b7a516)
+  o Unbreak build with LibreSSL after openssl 1.1 support added (230af9f0)
+
+ samples:
+  o Merge branch 'sample-http-server' (b6309bcc)
+  o sample/https-client: use host SSL certificate store by default (5c0132f3)
+
+ listener:
+  o ipv6only socket bind support (ba148796)
+  o Merge branch 'listener-immediate-close' (df2ed13f)
+  o Merge branch 'evconnlistener-do-not-close-client-fd' (42e851bb)
+
+ evdns:
+  o evdns: handle NULL filename explicitly (0033f5cc)
+  o Merge branch 'evdns_getaddrinfo-race-fix' (3237d697)
+  o Generating evdns_base_config_windows_nameservers docs on all platforms (3bd2ce43)
+
+ utils:
+  o Merge branch 'evutil_found_ifaddr-dev' (b07e43e6)
+  o Avoid possible SEGVs in select() (in unit tests) (8818c86c)
+  o Port `event_rpcgen.py` and `test/check-dumpevents.py` to Python 3. (532a8cc3)
+
+ buffer:
+  o Fix assert() condition in evbuffer_drain() for IOCP (d6326104)
+  o fix incorrect unlock of the buffer mutex (for deferred callbacks) (2b4d127d)
+  o Fix wrong assert in evbuffer_drain() (9f4d0dce)
+
+ cmake:
+  o fix checking of devpoll backend (like in autotools, by devpoll.h existence) (7f161902)
+  o support static runtime (MSVC) (c8b3ec17, 61fb055a)
+  o do not build both (SHARED and STATIC) for MSVC/win32 (bc7f2fd9)
+  o introduce EVENT__LIBRARY_TYPE option (eb10a738)
+  o ensure windows dll's are installed as well as lib files (29590718)
+  o Fix generation of LibeventConfig.cmake for the installation tree (7fa08c4b)
+  o fix pkgconfig generation (copy-paste typo) (cc554d87)
+  o Merge branch 'cmake-missing-bits' (9806b126)
+  o Fix detection of timerfd_create() in CMake. (e50af331)
+  o Merge branch 'cmake-configure-fixes-v2' (a0bfe2c4)
+  o Do not add epoll_sub (syscall wrappers) for epoll in cmake (cea61de6)
+  o Fix RPATH for APPLE (45b1f379)
+
+ autotools:
+  o include win32 specific headers for socklen_t detection on win32/mingw (d7579fb9)
+  o Ignore evconfig-private.h for autotools (37423849)
+  o config.h can't be prefixed unconditionally (63a054f8)
+  o Merge branch 'pull-628' (7e56c8b2)
+  o Provide Makefile variables LIBEVENT_{CFLAGS,CPPFLAGS,LDFLAGS} (2f060c5f)
+  o confirm openssl is working before using (b39ccf8e)
+  o pass $(OPENSSL_INCS) for samples (FTBFS macOS) (c2495265)
+  o Add configure check for midipix (d433201e)
+  o Fix tests with detached builds (c46ff439)
+
+ build:
+  o Fix arc4random_addrandom() detecting and fallback (regression) (303d6d77)
+  o Merge branch 'win32-fixes' (ebd12e6d)
+  o Merge branch 'fix-openssl-linking' (e7bd9e03)
+  o Merge branch 'fix-struct-linger' (8567f2f5)
+
+ CI:
+  o travis-ci/appveyor now uses fast_finish+allow_failures
+    (5e97b6e6, dd472e7d, dfb5fc167)
+  o Merge branch 'travis-ci-osx-fixes' (9f02b39c)
+  o Merge branch 'win64-fixes' (aee0fcd5)
+
+
 Changes in version 2.1.8-stable (22 January 2017)
 
  Libevent 2.1.8-stable, it contains openssl fixes for resetting fd and using
