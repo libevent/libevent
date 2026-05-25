@@ -67,6 +67,8 @@ macro(export_install_target TYPE LIB_NAME)
             RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
             COMPONENT dev
         )
+
+        add_library("${PROJECT_NAME}::${PURE_NAME}" ALIAS "${LIB_NAME}")
     endif()
 endmacro()
 
