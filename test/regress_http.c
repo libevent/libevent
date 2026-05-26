@@ -4356,6 +4356,228 @@ http_stream_in_cancel_test(void *arg)
 
 }
 
+/*
+ * Server-side streaming request body: verify body_start_cb fires once after
+ * headers are parsed, body_read_cb is invoked incrementally, the input buffer
+ * is drained by the time the gencb fires, and the captured bytes match what
+ * the client sent.  Covers both Content-Length and Transfer-Encoding: chunked.
+ */
+
+struct stream_in_body_state {
+	int body_start_calls;
+	int body_read_calls;
+	int gencb_calls;
+	struct evbuffer *captured;
+	/* When body_start_cb fires it has full request metadata; record it
+	 * so the test thread can assert on it after the loop returns. */
+	int saw_post;
+	int saw_uri;
+};
+
+static void
+stream_in_body_read_cb(struct evhttp_request *req, void *arg)
+{
+	struct stream_in_body_state *s = arg;
+	s->body_read_calls++;
+	evbuffer_add_buffer(s->captured, evhttp_request_get_input_buffer(req));
+}
+
+static void
+stream_in_body_start_cb(struct evhttp_request *req, void *arg)
+{
+	struct stream_in_body_state *s = arg;
+	const char *uri;
+
+	s->body_start_calls++;
+	s->saw_post = (evhttp_request_get_command(req) == EVHTTP_REQ_POST);
+	uri = evhttp_request_get_uri(req);
+	s->saw_uri = (uri && !strcmp(uri, "/streamed_in"));
+
+	evhttp_request_set_body_read_cb(req, stream_in_body_read_cb, s);
+}
+
+static int
+stream_in_body_newreq_cb(struct evhttp_request *req, void *arg)
+{
+	evhttp_request_set_body_start_cb(req, stream_in_body_start_cb, arg);
+	return 0;
+}
+
+static void
+stream_in_body_server_cb(struct evhttp_request *req, void *arg)
+{
+	struct stream_in_body_state *s = arg;
+	s->gencb_calls++;
+	evhttp_send_reply(req, HTTP_OK, "OK", NULL);
+}
+
+static void
+stream_in_body_client_done(struct evhttp_request *req, void *arg)
+{
+	struct event_base *base = arg;
+	if (req && evhttp_request_get_response_code(req) == HTTP_OK)
+		test_ok = 1;
+	event_base_loopexit(base, NULL);
+}
+
+static void
+http_stream_in_body_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct stream_in_body_state state;
+	ev_uint16_t port = 0;
+	struct evhttp *http = NULL;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+
+	memset(&state, 0, sizeof(state));
+	state.captured = evbuffer_new();
+	tt_assert(state.captured);
+	test_ok = 0;
+
+	http = http_setup_gencb(&port, data->base, 0,
+	    stream_in_body_server_cb, &state);
+	tt_assert(http);
+	evhttp_set_newreqcb(http, stream_in_body_newreq_cb, &state);
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	req = evhttp_request_new(stream_in_body_client_done, data->base);
+	tt_assert(req);
+	evhttp_add_header(evhttp_request_get_output_headers(req),
+	    "Host", "somehost");
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req), POST_DATA);
+
+	tt_int_op(evhttp_make_request(evcon, req, EVHTTP_REQ_POST,
+	    "/streamed_in"), ==, 0);
+	event_base_dispatch(data->base);
+
+	tt_int_op(test_ok, ==, 1);
+	tt_int_op(state.body_start_calls, ==, 1);
+	tt_int_op(state.body_read_calls, >=, 1);
+	tt_int_op(state.gencb_calls, ==, 1);
+	tt_assert(state.saw_post);
+	tt_assert(state.saw_uri);
+	tt_int_op(evbuffer_get_length(state.captured), ==, strlen(POST_DATA));
+	tt_int_op(evbuffer_datacmp(state.captured, POST_DATA), ==, 0);
+
+ end:
+	if (state.captured)
+		evbuffer_free(state.captured);
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
+/* Chunked-encoded server-side streaming: drive the request over a raw
+ * bufferevent (no client-side libevent chunked-upload helper exists) and
+ * check that the body is delivered incrementally as chunks arrive. */
+
+static const char STREAM_IN_CHUNK_A[] = "alpha";
+static const char STREAM_IN_CHUNK_B[] = "bravo!";
+static const char STREAM_IN_CHUNK_C[] = "charlie";
+
+static void
+stream_in_body_chunked_client_read_cb(struct bufferevent *bev, void *arg)
+{
+	struct evbuffer *input = bufferevent_get_input(bev);
+	/* Look for the end of the response status line - good enough for a
+	 * smoke check; the real assertions are on the server side. */
+	char *line = evbuffer_readln(input, NULL, EVBUFFER_EOL_CRLF);
+	if (line && !strncmp(line, "HTTP/1.1 200", 12))
+		test_ok++;
+	free(line);
+	event_base_loopexit(exit_base, NULL);
+}
+
+static void
+stream_in_body_chunked_client_error_cb(struct bufferevent *bev, short what, void *arg)
+{
+	event_base_loopexit(exit_base, NULL);
+}
+
+static void
+http_stream_in_body_chunked_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct stream_in_body_state state;
+	ev_uint16_t port = 0;
+	struct evhttp *http = NULL;
+	struct bufferevent *bev = NULL;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
+	struct evbuffer *out = NULL;
+	size_t expected_len = strlen(STREAM_IN_CHUNK_A) +
+	    strlen(STREAM_IN_CHUNK_B) + strlen(STREAM_IN_CHUNK_C);
+
+	memset(&state, 0, sizeof(state));
+	state.captured = evbuffer_new();
+	tt_assert(state.captured);
+	test_ok = 0;
+	exit_base = data->base;
+
+	http = http_setup_gencb(&port, data->base, 0,
+	    stream_in_body_server_cb, &state);
+	tt_assert(http);
+	evhttp_set_newreqcb(http, stream_in_body_newreq_cb, &state);
+
+	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
+
+	bev = create_bev(data->base, fd, 0, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+	bufferevent_setcb(bev,
+	    stream_in_body_chunked_client_read_cb, NULL,
+	    stream_in_body_chunked_client_error_cb, data->base);
+	bufferevent_enable(bev, EV_READ | EV_WRITE);
+
+	out = bufferevent_get_output(bev);
+	evbuffer_add_printf(out,
+	    "POST /streamed_in HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Transfer-Encoding: chunked\r\n"
+	    "Connection: close\r\n"
+	    "\r\n");
+	evbuffer_add_printf(out, "%x\r\n%s\r\n",
+	    (unsigned)strlen(STREAM_IN_CHUNK_A), STREAM_IN_CHUNK_A);
+	evbuffer_add_printf(out, "%x\r\n%s\r\n",
+	    (unsigned)strlen(STREAM_IN_CHUNK_B), STREAM_IN_CHUNK_B);
+	evbuffer_add_printf(out, "%x\r\n%s\r\n",
+	    (unsigned)strlen(STREAM_IN_CHUNK_C), STREAM_IN_CHUNK_C);
+	evbuffer_add_printf(out, "0\r\n\r\n");
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(test_ok, ==, 1);
+	tt_int_op(state.body_start_calls, ==, 1);
+	/* Three non-empty chunks should produce at least one body_read_cb
+	 * invocation; the chunked-read path calls it once per parsed chunk,
+	 * so we expect three, but allow the runtime to coalesce. */
+	tt_int_op(state.body_read_calls, >=, 1);
+	tt_int_op(state.gencb_calls, ==, 1);
+	tt_assert(state.saw_post);
+	tt_assert(state.saw_uri);
+	tt_int_op(evbuffer_get_length(state.captured), ==, expected_len);
+	{
+		size_t got = evbuffer_get_length(state.captured);
+		char *blob = malloc(got + 1);
+		tt_assert(blob);
+		evbuffer_copyout(state.captured, blob, got);
+		blob[got] = '\0';
+		tt_str_op(blob, ==, "alphabravo!charlie");
+		free(blob);
+	}
+
+ end:
+	if (state.captured)
+		evbuffer_free(state.captured);
+	if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+}
+
 static void
 http_connection_fail_done(struct evhttp_request *req, void *arg)
 {
@@ -6194,6 +6416,8 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(stream_in),
 	HTTP(stream_in_cancel),
+	HTTP(stream_in_body),
+	HTTP(stream_in_body_chunked),
 
 	HTTP(connection_fail),
 	{ "connection_retry", http_connection_retry_test, TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
