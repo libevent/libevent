@@ -252,7 +252,7 @@ add_cert_for_store(X509_STORE *store, const char *name)
 }
 #endif
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(__MINGW32__)
 static char* strndup(const char* src, size_t chars)
 {
 	char* buffer = (char*) malloc(chars + 1);
