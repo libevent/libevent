@@ -34,6 +34,13 @@ extern "C" {
 
 struct event_base;
 struct event_io_uring;
+struct iovec;
+
+/* Per-submission callback invoked from event_io_uring_drain_() once a CQE
+ * arrives. `result` is the kernel's return value (positive byte count,
+ * 0 for EOF, negative errno on failure). `arg` is the opaque pointer
+ * passed at submission time. */
+typedef void (*event_io_uring_cb)(int result, void *arg);
 
 #ifdef EVENT__HAVE_LIBURING
 
@@ -45,10 +52,21 @@ int event_io_uring_init_(struct event_base *base);
  * unconditionally — base->io_uring may be NULL. */
 void event_io_uring_free_(struct event_base *base);
 
-/* Drain any completed CQEs and dispatch them. Called once per loop iteration
- * from event_base_loop() after the backend dispatch. Returns the number of
- * CQEs processed. */
+/* Drain any completed CQEs and dispatch their callbacks. Called once per
+ * loop iteration from event_base_loop() after the backend dispatch.
+ * Returns the number of CQEs processed. */
 int event_io_uring_drain_(struct event_base *base);
+
+/* Submit a readv()/writev() through io_uring. The iovecs must remain
+ * valid until the callback fires. Returns 0 on success, -1 on failure
+ * (ring full, OOM, base has no io_uring). */
+int event_io_uring_submit_readv_(struct event_base *base, int fd,
+    const struct iovec *iov, unsigned niov,
+    event_io_uring_cb cb, void *arg);
+
+int event_io_uring_submit_writev_(struct event_base *base, int fd,
+    const struct iovec *iov, unsigned niov,
+    event_io_uring_cb cb, void *arg);
 
 #else /* no liburing */
 
@@ -58,6 +76,22 @@ static inline void
 event_io_uring_free_(struct event_base *base) { (void)base; }
 static inline int
 event_io_uring_drain_(struct event_base *base) { (void)base; return 0; }
+static inline int
+event_io_uring_submit_readv_(struct event_base *base, int fd,
+    const struct iovec *iov, unsigned niov,
+    event_io_uring_cb cb, void *arg)
+{
+	(void)base; (void)fd; (void)iov; (void)niov; (void)cb; (void)arg;
+	return -1;
+}
+static inline int
+event_io_uring_submit_writev_(struct event_base *base, int fd,
+    const struct iovec *iov, unsigned niov,
+    event_io_uring_cb cb, void *arg)
+{
+	(void)base; (void)fd; (void)iov; (void)niov; (void)cb; (void)arg;
+	return -1;
+}
 
 #endif /* EVENT__HAVE_LIBURING */
 

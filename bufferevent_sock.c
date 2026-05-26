@@ -70,10 +70,17 @@
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "bufferevent-internal.h"
+#include "event-internal.h"
+#include "event_io_uring-internal.h"
 #include "util-internal.h"
 #ifdef _WIN32
 #include "iocp-internal.h"
 #endif
+
+/* Maximum number of iovecs handed to a single io_uring readv/writev SQE for
+ * a socket bufferevent. Bounded so per-submission state stays cheap; the
+ * common case is one or two chains. */
+#define BEV_URING_MAX_IOV 4
 
 /* prototypes */
 static int be_socket_enable(struct bufferevent *, short);
@@ -83,6 +90,13 @@ static int be_socket_flush(struct bufferevent *, short, enum bufferevent_flush_m
 static int be_socket_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
 static void be_socket_setfd(struct bufferevent *, evutil_socket_t);
+
+/* io_uring helpers (forward decls); definitions are below. */
+static int be_socket_should_use_uring_(const struct bufferevent *bufev);
+static int be_socket_uring_submit_read_(struct bufferevent *bufev,
+    evutil_socket_t fd, ev_ssize_t howmuch);
+static int be_socket_uring_submit_write_(struct bufferevent *bufev,
+    evutil_socket_t fd, ev_ssize_t atmost);
 
 const struct bufferevent_ops bufferevent_ops_socket = {
 	"socket",
@@ -185,6 +199,21 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		howmuch = readmax;
 	if (bufev_p->read_suspended)
 		goto done;
+
+	/* If io_uring is enabled on this base, route the read through it.
+	 * An in-flight submission is allowed to be re-entered (epoll is
+	 * level-triggered), but only one SQE per bufferevent is pending at
+	 * a time — the in_flight flag short-circuits resubmission. The CQE
+	 * handler (be_socket_uring_read_cb_) finishes the work and runs
+	 * the user callbacks asynchronously. */
+	if (be_socket_should_use_uring_(bufev)) {
+		if (bufev_p->uring_read_in_flight)
+			goto done;
+		if (be_socket_uring_submit_read_(bufev, fd, howmuch) == 0)
+			goto done;
+		/* Submission failed (ring full, OOM, etc.) — fall through
+		 * to the synchronous path so we don't lose the readiness. */
+	}
 
 	evbuffer_unfreeze(input, 0);
 	res = evbuffer_read(input, fd, (int)howmuch); /* XXXX evbuffer_read would do better to take and return ev_ssize_t */
@@ -293,6 +322,14 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		goto done;
 
 	if (evbuffer_get_length(bufev->output)) {
+		/* See bufferevent_readcb() for the matching gate on reads. */
+		if (be_socket_should_use_uring_(bufev)) {
+			if (bufev_p->uring_write_in_flight)
+				goto done;
+			if (be_socket_uring_submit_write_(bufev, fd, atmost) == 0)
+				goto done;
+		}
+
 		evbuffer_unfreeze(bufev->output, 1);
 		res = evbuffer_write_atmost(bufev->output, fd, atmost);
 		evbuffer_freeze(bufev->output, 1);
@@ -720,4 +757,281 @@ be_socket_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 	default:
 		return -1;
 	}
+}
+
+/* ----------------------------------------------------------------------
+ * io_uring fast path for socket bufferevent reads and writes.
+ *
+ * Gate: per-base. When EVENT_BASE_FLAG_IO_URING was passed at config time
+ * and the platform supports liburing, base->io_uring is non-NULL and this
+ * code path is active for all socket bufferevents on that base.
+ *
+ * Lifecycle: epoll readiness (or writability) still drives bufferevent_readcb
+ * / bufferevent_writecb. Inside those callbacks, instead of calling
+ * evbuffer_read / evbuffer_write_atmost synchronously, we submit a readv /
+ * writev SQE to the per-base ring and return. The completion runs from
+ * event_io_uring_drain_() in the next iteration of event_base_loop and
+ * finishes the bufferevent state machine.
+ *
+ * Known limitation: bufferevent read/write timeouts are not enforced while
+ * an io_uring op is in flight, only between ops. A follow-up should bind a
+ * LINK_TIMEOUT SQE so the kernel cancels the I/O if the deadline passes.
+ * ---------------------------------------------------------------------- */
+
+struct be_uring_io_ctx {
+	struct bufferevent *bufev;
+	/* For reads: iovecs returned by evbuffer_reserve_space, kept alive
+	 *   until the CQE fires so the kernel can copy data into them.
+	 * For writes: iovecs returned by evbuffer_peek into chains pinned
+	 *   in the output buffer for the lifetime of the in-flight op. */
+	struct evbuffer_iovec vec[BEV_URING_MAX_IOV];
+	int nvec;
+};
+
+static int
+be_socket_should_use_uring_(const struct bufferevent *bufev)
+{
+	return bufev->ev_base != NULL && bufev->ev_base->io_uring != NULL;
+}
+
+static void
+be_socket_uring_read_cb_(int result, void *arg)
+{
+	struct be_uring_io_ctx *ctx = arg;
+	struct bufferevent *bufev = ctx->bufev;
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	short what = BEV_EVENT_READING;
+	int rescheduling = 0;
+
+	BEV_LOCK(bufev);
+	bufev_p->uring_read_in_flight = 0;
+
+	if (result < 0) {
+		int err = -result;
+		if (EVUTIL_ERR_RW_RETRIABLE(err)) {
+			rescheduling = 1;
+			goto freeze_done;
+		}
+		if (EVUTIL_ERR_CONNECT_REFUSED(err)) {
+			bufev_p->connection_refused = 1;
+			goto freeze_done;
+		}
+		what |= BEV_EVENT_ERROR;
+		goto freeze_error;
+	}
+	if (result == 0) {
+		what |= BEV_EVENT_EOF;
+		goto freeze_error;
+	}
+
+	/* Commit only the bytes the kernel actually delivered. The iovecs
+	 * were sized at reservation; trim them to the real total. The buffer
+	 * must be unfrozen here; we re-freeze right after to match the
+	 * synchronous evbuffer_read path's bracketing. */
+	{
+		size_t remaining = (size_t)result;
+		int i, used = 0;
+		for (i = 0; i < ctx->nvec; ++i) {
+			size_t take = ctx->vec[i].iov_len;
+			if (take > remaining)
+				take = remaining;
+			ctx->vec[i].iov_len = take;
+			remaining -= take;
+			if (take > 0)
+				used = i + 1;
+		}
+		evbuffer_commit_space(bufev->input, ctx->vec, used);
+	}
+	evbuffer_freeze(bufev->input, 0);
+
+	bufferevent_decrement_read_buckets_(bufev_p, result);
+	bufferevent_trigger_nolock_(bufev, EV_READ, 0);
+	goto done;
+
+ freeze_error:
+	evbuffer_freeze(bufev->input, 0);
+	bufferevent_disable(bufev, EV_READ);
+	bufferevent_run_eventcb_(bufev, what, 0);
+	goto done;
+
+ freeze_done:
+	evbuffer_freeze(bufev->input, 0);
+
+ done:
+	(void)rescheduling;
+	mm_free(ctx);
+	bufferevent_decref_and_unlock_(bufev);
+}
+
+static int
+be_socket_uring_submit_read_(struct bufferevent *bufev,
+    evutil_socket_t fd, ev_ssize_t howmuch)
+{
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	struct be_uring_io_ctx *ctx;
+	size_t want;
+	size_t sum = 0;
+	int n, i;
+
+	if (howmuch <= 0)
+		return -1;
+
+	ctx = mm_calloc(1, sizeof(*ctx));
+	if (ctx == NULL)
+		return -1;
+	ctx->bufev = bufev;
+
+	/* Reserve enough contiguous space for `howmuch` bytes. The buffer
+	 * may hand back fewer or smaller iovecs than requested; we then
+	 * clamp the last one so the sum equals howmuch. */
+	evbuffer_unfreeze(bufev->input, 0);
+	n = evbuffer_reserve_space(bufev->input, howmuch, ctx->vec,
+	    BEV_URING_MAX_IOV);
+	if (n <= 0) {
+		evbuffer_freeze(bufev->input, 0);
+		mm_free(ctx);
+		return -1;
+	}
+
+	want = (size_t)howmuch;
+	for (i = 0; i < n; ++i) {
+		size_t avail = ctx->vec[i].iov_len;
+		if (sum + avail >= want) {
+			ctx->vec[i].iov_len = want - sum;
+			n = i + 1;
+			sum = want;
+			break;
+		}
+		sum += avail;
+	}
+	ctx->nvec = n;
+
+	bufferevent_incref_(bufev);
+	bufev_p->uring_read_in_flight = 1;
+
+	if (event_io_uring_submit_readv_(bufev->ev_base, fd,
+	    (struct iovec *)ctx->vec, (unsigned)ctx->nvec,
+	    be_socket_uring_read_cb_, ctx) < 0) {
+		bufev_p->uring_read_in_flight = 0;
+		bufferevent_decref_(bufev);
+		evbuffer_freeze(bufev->input, 0);
+		mm_free(ctx);
+		return -1;
+	}
+
+	return 0;
+}
+
+static void
+be_socket_uring_write_cb_(int result, void *arg)
+{
+	struct be_uring_io_ctx *ctx = arg;
+	struct bufferevent *bufev = ctx->bufev;
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	short what = BEV_EVENT_WRITING;
+	int rescheduling = 0;
+
+	BEV_LOCK(bufev);
+	bufev_p->uring_write_in_flight = 0;
+
+	if (result < 0) {
+		int err = -result;
+		if (EVUTIL_ERR_RW_RETRIABLE(err)) {
+			rescheduling = 1;
+			goto freeze_done;
+		}
+		what |= BEV_EVENT_ERROR;
+		goto freeze_error;
+	}
+	if (result == 0) {
+		/* Same caveat as the synchronous path: a zero return from
+		 * write isn't really EOF, but the existing code treats it
+		 * that way and we mirror that until a better signal arrives. */
+		what |= BEV_EVENT_EOF;
+		goto freeze_error;
+	}
+
+	/* Drain on the unfrozen output, then re-freeze to match the
+	 * synchronous evbuffer_write_atmost path's bracketing. */
+	evbuffer_drain(bufev->output, (size_t)result);
+	evbuffer_freeze(bufev->output, 1);
+	bufferevent_decrement_write_buckets_(bufev_p, result);
+
+	if (evbuffer_get_length(bufev->output) == 0)
+		event_del(&bufev->ev_write);
+
+	bufferevent_trigger_nolock_(bufev, EV_WRITE, 0);
+	goto done;
+
+ freeze_error:
+	evbuffer_freeze(bufev->output, 1);
+	bufferevent_disable(bufev, EV_WRITE);
+	bufferevent_run_eventcb_(bufev, what, 0);
+	goto done;
+
+ freeze_done:
+	evbuffer_freeze(bufev->output, 1);
+
+ done:
+	(void)rescheduling;
+	mm_free(ctx);
+	bufferevent_decref_and_unlock_(bufev);
+}
+
+static int
+be_socket_uring_submit_write_(struct bufferevent *bufev,
+    evutil_socket_t fd, ev_ssize_t atmost)
+{
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	struct be_uring_io_ctx *ctx;
+	ev_ssize_t want;
+	size_t sum = 0;
+	int n, i;
+
+	want = atmost;
+	if (want < 0)
+		want = (ev_ssize_t)evbuffer_get_length(bufev->output);
+	if (want <= 0)
+		return -1;
+
+	ctx = mm_calloc(1, sizeof(*ctx));
+	if (ctx == NULL)
+		return -1;
+	ctx->bufev = bufev;
+
+	evbuffer_unfreeze(bufev->output, 1);
+	n = evbuffer_peek(bufev->output, want, NULL, ctx->vec,
+	    BEV_URING_MAX_IOV);
+	if (n <= 0) {
+		evbuffer_freeze(bufev->output, 1);
+		mm_free(ctx);
+		return -1;
+	}
+
+	for (i = 0; i < n; ++i) {
+		size_t avail = ctx->vec[i].iov_len;
+		if (sum + avail >= (size_t)want) {
+			ctx->vec[i].iov_len = (size_t)want - sum;
+			n = i + 1;
+			sum = (size_t)want;
+			break;
+		}
+		sum += avail;
+	}
+	ctx->nvec = n;
+
+	bufferevent_incref_(bufev);
+	bufev_p->uring_write_in_flight = 1;
+
+	if (event_io_uring_submit_writev_(bufev->ev_base, fd,
+	    (struct iovec *)ctx->vec, (unsigned)ctx->nvec,
+	    be_socket_uring_write_cb_, ctx) < 0) {
+		bufev_p->uring_write_in_flight = 0;
+		bufferevent_decref_(bufev);
+		evbuffer_freeze(bufev->output, 1);
+		mm_free(ctx);
+		return -1;
+	}
+
+	return 0;
 }

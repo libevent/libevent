@@ -50,6 +50,14 @@ struct event_io_uring {
 	struct io_uring ring;
 };
 
+/* Per-submission record. Lifetime: allocated in submit_*, freed in drain
+ * after the user callback returns. The pointer is stashed in the SQE's
+ * user_data so the CQE handler can find it. */
+struct event_io_uring_req {
+	event_io_uring_cb cb;
+	void *arg;
+};
+
 int
 event_io_uring_init_(struct event_base *base)
 {
@@ -97,13 +105,96 @@ event_io_uring_drain_(struct event_base *base)
 	if (r == NULL)
 		return 0;
 
-	/* Pop every ready CQE. Submitters land in step 3; until then this
-	 * is just a hook that confirms the ring is reachable from the loop. */
 	while (io_uring_peek_cqe(&r->ring, &cqe) == 0) {
+		struct event_io_uring_req *req = io_uring_cqe_get_data(cqe);
+		int result = cqe->res;
 		io_uring_cqe_seen(&r->ring, cqe);
+		if (req != NULL) {
+			req->cb(result, req->arg);
+			mm_free(req);
+		}
 		++n;
 	}
 	return n;
+}
+
+/* Allocate and prep a request record. Caller must finish prepping the SQE
+ * and call io_uring_submit(). Returns NULL on failure (no SQE or OOM). */
+static struct io_uring_sqe *
+event_io_uring_alloc_sqe_(struct event_io_uring *r,
+    event_io_uring_cb cb, void *arg, struct event_io_uring_req **out_req)
+{
+	struct io_uring_sqe *sqe;
+	struct event_io_uring_req *req;
+
+	sqe = io_uring_get_sqe(&r->ring);
+	if (sqe == NULL)
+		return NULL;
+
+	req = mm_malloc(sizeof(*req));
+	if (req == NULL)
+		return NULL;
+	req->cb = cb;
+	req->arg = arg;
+	io_uring_sqe_set_data(sqe, req);
+	*out_req = req;
+	return sqe;
+}
+
+int
+event_io_uring_submit_readv_(struct event_base *base, int fd,
+    const struct iovec *iov, unsigned niov,
+    event_io_uring_cb cb, void *arg)
+{
+	struct event_io_uring *r = base->io_uring;
+	struct io_uring_sqe *sqe;
+	struct event_io_uring_req *req;
+	int n;
+
+	if (r == NULL)
+		return -1;
+
+	sqe = event_io_uring_alloc_sqe_(r, cb, arg, &req);
+	if (sqe == NULL)
+		return -1;
+
+	io_uring_prep_readv(sqe, fd, iov, niov, 0);
+	n = io_uring_submit(&r->ring);
+	if (n < 0) {
+		event_warnx("%s: io_uring_submit failed: %s",
+		    __func__, strerror(-n));
+		mm_free(req);
+		return -1;
+	}
+	return 0;
+}
+
+int
+event_io_uring_submit_writev_(struct event_base *base, int fd,
+    const struct iovec *iov, unsigned niov,
+    event_io_uring_cb cb, void *arg)
+{
+	struct event_io_uring *r = base->io_uring;
+	struct io_uring_sqe *sqe;
+	struct event_io_uring_req *req;
+	int n;
+
+	if (r == NULL)
+		return -1;
+
+	sqe = event_io_uring_alloc_sqe_(r, cb, arg, &req);
+	if (sqe == NULL)
+		return -1;
+
+	io_uring_prep_writev(sqe, fd, iov, niov, 0);
+	n = io_uring_submit(&r->ring);
+	if (n < 0) {
+		event_warnx("%s: io_uring_submit failed: %s",
+		    __func__, strerror(-n));
+		mm_free(req);
+		return -1;
+	}
+	return 0;
 }
 
 #endif /* EVENT__HAVE_LIBURING */
