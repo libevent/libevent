@@ -41,6 +41,7 @@ jobs:
           - NO_SSL
           - REQUIRE_SSL
           - DISABLE_OPENSSL
+          - DISABLE_LIBURING
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
@@ -70,7 +71,7 @@ jobs:
       - name: Install Depends
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmbedtls-dev
+          sudo apt-get install -y libmbedtls-dev liburing-dev
 
       - name: Build
         shell: bash
@@ -89,6 +90,8 @@ jobs:
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_LIBURING" ]; then
+            EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_LIBURING=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "REQUIRE_SSL" ]; then
@@ -181,7 +184,7 @@ jobs:
       - name: Install Depends
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmbedtls-dev
+          sudo apt-get install -y libmbedtls-dev liburing-dev
 
       - name: Build
         shell: bash

@@ -136,6 +136,10 @@ set(EVENT__DISABLE_MBEDTLS AUTO CACHE STRING
     "Mbed TLS library support: AUTO (use if present), ON (ignore), OFF (require presence)")
 set_property(CACHE EVENT__DISABLE_MBEDTLS PROPERTY STRINGS AUTO ON OFF)
 
+set(EVENT__DISABLE_LIBURING AUTO CACHE STRING
+    "liburing (io_uring) support: AUTO (use if present), ON (ignore), OFF (require presence)")
+set_property(CACHE EVENT__DISABLE_LIBURING PROPERTY STRINGS AUTO ON OFF)
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
 
@@ -989,6 +993,31 @@ else()
     message(FATAL_ERROR "EVENT__DISABLE_MBEDTLS must be set to one of: AUTO, ON or OFF. Got: ${EVENT__DISABLE_MBEDTLS}")
 endif()
 
+# liburing — only meaningful on Linux (io_uring is a Linux-only kernel facility)
+if (EVENT__DISABLE_LIBURING STREQUAL "OFF" OR EVENT__DISABLE_LIBURING STREQUAL "AUTO")
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(PkgConfig)
+        if (PKG_CONFIG_FOUND)
+            pkg_check_modules(LIBURING IMPORTED_TARGET liburing>=2.0)
+        endif()
+
+        if (LIBURING_FOUND)
+            set(EVENT__HAVE_LIBURING 1)
+            set(LIBURING_TARGETS PkgConfig::LIBURING)
+            message(STATUS "liburing include: ${LIBURING_INCLUDE_DIRS}")
+            message(STATUS "liburing lib: ${LIBURING_LIBRARIES}")
+        elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
+            message(FATAL_ERROR "liburing required, but not found.")
+        endif()
+    elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
+        message(FATAL_ERROR "liburing required, but only supported on Linux.")
+    endif()
+elseif (EVENT__DISABLE_LIBURING STREQUAL "ON")
+    message(STATUS "Disable liburing support")
+else()
+    message(FATAL_ERROR "EVENT__DISABLE_LIBURING must be set to one of: AUTO, ON or OFF. Got: ${EVENT__DISABLE_LIBURING}")
+endif()
+
 if (NOT EVENT__DISABLE_TESTS)
     # Zlib is only used for testing.
     find_package(ZLIB)
@@ -1076,7 +1105,9 @@ configure_file(
 # Create the libraries.
 #
 include(AddEventLibrary)
-add_event_library(event_core SOURCES ${SRC_CORE})
+add_event_library(event_core
+    LIBRARIES ${LIBURING_TARGETS}
+    SOURCES ${SRC_CORE})
 add_event_library(event_extra
     INNER_LIBRARIES event_core
     SOURCES ${SRC_EXTRA})
@@ -1112,7 +1143,9 @@ endif()
 # library exists for historical reasons; it contains the contents of
 # both libevent_core and libevent_extra. You shouldn’t use it; it may
 # go away in a future version of Libevent.
-add_event_library(event SOURCES ${SRC_CORE} ${SRC_EXTRA})
+add_event_library(event
+    LIBRARIES ${LIBURING_TARGETS}
+    SOURCES ${SRC_CORE} ${SRC_EXTRA})
 
 set(WIN32_GETOPT)
 if (WIN32)
