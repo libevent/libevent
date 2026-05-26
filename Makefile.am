@@ -236,6 +236,9 @@ endif
 if SIGNALFD_SUPPORT
 SYS_SRC += signalfd.c
 endif
+if LIBURING
+SYS_SRC += event_io_uring.c
+endif
 
 BUILT_SOURCES += include/event2/event-config.h
 
@@ -329,6 +332,7 @@ noinst_HEADERS +=				\
 	epolltable-internal.h		\
 	evbuffer-internal.h			\
 	event-internal.h			\
+	event_io_uring-internal.h		\
 	evmap-internal.h			\
 	evrpc-internal.h			\
 	evsignal-internal.h			\

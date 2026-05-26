@@ -61,6 +61,7 @@
 #include "event2/event_compat.h"
 #include "event2/watch.h"
 #include "event-internal.h"
+#include "event_io_uring-internal.h"
 #include "defer-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
@@ -760,6 +761,19 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_base_start_iocp_(base, cfg->n_cpus_hint);
 #endif
 
+	if (cfg && (cfg->flags & EVENT_BASE_FLAG_IO_URING)) {
+		int disabled_by_env = should_check_environment &&
+		    evutil_getenv_("EVENT_NOIO_URING") != NULL;
+		if (!disabled_by_env && event_io_uring_init_(base) < 0) {
+			/* Either libevent wasn't built with liburing, or the
+			 * kernel rejected the setup. Warn and continue without
+			 * io_uring rather than failing base creation. */
+			event_warnx("%s: EVENT_BASE_FLAG_IO_URING requested but "
+			    "io_uring is unavailable; continuing without it",
+			    __func__);
+		}
+	}
+
 	/* initialize watcher lists */
 	for (i = 0; i < EVWATCH_MAX; ++i)
 		TAILQ_INIT(&base->watchers[i]);
@@ -952,6 +966,8 @@ event_base_free_(struct event_base *base, int run_finalizers)
 
 	if (base->evsel != NULL && base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
+
+	event_io_uring_free_(base);
 
 	for (i = 0; i < base->nactivequeues; ++i)
 		EVUTIL_ASSERT(TAILQ_EMPTY(&base->activequeues[i]));
@@ -2077,6 +2093,11 @@ event_base_loop(struct event_base *base, int flags)
 			retval = -1;
 			goto done;
 		}
+
+		/* Drain any io_uring completions submitted by buffer/bufferevent
+		 * code so their continuations land in this loop iteration. No-op
+		 * when base->io_uring is NULL. */
+		event_io_uring_drain_(base);
 
 		update_time_cache(base);
 

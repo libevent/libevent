@@ -1004,6 +1004,7 @@ if (EVENT__DISABLE_LIBURING STREQUAL "OFF" OR EVENT__DISABLE_LIBURING STREQUAL "
         if (LIBURING_FOUND)
             set(EVENT__HAVE_LIBURING 1)
             set(LIBURING_TARGETS PkgConfig::LIBURING)
+            list(APPEND SRC_CORE event_io_uring.c)
             message(STATUS "liburing include: ${LIBURING_INCLUDE_DIRS}")
             message(STATUS "liburing lib: ${LIBURING_LIBRARIES}")
         elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
