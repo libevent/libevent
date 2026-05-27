@@ -138,6 +138,41 @@
   public function event_base_get_signal_method() to obtain an underlying kernel
   signal handling mechanism.
 
+1.7. io_uring acceleration for socket bufferevents (experimental, Linux)
+
+  Opt-in path that routes socket bufferevent reads and writes through an
+  event_base-owned io_uring(7) ring instead of synchronous readv()/writev().
+  Built when liburing >= 2.0 is detected at configure time; gated at runtime
+  by passing EVENT_BASE_FLAG_IO_URING to event_base_new_with_config().
+
+    struct event_config *cfg = event_config_new();
+    event_config_set_flag(cfg, EVENT_BASE_FLAG_IO_URING);
+    struct event_base *base = event_base_new_with_config(cfg);
+    event_config_free(cfg);
+
+  Silently ignored when:
+   - libevent was built without liburing (EVENT__DISABLE_LIBURING),
+   - the platform isn't Linux,
+   - EVENT_NOIO_URING is set in the environment (unless
+     EVENT_BASE_FLAG_IGNORE_ENV is also set on the config).
+
+  Backend dispatch (epoll/kqueue/...) is unchanged. epoll still drives
+  readiness; io_uring only replaces the actual read/write syscall.
+
+  Known limitation: bufferevent read/write timeouts are not enforced while
+  an io_uring op is in flight (only between ops). A follow-up will bind
+  IORING_OP_LINK_TIMEOUT so the kernel cancels the I/O if the deadline
+  passes.
+
+  Performance: this is the foundational landing, not the performance win.
+  In a single-connection round-trip micro-benchmark
+  (test/bench_bufferevent_io) the io_uring path is currently slightly
+  slower than the synchronous path because the SQE/CQE machinery,
+  per-submission allocation, and eventfd wakeup all add overhead that
+  matters at low concurrency. The expected wins materialise when
+  applications fan out across many concurrent bufferevents; future work
+  will add registered buffers and multishot reads to extract them.
+
 2. HTTP New APIs and features
 
 2.1. Support for custom HTTP methods

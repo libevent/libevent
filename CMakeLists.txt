@@ -1248,6 +1248,13 @@ if (NOT EVENT__DISABLE_BENCHMARK)
 
     add_bench_prog(bench test/bench.c ${WIN32_GETOPT})
     add_bench_prog(bench_cascade test/bench_cascade.c ${WIN32_GETOPT})
+
+    if (NOT WIN32)
+        # bench_bufferevent_io exercises socket bufferevent throughput with
+        # an opt-in EVENT_BASE_FLAG_IO_URING toggle for head-to-head
+        # comparison against the synchronous read/write path.
+        add_bench_prog(bench_bufferevent_io test/bench_bufferevent_io.c)
+    endif()
 endif()
 
 #

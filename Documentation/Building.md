@@ -180,6 +180,16 @@ EVENT__DISABLE_MM_REPLACEMENT:BOOL=OFF
 # Define if Libevent should build without support for OpenSSL encryption
 EVENT__DISABLE_OPENSSL:BOOL=OFF
 
+# Define how Libevent should look for liburing (io_uring fast path).
+#   AUTO (default) - probe via pkg-config; build with io_uring if liburing
+#                    is found, otherwise fall back to the synchronous path.
+#   ON             - never use liburing.
+#   OFF            - require liburing; fail configure if it isn't found.
+# Has no effect on non-Linux platforms (io_uring is Linux-only). Opt-in
+# per event_base via EVENT_BASE_FLAG_IO_URING; gate from the environment
+# with EVENT_NOIO_URING=yes.
+EVENT__DISABLE_LIBURING:STRING=AUTO
+
 # Disable the regress tests
 EVENT__DISABLE_REGRESS:BOOL=OFF
 
