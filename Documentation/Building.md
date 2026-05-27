@@ -182,12 +182,32 @@ EVENT__DISABLE_OPENSSL:BOOL=OFF
 
 # Define how Libevent should look for liburing (io_uring fast path).
 #   AUTO (default) - probe via pkg-config; build with io_uring if liburing
-#                    is found, otherwise fall back to the synchronous path.
+#                    >= 2.4 is found, otherwise fall back to the
+#                    synchronous path.
 #   ON             - never use liburing.
-#   OFF            - require liburing; fail configure if it isn't found.
+#   OFF            - require liburing >= 2.4; fail configure otherwise.
 # Has no effect on non-Linux platforms (io_uring is Linux-only). Opt-in
 # per event_base via EVENT_BASE_FLAG_IO_URING; gate from the environment
 # with EVENT_NOIO_URING=yes.
+#
+# liburing 2.4 is what introduces the multishot recv APIs
+# (io_uring_setup_buf_ring, io_uring_prep_recv_multishot,
+# io_uring_prep_cancel_fd, IORING_ASYNC_CANCEL_ANY) that the fast path
+# depends on. Distributions known to ship this:
+#   - Ubuntu 24.04+ (liburing 2.5)
+#   - Debian 13+ (liburing 2.5)
+#   - Fedora 39+
+#   - Arch (rolling, 2.x)
+# Older LTS distributions ship a too-old liburing — Ubuntu 22.04, for
+# example, has 2.1. On those systems the AUTO probe will silently skip
+# io_uring; to opt in, install a newer liburing from source:
+#
+#     git clone https://github.com/axboe/liburing
+#     cd liburing && ./configure --prefix=/usr/local
+#     make -j && sudo make install
+#     sudo ldconfig
+#
+# then re-run cmake. The autotools path uses the same pkg-config probe.
 EVENT__DISABLE_LIBURING:STRING=AUTO
 
 # Disable the regress tests

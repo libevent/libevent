@@ -1004,6 +1004,21 @@ if (EVENT__DISABLE_LIBURING STREQUAL "OFF" OR EVENT__DISABLE_LIBURING STREQUAL "
             # recv fast path. Older liburing on the host is silently
             # ignored under AUTO; the syscall path remains.
             pkg_check_modules(LIBURING IMPORTED_TARGET liburing>=2.4)
+            if (NOT LIBURING_FOUND)
+                # Distinguish "no liburing at all" from "liburing present
+                # but too old", so the message users see actually tells
+                # them what to do. Ubuntu 22.04 ships liburing 2.1, for
+                # example — perfectly fine to link against, but pre-dates
+                # the multishot APIs.
+                pkg_check_modules(LIBURING_ANY liburing)
+                if (LIBURING_ANY_FOUND)
+                    message(STATUS
+                        "liburing ${LIBURING_ANY_VERSION} found but >= 2.4 "
+                        "required for io_uring fast path; building without "
+                        "io_uring support. See Documentation/Building.md "
+                        "for how to install a newer liburing.")
+                endif()
+            endif()
         endif()
 
         if (LIBURING_FOUND)
@@ -1013,7 +1028,17 @@ if (EVENT__DISABLE_LIBURING STREQUAL "OFF" OR EVENT__DISABLE_LIBURING STREQUAL "
             message(STATUS "liburing include: ${LIBURING_INCLUDE_DIRS}")
             message(STATUS "liburing lib: ${LIBURING_LIBRARIES}")
         elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
-            message(FATAL_ERROR "liburing required, but not found.")
+            if (LIBURING_ANY_FOUND)
+                message(FATAL_ERROR
+                    "liburing ${LIBURING_ANY_VERSION} is installed but >= 2.4 "
+                    "is required (multishot recv APIs). Install a newer "
+                    "liburing or pass -DEVENT__DISABLE_LIBURING=AUTO/ON.")
+            else()
+                message(FATAL_ERROR
+                    "liburing >= 2.4 required, but not found. Install "
+                    "liburing-dev (Ubuntu 24.04+ / Debian 13+ / etc.) or "
+                    "build it from https://github.com/axboe/liburing.")
+            endif()
         endif()
     elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
         message(FATAL_ERROR "liburing required, but only supported on Linux.")

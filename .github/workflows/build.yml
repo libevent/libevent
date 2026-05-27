@@ -34,10 +34,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ubuntu-24.04 ships liburing 2.5; ubuntu-22.04 only has 2.1
-        # which is too old for the multishot recv path
-        # (io_uring_setup_buf_ring et al. need >= 2.4).
-        os: [ubuntu-24.04]
+        # ubuntu-22.04 has liburing 2.1 (too old for the io_uring fast
+        # path's multishot APIs, so AUTO silently builds without it —
+        # exercises the no-io_uring fallback). ubuntu-24.04 has 2.5 and
+        # exercises the io_uring path itself.
+        os: [ubuntu-22.04, ubuntu-24.04]
         EVENT_MATRIX:
           - DIST
           - NONE
@@ -172,8 +173,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # See linux-cmake-job for why this is ubuntu-24.04.
-        os: [ubuntu-24.04]
+        # See linux-cmake-job for why both LTS versions are in the matrix.
+        os: [ubuntu-22.04, ubuntu-24.04]
 
     steps:
       - uses: actions/checkout@v6

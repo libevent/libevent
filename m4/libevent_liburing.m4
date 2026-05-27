@@ -20,7 +20,11 @@ case "$enable_liburing" in
     if test "$have_liburing" = "yes" ; then
         AC_DEFINE(HAVE_LIBURING, 1, [Define if the system has liburing])
     elif test "$enable_liburing" = "yes" ; then
-        AC_MSG_ERROR([liburing >= 2.4 could not be found.])
+        AC_MSG_ERROR([liburing >= 2.4 could not be found. Install liburing-dev
+                      from your distribution (Ubuntu 24.04+, Debian 13+,
+                      Fedora 39+) or build it from
+                      https://github.com/axboe/liburing — see
+                      Documentation/Building.md for details.])
     fi
     ;;
 esac
