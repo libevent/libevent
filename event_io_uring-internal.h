@@ -57,9 +57,10 @@ void event_io_uring_free_(struct event_base *base);
  * Returns the number of CQEs processed. */
 int event_io_uring_drain_(struct event_base *base);
 
-/* Submit a readv()/writev() through io_uring. The iovecs must remain
- * valid until the callback fires. Returns 0 on success, -1 on failure
- * (ring full, OOM, base has no io_uring). */
+/* Queue a readv()/writev() SQE in the ring. The iovecs must remain valid
+ * until the callback fires. SQEs are batched — event_io_uring_flush_()
+ * submits them all to the kernel in a single io_uring_enter syscall.
+ * Returns 0 on success, -1 on failure (ring full, OOM, no io_uring). */
 int event_io_uring_submit_readv_(struct event_base *base, int fd,
     const struct iovec *iov, unsigned niov,
     event_io_uring_cb cb, void *arg);
@@ -67,6 +68,11 @@ int event_io_uring_submit_readv_(struct event_base *base, int fd,
 int event_io_uring_submit_writev_(struct event_base *base, int fd,
     const struct iovec *iov, unsigned niov,
     event_io_uring_cb cb, void *arg);
+
+/* Submit any queued SQEs to the kernel in one io_uring_enter call.
+ * Called once per event_base_loop iteration. No-op when nothing is
+ * pending or when the base has no io_uring. */
+void event_io_uring_flush_(struct event_base *base);
 
 #else /* no liburing */
 
@@ -92,6 +98,8 @@ event_io_uring_submit_writev_(struct event_base *base, int fd,
 	(void)base; (void)fd; (void)iov; (void)niov; (void)cb; (void)arg;
 	return -1;
 }
+static inline void
+event_io_uring_flush_(struct event_base *base) { (void)base; }
 
 #endif /* EVENT__HAVE_LIBURING */
 

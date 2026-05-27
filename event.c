@@ -2083,6 +2083,11 @@ event_base_loop(struct event_base *base, int flags)
 			EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 		}
 
+		/* Flush any SQEs queued by submit helpers since the previous
+		 * iteration. Batching submissions into one io_uring_enter call
+		 * is much cheaper than one syscall per SQE. */
+		event_io_uring_flush_(base);
+
 		clear_time_cache(base);
 
 		res = evsel->dispatch(base, tv_p);
@@ -2120,12 +2125,12 @@ event_base_loop(struct event_base *base, int flags)
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 
-		/* Drain again after callbacks ran. event_process_active may
-		 * have called submission helpers (e.g. bufferevent_sock io_uring
-		 * paths) whose SQEs completed inline; without this second drain
-		 * the resulting CQEs would sit in the ring until the next
-		 * dispatch wakeup, even though the eventfd notification was
-		 * already consumed in this iteration. */
+		/* Submit any SQEs queued by submit helpers during the
+		 * callbacks above, then drain any CQEs that completed inline.
+		 * Without this trailing flush+drain the SQEs would sit in the
+		 * ring until the next iteration's flush, adding a full
+		 * dispatch round-trip of latency per submission. */
+		event_io_uring_flush_(base);
 		event_io_uring_drain_(base);
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));

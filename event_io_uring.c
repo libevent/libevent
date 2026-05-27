@@ -33,7 +33,6 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/eventfd.h>
 
 #include <liburing.h>
 
@@ -52,28 +51,27 @@
 
 struct event_io_uring {
 	struct io_uring ring;
-	/* CQE-arrival eventfd. The kernel writes to it whenever a CQE is
-	 * queued; we register it with the event_base as a persistent EV_READ
-	 * watcher so that epoll_wait wakes up when completions arrive (it
-	 * otherwise has no knowledge of the ring). The watcher itself does
-	 * no work — draining happens unconditionally in event_base_loop. */
-	int notify_fd;
+	/* Watcher on the ring's own fd. POLLIN is asserted by the kernel
+	 * whenever the CQ has unread entries, and de-asserted as we advance
+	 * the CQ head via io_uring_cqe_seen — so we get exactly one wakeup
+	 * per drain cycle without any read() syscall to clear an eventfd.
+	 * The callback is a no-op: draining happens unconditionally in
+	 * event_base_loop's post-dispatch hooks. */
 	struct event notify_ev;
+	/* Number of SQEs prepped but not yet submitted to the kernel. The
+	 * submit_* helpers queue SQEs; event_io_uring_flush_() is called
+	 * once per event_base_loop iteration to submit them in a single
+	 * io_uring_enter syscall. */
+	unsigned pending_sqes;
 };
 
 static void
 event_io_uring_notify_cb_(evutil_socket_t fd, short what, void *arg)
 {
-	uint64_t v;
-	ssize_t r;
+	(void)fd;
 	(void)what;
 	(void)arg;
-	/* Reset the eventfd counter; we don't care about the value, only the
-	 * fact that the loop woke up. The CQEs themselves are drained from
-	 * event_base_loop()'s post-dispatch hook. */
-	do {
-		r = read(fd, &v, sizeof(v));
-	} while (r < 0 && errno == EINTR);
+	/* Drain happens in event_base_loop(); nothing to do here. */
 }
 
 /* Per-submission record. Lifetime: allocated in submit_*, freed in drain
@@ -96,7 +94,6 @@ event_io_uring_init_(struct event_base *base)
 	r = mm_calloc(1, sizeof(*r));
 	if (r == NULL)
 		return -1;
-	r->notify_fd = -1;
 
 	rv = io_uring_queue_init(EVENT_IO_URING_QUEUE_DEPTH, &r->ring, 0);
 	if (rv < 0) {
@@ -106,35 +103,21 @@ event_io_uring_init_(struct event_base *base)
 		return -1;
 	}
 
-	r->notify_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-	if (r->notify_fd < 0) {
-		event_warnx("%s: eventfd: %s", __func__, strerror(errno));
-		goto err_ring;
-	}
-	rv = io_uring_register_eventfd(&r->ring, r->notify_fd);
-	if (rv < 0) {
-		event_warnx("%s: io_uring_register_eventfd: %s",
-		    __func__, strerror(-rv));
-		goto err_fd;
-	}
-
-	event_assign(&r->notify_ev, base, r->notify_fd,
+	/* Poll the ring's own fd; the kernel signals POLLIN when the CQ has
+	 * entries. No eventfd indirection, no per-iteration read() syscall
+	 * to clear a counter — draining the CQ via io_uring_cqe_seen is
+	 * what de-asserts POLLIN. */
+	event_assign(&r->notify_ev, base, r->ring.ring_fd,
 	    EV_READ | EV_PERSIST, event_io_uring_notify_cb_, r);
 	if (event_add(&r->notify_ev, NULL) < 0) {
 		event_warnx("%s: event_add(notify) failed", __func__);
-		io_uring_unregister_eventfd(&r->ring);
-		goto err_fd;
+		io_uring_queue_exit(&r->ring);
+		mm_free(r);
+		return -1;
 	}
 
 	base->io_uring = r;
 	return 0;
-
-err_fd:
-	close(r->notify_fd);
-err_ring:
-	io_uring_queue_exit(&r->ring);
-	mm_free(r);
-	return -1;
 }
 
 void
@@ -144,11 +127,7 @@ event_io_uring_free_(struct event_base *base)
 	if (r == NULL)
 		return;
 
-	if (r->notify_fd >= 0) {
-		event_del(&r->notify_ev);
-		io_uring_unregister_eventfd(&r->ring);
-		close(r->notify_fd);
-	}
+	event_del(&r->notify_ev);
 	io_uring_queue_exit(&r->ring);
 	mm_free(r);
 	base->io_uring = NULL;
@@ -216,7 +195,6 @@ event_io_uring_submit_readv_(struct event_base *base, int fd,
 	struct event_io_uring *r = base->io_uring;
 	struct io_uring_sqe *sqe;
 	struct event_io_uring_req *req;
-	int n;
 
 	if (r == NULL)
 		return -1;
@@ -226,13 +204,7 @@ event_io_uring_submit_readv_(struct event_base *base, int fd,
 		return -1;
 
 	io_uring_prep_readv(sqe, fd, iov, niov, 0);
-	n = io_uring_submit(&r->ring);
-	if (n < 0) {
-		event_warnx("%s: io_uring_submit failed: %s",
-		    __func__, strerror(-n));
-		mm_free(req);
-		return -1;
-	}
+	++r->pending_sqes;
 	return 0;
 }
 
@@ -244,7 +216,6 @@ event_io_uring_submit_writev_(struct event_base *base, int fd,
 	struct event_io_uring *r = base->io_uring;
 	struct io_uring_sqe *sqe;
 	struct event_io_uring_req *req;
-	int n;
 
 	if (r == NULL)
 		return -1;
@@ -254,14 +225,27 @@ event_io_uring_submit_writev_(struct event_base *base, int fd,
 		return -1;
 
 	io_uring_prep_writev(sqe, fd, iov, niov, 0);
+	++r->pending_sqes;
+	return 0;
+}
+
+void
+event_io_uring_flush_(struct event_base *base)
+{
+	struct event_io_uring *r = base->io_uring;
+	int n;
+
+	if (r == NULL || r->pending_sqes == 0)
+		return;
 	n = io_uring_submit(&r->ring);
 	if (n < 0) {
 		event_warnx("%s: io_uring_submit failed: %s",
 		    __func__, strerror(-n));
-		mm_free(req);
-		return -1;
+		/* Leave pending_sqes nonzero so we retry next iteration;
+		 * if the failure is persistent the loop will keep warning. */
+		return;
 	}
-	return 0;
+	r->pending_sqes = 0;
 }
 
 #endif /* EVENT__HAVE_LIBURING */
