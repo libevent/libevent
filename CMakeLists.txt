@@ -998,7 +998,12 @@ if (EVENT__DISABLE_LIBURING STREQUAL "OFF" OR EVENT__DISABLE_LIBURING STREQUAL "
     if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
         find_package(PkgConfig)
         if (PKG_CONFIG_FOUND)
-            pkg_check_modules(LIBURING IMPORTED_TARGET liburing>=2.0)
+            # 2.4 is the first release that has io_uring_setup_buf_ring,
+            # io_uring_prep_recv_multishot, io_uring_prep_cancel_fd, and
+            # IORING_ASYNC_CANCEL_ANY — all required by the multishot
+            # recv fast path. Older liburing on the host is silently
+            # ignored under AUTO; the syscall path remains.
+            pkg_check_modules(LIBURING IMPORTED_TARGET liburing>=2.4)
         endif()
 
         if (LIBURING_FOUND)
