@@ -164,28 +164,35 @@
   IORING_OP_LINK_TIMEOUT so the kernel cancels the I/O if the deadline
   passes.
 
-  Performance (test/bench_bufferevent_io, 64 KiB payload, Linux 6.18):
+  Performance (test/bench_bufferevent_io, Linux 6.18):
 
+    64 KiB payload, round-trip ping-pong:
        pairs   syscall (MiB/s)   io_uring (MiB/s)   delta
-       1       2080              2264                +9%
-       4       1196              1376               +15%
-       8       1164              1320               +13%
-       12      1159              1108                -4%
-       16      1145               900               -21%
-       64      1163               910               -22%
+       1       2116              2193                +4%
+       4       1185              1242                +5%
+       16      1135              1247               +10%
+       64      1183              1926               +63%
+       128     1093              1866               +71%
 
-  The io_uring path wins at low concurrency (a handful of active
-  bufferevents at any moment — typical of HTTP servers with most
-  connections idle). It currently loses for high concurrency on the
-  round-trip benchmark because the architecture still uses epoll
-  readiness to drive bufferevent_readcb, and each round pays for both
-  an epoll wakeup and an io_uring round trip. The architectural fix is
-  multishot recv with provided buffer rings — one SQE per bufferevent
-  that the kernel completes repeatedly as data arrives, skipping epoll
-  entirely. That's deliberately deferred to a follow-up so this PR is
-  a small, reviewable foundation: the lifecycle, lock contract, error
-  handling, regress coverage and ASAN cleanliness all stay clear of
-  the multishot complications.
+    1 KiB payload:
+       pairs   syscall (MiB/s)   io_uring (MiB/s)   delta
+       1        126               161               +27%
+       16       154               244               +58%
+       64       150               235               +57%
+
+  The io_uring path uses multishot recv (IORING_RECV_MULTISHOT) with a
+  provided buffer ring: one SQE per bufferevent, submitted when
+  EV_READ is enabled. The kernel completes it repeatedly as data
+  arrives, drawing buffers from the ring without involving epoll for
+  data delivery. Writes are batched in the SQ across one event_base
+  loop iteration and flushed in a single io_uring_enter syscall. The
+  wakeup mechanism polls the io_uring ring fd directly — no eventfd
+  indirection, no per-iteration read() to drain a counter.
+
+  Buffer ring sizing today: 128 buffers of 16 KiB each (2 MiB per
+  base). Exhaustion (ENOBUFS) is reported via event_warnx and the
+  affected bufferevent falls back to the epoll-driven one-shot path
+  for that read so reads still progress.
 
 2. HTTP New APIs and features
 

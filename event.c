@@ -937,6 +937,14 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	if (base->common_timeout_queues)
 		mm_free(base->common_timeout_queues);
 
+	/* Tear down io_uring BEFORE the finalizer drain. The teardown
+	 * cancels every in-flight SQE and drains the resulting CQEs; the
+	 * CQE callbacks may bufferevent_decref to zero, which schedules
+	 * finalizers on the active queue. The drain below picks those up;
+	 * if io_uring were torn down after the drain, the finalizers would
+	 * sit unprocessed and the activequeue assertion would fire. */
+	event_io_uring_free_(base);
+
 	for (;;) {
 		/* For finalizers we can register yet another finalizer out from
 		 * finalizer, and iff finalizer will be in active_later_queue we can
@@ -966,8 +974,6 @@ event_base_free_(struct event_base *base, int run_finalizers)
 
 	if (base->evsel != NULL && base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
-
-	event_io_uring_free_(base);
 
 	for (i = 0; i < base->nactivequeues; ++i)
 		EVUTIL_ASSERT(TAILQ_EMPTY(&base->activequeues[i]));

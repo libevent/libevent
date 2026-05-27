@@ -28,6 +28,8 @@
 
 #include "event2/event-config.h"
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,6 +43,15 @@ struct iovec;
  * 0 for EOF, negative errno on failure). `arg` is the opaque pointer
  * passed at submission time. */
 typedef void (*event_io_uring_cb)(int result, void *arg);
+
+/* Multishot CQE callback — the same SQE can fire many CQEs. `cqe_flags`
+ * carries the raw flags from the CQE (IORING_CQE_F_MORE, F_BUFFER, ...).
+ * The callback must inspect cqe_flags & IORING_CQE_F_MORE to know whether
+ * more CQEs will follow; when clear, the multishot has ended and the
+ * associated state can be torn down. When CQE_F_BUFFER is set, the
+ * buffer id is in the upper 16 bits of cqe_flags. */
+typedef void (*event_io_uring_multishot_cb)(int result, unsigned cqe_flags,
+    void *arg);
 
 #ifdef EVENT__HAVE_LIBURING
 
@@ -74,6 +85,37 @@ int event_io_uring_submit_writev_(struct event_base *base, int fd,
  * pending or when the base has no io_uring. */
 void event_io_uring_flush_(struct event_base *base);
 
+/* Submit a multishot recv on `fd`, with the kernel selecting buffers
+ * from the per-base provided buffer ring. `cb` fires for every CQE
+ * (data arrival, EOF, error, cancellation); the callback must read
+ * cqe_flags to know whether more CQEs will follow and to retrieve the
+ * buffer id when CQE_F_BUFFER is set. Returns 0 on success, -1 if the
+ * base has no io_uring or no buffer ring, or the SQ was full. */
+int event_io_uring_submit_recv_multishot_(struct event_base *base, int fd,
+    event_io_uring_multishot_cb cb, void *arg);
+
+/* Helpers for parsing the cqe_flags passed to a multishot callback.
+ * They hide liburing.h from bufferevent code that consumes multishot
+ * CQEs. */
+int event_io_uring_cqe_more_(unsigned cqe_flags);
+int event_io_uring_cqe_has_buf_(unsigned cqe_flags);
+unsigned short event_io_uring_cqe_buf_id_(unsigned cqe_flags);
+
+/* Read the data backing a buffer id delivered by a multishot recv CQE. */
+void *event_io_uring_buf_addr_(struct event_base *base, unsigned short bid);
+
+/* Return a previously-delivered buffer to the kernel's provided buffer
+ * ring so it can be reused for a subsequent recv. Must be called
+ * exactly once per CQE that delivered the buffer. */
+void event_io_uring_buf_release_(struct event_base *base, unsigned short bid);
+
+/* Submit an async cancellation for all in-flight SQEs targeting `fd`.
+ * The cancellation itself completes via its own CQE (with `cb`/`arg`);
+ * each cancelled SQE fires its own final CQE separately with
+ * res=-ECANCELED. */
+int event_io_uring_submit_cancel_fd_(struct event_base *base, int fd,
+    event_io_uring_cb cb, void *arg);
+
 #else /* no liburing */
 
 static inline int
@@ -100,6 +142,37 @@ event_io_uring_submit_writev_(struct event_base *base, int fd,
 }
 static inline void
 event_io_uring_flush_(struct event_base *base) { (void)base; }
+static inline int
+event_io_uring_submit_recv_multishot_(struct event_base *base, int fd,
+    event_io_uring_multishot_cb cb, void *arg)
+{
+	(void)base; (void)fd; (void)cb; (void)arg;
+	return -1;
+}
+static inline int
+event_io_uring_cqe_more_(unsigned cqe_flags) { (void)cqe_flags; return 0; }
+static inline int
+event_io_uring_cqe_has_buf_(unsigned cqe_flags) { (void)cqe_flags; return 0; }
+static inline unsigned short
+event_io_uring_cqe_buf_id_(unsigned cqe_flags) { (void)cqe_flags; return 0; }
+static inline void *
+event_io_uring_buf_addr_(struct event_base *base, unsigned short bid)
+{
+	(void)base; (void)bid;
+	return NULL;
+}
+static inline void
+event_io_uring_buf_release_(struct event_base *base, unsigned short bid)
+{
+	(void)base; (void)bid;
+}
+static inline int
+event_io_uring_submit_cancel_fd_(struct event_base *base, int fd,
+    event_io_uring_cb cb, void *arg)
+{
+	(void)base; (void)fd; (void)cb; (void)arg;
+	return -1;
+}
 
 #endif /* EVENT__HAVE_LIBURING */
 

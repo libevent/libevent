@@ -97,6 +97,10 @@ static int be_socket_uring_submit_read_(struct bufferevent *bufev,
     evutil_socket_t fd, ev_ssize_t howmuch);
 static int be_socket_uring_submit_write_(struct bufferevent *bufev,
     evutil_socket_t fd, ev_ssize_t atmost);
+static int be_socket_uring_submit_recv_multishot_(struct bufferevent *bufev,
+    evutil_socket_t fd);
+static int be_socket_uring_cancel_recv_(struct bufferevent *bufev,
+    evutil_socket_t fd);
 
 const struct bufferevent_ops bufferevent_ops_socket = {
 	"socket",
@@ -620,9 +624,22 @@ bufferevent_new(evutil_socket_t fd,
 static int
 be_socket_enable(struct bufferevent *bufev, short event)
 {
-	if (event & EV_READ &&
-	    bufferevent_add_event_(&bufev->ev_read, &bufev->timeout_read) == -1)
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	if (event & EV_READ) {
+		/* Try the io_uring multishot fast path first. If it sticks,
+		 * the bufferevent's ev_read stays out of epoll and the CQE
+		 * chain drives reads directly. On failure (no buf ring, SQ
+		 * full, etc.) fall through to the classic epoll-driven path. */
+		if (!bufev_p->uring_recv_multishot &&
+		    be_socket_should_use_uring_(bufev)) {
+			evutil_socket_t fd = event_get_fd(&bufev->ev_read);
+			if (be_socket_uring_submit_recv_multishot_(bufev, fd) == 0)
+				goto skip_read_event_add;
+		}
+		if (bufferevent_add_event_(&bufev->ev_read, &bufev->timeout_read) == -1)
 			return -1;
+	skip_read_event_add: ;
+	}
 	if (event & EV_WRITE &&
 	    bufferevent_add_event_(&bufev->ev_write, &bufev->timeout_write) == -1)
 			return -1;
@@ -634,8 +651,15 @@ be_socket_disable(struct bufferevent *bufev, short event)
 {
 	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
 	if (event & EV_READ) {
-		if (event_del(&bufev->ev_read) == -1)
+		if (bufev_p->uring_recv_multishot) {
+			/* Multishot is in flight; ask the kernel to cancel
+			 * it. The recv CQE chain will see -ECANCELED on its
+			 * final CQE (F_MORE clear) and clear the flag. */
+			evutil_socket_t fd = event_get_fd(&bufev->ev_read);
+			(void)be_socket_uring_cancel_recv_(bufev, fd);
+		} else if (event_del(&bufev->ev_read) == -1) {
 			return -1;
+		}
 	}
 	/* Don't actually disable the write if we are trying to connect. */
 	if ((event & EV_WRITE) && ! bufev_p->connecting) {
@@ -1034,4 +1058,140 @@ be_socket_uring_submit_write_(struct bufferevent *bufev,
 	}
 
 	return 0;
+}
+
+/* ----------------------------------------------------------------------
+ * Multishot recv fast path.
+ *
+ * One IORING_OP_RECV with IORING_RECV_MULTISHOT is submitted when EV_READ
+ * is enabled; the kernel completes it repeatedly as data arrives, drawing
+ * buffers from the per-base provided buffer ring. The bufferevent's
+ * ev_read stays out of epoll the whole time, so there is no per-round
+ * epoll wakeup or one-shot resubmission — this is what makes io_uring
+ * actually outperform readv at higher concurrency.
+ *
+ * Lifecycle: a per-multishot context carries a ref on the bufferevent.
+ * The recv CQE callback frees the context only on the final CQE (the one
+ * without IORING_CQE_F_MORE). On disable, we submit a cancel-by-fd; the
+ * kernel completes the multishot with -ECANCELED and the same final-CQE
+ * teardown runs.
+ * ---------------------------------------------------------------------- */
+
+struct be_uring_recv_ctx {
+	struct bufferevent *bufev;
+};
+
+static void
+be_socket_uring_recv_cb_(int result, unsigned cqe_flags, void *arg)
+{
+	struct be_uring_recv_ctx *ctx = arg;
+	struct bufferevent *bufev = ctx->bufev;
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	int more = event_io_uring_cqe_more_(cqe_flags);
+	int has_buf = event_io_uring_cqe_has_buf_(cqe_flags);
+	short what = BEV_EVENT_READING;
+	int trigger_user = 0;
+
+	BEV_LOCK(bufev);
+
+	if (has_buf && result > 0) {
+		/* Copy the kernel-delivered bytes into the input evbuffer
+		 * and immediately return the buffer to the ring so the next
+		 * multishot CQE can reuse it. */
+		unsigned short bid = event_io_uring_cqe_buf_id_(cqe_flags);
+		void *data = event_io_uring_buf_addr_(bufev->ev_base, bid);
+		if (data != NULL) {
+			evbuffer_unfreeze(bufev->input, 0);
+			evbuffer_add(bufev->input, data, (size_t)result);
+			evbuffer_freeze(bufev->input, 0);
+			bufferevent_decrement_read_buckets_(bufev_p, result);
+			trigger_user = 1;
+		}
+		event_io_uring_buf_release_(bufev->ev_base, bid);
+	} else if (result == 0) {
+		/* EOF — peer closed write side. */
+		what |= BEV_EVENT_EOF;
+	} else if (result < 0) {
+		int err = -result;
+		if (err == ECANCELED || err == EAGAIN) {
+			/* Cancelled by us, or transient; nothing to surface. */
+		} else if (err == ENOBUFS) {
+			/* Buffer pool exhausted. The multishot ended; we
+			 * could resubmit but for now we just warn and fall
+			 * back to the epoll-driven one-shot path so reads
+			 * keep working under pressure. */
+			event_warnx("%s: provided buffer ring exhausted; "
+			    "falling back to epoll-driven path on fd %d",
+			    __func__, event_get_fd(&bufev->ev_read));
+		} else if (err != EINTR) {
+			what |= BEV_EVENT_ERROR;
+		}
+	}
+
+	if (trigger_user)
+		bufferevent_trigger_nolock_(bufev, EV_READ, 0);
+
+	if (what & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
+		bufferevent_disable(bufev, EV_READ);
+		bufferevent_run_eventcb_(bufev, what, 0);
+	}
+
+	if (more) {
+		/* Multishot still active; keep ctx + bufev refcount alive. */
+		BEV_UNLOCK(bufev);
+		return;
+	}
+
+	/* Final CQE for this multishot. Clear state; if the user still
+	 * wants reads AND this wasn't a cancellation (we cancel only when
+	 * disabling or tearing down), fall back to the epoll-driven path
+	 * for any other end-of-multishot (e.g. ENOBUFS). */
+	bufev_p->uring_recv_multishot = 0;
+	if ((bufev->enabled & EV_READ) &&
+	    !(what & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) &&
+	    !(result == -ECANCELED)) {
+		bufferevent_add_event_(&bufev->ev_read, &bufev->timeout_read);
+	}
+	mm_free(ctx);
+	bufferevent_decref_and_unlock_(bufev);
+}
+
+static int
+be_socket_uring_submit_recv_multishot_(struct bufferevent *bufev,
+    evutil_socket_t fd)
+{
+	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
+	struct be_uring_recv_ctx *ctx;
+
+	ctx = mm_calloc(1, sizeof(*ctx));
+	if (ctx == NULL)
+		return -1;
+	ctx->bufev = bufev;
+
+	bufferevent_incref_(bufev);
+	if (event_io_uring_submit_recv_multishot_(bufev->ev_base, fd,
+	    be_socket_uring_recv_cb_, ctx) < 0) {
+		bufferevent_decref_(bufev);
+		mm_free(ctx);
+		return -1;
+	}
+	bufev_p->uring_recv_multishot = 1;
+	return 0;
+}
+
+static void
+be_socket_uring_cancel_cb_(int result, void *arg)
+{
+	/* The cancellation itself completes; we don't need to do anything
+	 * here. The cancelled multishot will fire its own final CQE with
+	 * res=-ECANCELED, and be_socket_uring_recv_cb_ does the teardown. */
+	(void)result;
+	(void)arg;
+}
+
+static int
+be_socket_uring_cancel_recv_(struct bufferevent *bufev, evutil_socket_t fd)
+{
+	return event_io_uring_submit_cancel_fd_(bufev->ev_base, fd,
+	    be_socket_uring_cancel_cb_, NULL);
 }
