@@ -47,14 +47,21 @@
 #include "event2/buffer.h"
 #include "event2/util.h"
 
+struct bench_pair {
+	struct bufferevent *producer;
+	struct bufferevent *consumer;
+	size_t received_this_round;
+	int rounds_left;
+	struct bench_state *owner;
+};
+
 struct bench_state {
 	struct event_base *base;
 	size_t payload_len;
-	int rounds_left;
-	int rounds_total;
-	size_t received_this_round;
-	struct bufferevent *producer;
-	struct bufferevent *consumer;
+	int rounds_per_pair;
+	int npairs;
+	int pairs_finished;
+	struct bench_pair *pairs;
 	char *payload;
 };
 
@@ -69,29 +76,32 @@ now_seconds(void)
 static void
 consumer_read_cb(struct bufferevent *bev, void *arg)
 {
-	struct bench_state *s = arg;
+	struct bench_pair *p = arg;
+	struct bench_state *s = p->owner;
 	struct evbuffer *in = bufferevent_get_input(bev);
 	size_t n = evbuffer_get_length(in);
 
 	if (n == 0)
 		return;
 	evbuffer_drain(in, n);
-	s->received_this_round += n;
-	if (s->received_this_round < s->payload_len)
+	p->received_this_round += n;
+	if (p->received_this_round < s->payload_len)
 		return;
 
-	s->received_this_round = 0;
-	if (--s->rounds_left == 0) {
-		event_base_loopbreak(s->base);
+	p->received_this_round = 0;
+	if (--p->rounds_left == 0) {
+		if (++s->pairs_finished == s->npairs)
+			event_base_loopbreak(s->base);
 		return;
 	}
-	bufferevent_write(s->producer, s->payload, s->payload_len);
+	bufferevent_write(p->producer, s->payload, s->payload_len);
 }
 
 static void
 event_cb(struct bufferevent *bev, short events, void *arg)
 {
-	struct bench_state *s = arg;
+	struct bench_pair *p = arg;
+	struct bench_state *s = p->owner;
 	(void)bev;
 	if (events & (BEV_EVENT_ERROR | BEV_EVENT_EOF)) {
 		fprintf(stderr, "bench: connection event 0x%x\n", events);
@@ -103,10 +113,11 @@ static void
 usage(const char *prog)
 {
 	fprintf(stderr,
-	    "usage: %s [--uring] [--bytes N] [--rounds R]\n"
+	    "usage: %s [--uring] [--bytes N] [--rounds R] [--pairs P]\n"
 	    "  --uring           enable EVENT_BASE_FLAG_IO_URING (default off)\n"
 	    "  --bytes N         payload bytes per round (default 65536)\n"
-	    "  --rounds R        number of producer/consumer round trips (default 10000)\n",
+	    "  --rounds R        round trips per pair (default 10000)\n"
+	    "  --pairs P         number of concurrent socket pairs (default 1)\n",
 	    prog);
 }
 
@@ -116,15 +127,16 @@ main(int argc, char **argv)
 	int use_uring = 0;
 	size_t payload_len = 65536;
 	int rounds = 10000;
-	int i;
-	int sv[2] = { -1, -1 };
+	int npairs = 1;
+	int i, j;
 	struct event_config *cfg = NULL;
 	struct event_base *base = NULL;
-	struct bufferevent *producer = NULL, *consumer = NULL;
 	char *payload = NULL;
 	struct bench_state state;
 	double t0, t1, elapsed;
 	double total_bytes;
+
+	memset(&state, 0, sizeof(state));
 
 	for (i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "--uring")) {
@@ -133,12 +145,14 @@ main(int argc, char **argv)
 			payload_len = (size_t)strtoull(argv[++i], NULL, 0);
 		} else if (!strcmp(argv[i], "--rounds") && i + 1 < argc) {
 			rounds = atoi(argv[++i]);
+		} else if (!strcmp(argv[i], "--pairs") && i + 1 < argc) {
+			npairs = atoi(argv[++i]);
 		} else {
 			usage(argv[0]);
 			return 2;
 		}
 	}
-	if (payload_len == 0 || rounds <= 0) {
+	if (payload_len == 0 || rounds <= 0 || npairs <= 0) {
 		usage(argv[0]);
 		return 2;
 	}
@@ -161,16 +175,6 @@ main(int argc, char **argv)
 		return 1;
 	}
 
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0) {
-		perror("bench: socketpair");
-		goto fail;
-	}
-	if (evutil_make_socket_nonblocking(sv[0]) < 0 ||
-	    evutil_make_socket_nonblocking(sv[1]) < 0) {
-		fprintf(stderr, "bench: make_nonblocking failed\n");
-		goto fail;
-	}
-
 	payload = malloc(payload_len);
 	if (payload == NULL) {
 		fprintf(stderr, "bench: malloc payload\n");
@@ -179,39 +183,61 @@ main(int argc, char **argv)
 	for (size_t k = 0; k < payload_len; ++k)
 		payload[k] = (char)(k & 0xff);
 
-	producer = bufferevent_socket_new(base, sv[0], BEV_OPT_CLOSE_ON_FREE);
-	consumer = bufferevent_socket_new(base, sv[1], BEV_OPT_CLOSE_ON_FREE);
-	if (producer == NULL || consumer == NULL) {
-		fprintf(stderr, "bench: bufferevent_socket_new failed\n");
-		goto fail;
-	}
-	sv[0] = sv[1] = -1; /* owned by the bufferevents now */
-
-	memset(&state, 0, sizeof(state));
 	state.base = base;
 	state.payload_len = payload_len;
-	state.rounds_left = rounds;
-	state.rounds_total = rounds;
+	state.rounds_per_pair = rounds;
+	state.npairs = npairs;
 	state.payload = payload;
-	state.producer = producer;
-	state.consumer = consumer;
-
-	bufferevent_setcb(consumer, consumer_read_cb, NULL, event_cb, &state);
-	bufferevent_setcb(producer, NULL, NULL, event_cb, &state);
-	if (bufferevent_enable(consumer, EV_READ) < 0 ||
-	    bufferevent_enable(producer, EV_WRITE) < 0) {
-		fprintf(stderr, "bench: bufferevent_enable failed\n");
+	state.pairs = calloc(npairs, sizeof(*state.pairs));
+	if (state.pairs == NULL) {
+		fprintf(stderr, "bench: calloc pairs\n");
 		goto fail;
 	}
 
-	/* Kick off the first round. */
-	if (bufferevent_write(producer, payload, payload_len) < 0) {
-		fprintf(stderr, "bench: initial write failed\n");
-		goto fail;
+	for (j = 0; j < npairs; ++j) {
+		int sv[2] = { -1, -1 };
+		struct bench_pair *p = &state.pairs[j];
+
+		if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) < 0) {
+			perror("bench: socketpair");
+			goto fail;
+		}
+		if (evutil_make_socket_nonblocking(sv[0]) < 0 ||
+		    evutil_make_socket_nonblocking(sv[1]) < 0) {
+			fprintf(stderr, "bench: make_nonblocking failed\n");
+			close(sv[0]); close(sv[1]);
+			goto fail;
+		}
+
+		p->owner = &state;
+		p->rounds_left = rounds;
+		p->producer = bufferevent_socket_new(base, sv[0],
+		    BEV_OPT_CLOSE_ON_FREE);
+		p->consumer = bufferevent_socket_new(base, sv[1],
+		    BEV_OPT_CLOSE_ON_FREE);
+		if (p->producer == NULL || p->consumer == NULL) {
+			fprintf(stderr, "bench: bufferevent_socket_new failed\n");
+			close(sv[0]); close(sv[1]);
+			goto fail;
+		}
+
+		bufferevent_setcb(p->consumer, consumer_read_cb, NULL,
+		    event_cb, p);
+		bufferevent_setcb(p->producer, NULL, NULL, event_cb, p);
+		if (bufferevent_enable(p->consumer, EV_READ) < 0 ||
+		    bufferevent_enable(p->producer, EV_WRITE) < 0) {
+			fprintf(stderr, "bench: bufferevent_enable failed\n");
+			goto fail;
+		}
+
+		if (bufferevent_write(p->producer, payload, payload_len) < 0) {
+			fprintf(stderr, "bench: initial write failed\n");
+			goto fail;
+		}
 	}
 
-	printf("bench_bufferevent_io: mode=%s payload=%zu rounds=%d\n",
-	    use_uring ? "io_uring" : "syscall", payload_len, rounds);
+	printf("bench_bufferevent_io: mode=%s payload=%zu rounds=%d pairs=%d\n",
+	    use_uring ? "io_uring" : "syscall", payload_len, rounds, npairs);
 
 	t0 = now_seconds();
 	if (event_base_dispatch(base) < 0) {
@@ -220,35 +246,42 @@ main(int argc, char **argv)
 	}
 	t1 = now_seconds();
 
-	if (state.rounds_left != 0) {
-		fprintf(stderr, "bench: short run, %d rounds remaining\n",
-		    state.rounds_left);
+	if (state.pairs_finished != npairs) {
+		fprintf(stderr, "bench: short run, %d/%d pairs finished\n",
+		    state.pairs_finished, npairs);
 		goto fail;
 	}
 
 	elapsed = t1 - t0;
-	total_bytes = (double)payload_len * (double)rounds;
+	total_bytes = (double)payload_len * (double)rounds * (double)npairs;
 	printf("elapsed: %.3f s\n", elapsed);
 	printf("throughput: %.2f MiB/s (%.0f bytes/s)\n",
 	    total_bytes / elapsed / (1024.0 * 1024.0),
 	    total_bytes / elapsed);
-	printf("per-round: %.3f us\n", elapsed * 1e6 / (double)rounds);
+	printf("per-round: %.3f us\n",
+	    elapsed * 1e6 / ((double)rounds * (double)npairs));
 
-	bufferevent_free(producer);
-	bufferevent_free(consumer);
+	for (j = 0; j < npairs; ++j) {
+		if (state.pairs[j].producer)
+			bufferevent_free(state.pairs[j].producer);
+		if (state.pairs[j].consumer)
+			bufferevent_free(state.pairs[j].consumer);
+	}
+	free(state.pairs);
 	event_base_free(base);
 	free(payload);
 	return 0;
 
 fail:
-	if (producer)
-		bufferevent_free(producer);
-	if (consumer)
-		bufferevent_free(consumer);
-	if (sv[0] >= 0)
-		close(sv[0]);
-	if (sv[1] >= 0)
-		close(sv[1]);
+	if (state.pairs) {
+		for (j = 0; j < npairs; ++j) {
+			if (state.pairs[j].producer)
+				bufferevent_free(state.pairs[j].producer);
+			if (state.pairs[j].consumer)
+				bufferevent_free(state.pairs[j].consumer);
+		}
+		free(state.pairs);
+	}
 	if (cfg)
 		event_config_free(cfg);
 	if (base)

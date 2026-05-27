@@ -164,14 +164,28 @@
   IORING_OP_LINK_TIMEOUT so the kernel cancels the I/O if the deadline
   passes.
 
-  Performance: this is the foundational landing, not the performance win.
-  In a single-connection round-trip micro-benchmark
-  (test/bench_bufferevent_io) the io_uring path is currently slightly
-  slower than the synchronous path because the SQE/CQE machinery,
-  per-submission allocation, and eventfd wakeup all add overhead that
-  matters at low concurrency. The expected wins materialise when
-  applications fan out across many concurrent bufferevents; future work
-  will add registered buffers and multishot reads to extract them.
+  Performance (test/bench_bufferevent_io, 64 KiB payload, Linux 6.18):
+
+       pairs   syscall (MiB/s)   io_uring (MiB/s)   delta
+       1       2080              2264                +9%
+       4       1196              1376               +15%
+       8       1164              1320               +13%
+       12      1159              1108                -4%
+       16      1145               900               -21%
+       64      1163               910               -22%
+
+  The io_uring path wins at low concurrency (a handful of active
+  bufferevents at any moment — typical of HTTP servers with most
+  connections idle). It currently loses for high concurrency on the
+  round-trip benchmark because the architecture still uses epoll
+  readiness to drive bufferevent_readcb, and each round pays for both
+  an epoll wakeup and an io_uring round trip. The architectural fix is
+  multishot recv with provided buffer rings — one SQE per bufferevent
+  that the kernel completes repeatedly as data arrives, skipping epoll
+  entirely. That's deliberately deferred to a follow-up so this PR is
+  a small, reviewable foundation: the lifecycle, lock contract, error
+  handling, regress coverage and ASAN cleanliness all stay clear of
+  the multishot complications.
 
 2. HTTP New APIs and features
 
