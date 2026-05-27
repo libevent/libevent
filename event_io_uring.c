@@ -40,6 +40,7 @@
 #include "event2/event.h"
 #include "event-internal.h"
 #include "event_io_uring-internal.h"
+#include "evthread-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 
@@ -168,7 +169,15 @@ event_io_uring_drain_(struct event_base *base)
 		int result = cqe->res;
 		io_uring_cqe_seen(&r->ring, cqe);
 		if (req != NULL) {
+			/* Release the base lock around the user callback so it
+			 * can call back into libevent (event_base_loopbreak,
+			 * event_active, etc.) without recursing on the lock —
+			 * mirrors event_process_active_single_queue's
+			 * contract. The callback is responsible for any inner
+			 * locking it needs (e.g. BEV_LOCK on a bufferevent). */
+			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			req->cb(result, req->arg);
+			EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 			mm_free(req);
 		}
 		++n;
