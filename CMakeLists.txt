@@ -136,6 +136,10 @@ set(EVENT__DISABLE_MBEDTLS AUTO CACHE STRING
     "Mbed TLS library support: AUTO (use if present), ON (ignore), OFF (require presence)")
 set_property(CACHE EVENT__DISABLE_MBEDTLS PROPERTY STRINGS AUTO ON OFF)
 
+set(EVENT__DISABLE_LIBURING AUTO CACHE STRING
+    "liburing (io_uring) support: AUTO (use if present), ON (ignore), OFF (require presence)")
+set_property(CACHE EVENT__DISABLE_LIBURING PROPERTY STRINGS AUTO ON OFF)
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
 
@@ -989,6 +993,62 @@ else()
     message(FATAL_ERROR "EVENT__DISABLE_MBEDTLS must be set to one of: AUTO, ON or OFF. Got: ${EVENT__DISABLE_MBEDTLS}")
 endif()
 
+# liburing — only meaningful on Linux (io_uring is a Linux-only kernel facility)
+if (EVENT__DISABLE_LIBURING STREQUAL "OFF" OR EVENT__DISABLE_LIBURING STREQUAL "AUTO")
+    if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        find_package(PkgConfig)
+        if (PKG_CONFIG_FOUND)
+            # 2.4 is the first release that has io_uring_setup_buf_ring,
+            # io_uring_prep_recv_multishot, io_uring_prep_cancel_fd, and
+            # IORING_ASYNC_CANCEL_ANY — all required by the multishot
+            # recv fast path. Older liburing on the host is silently
+            # ignored under AUTO; the syscall path remains.
+            pkg_check_modules(LIBURING IMPORTED_TARGET liburing>=2.4)
+            if (NOT LIBURING_FOUND)
+                # Distinguish "no liburing at all" from "liburing present
+                # but too old", so the message users see actually tells
+                # them what to do. Ubuntu 22.04 ships liburing 2.1, for
+                # example — perfectly fine to link against, but pre-dates
+                # the multishot APIs.
+                pkg_check_modules(LIBURING_ANY liburing)
+                if (LIBURING_ANY_FOUND)
+                    message(STATUS
+                        "liburing ${LIBURING_ANY_VERSION} found but >= 2.4 "
+                        "required for io_uring fast path; building without "
+                        "io_uring support. See Documentation/Building.md "
+                        "for how to install a newer liburing.")
+                endif()
+            endif()
+        endif()
+
+        if (LIBURING_FOUND)
+            set(EVENT__HAVE_LIBURING 1)
+            set(LIBURING_TARGETS PkgConfig::LIBURING)
+            list(APPEND SRC_CORE event_io_uring.c)
+            message(STATUS "liburing include: ${LIBURING_INCLUDE_DIRS}")
+            message(STATUS "liburing lib: ${LIBURING_LIBRARIES}")
+        elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
+            if (LIBURING_ANY_FOUND)
+                message(FATAL_ERROR
+                    "liburing ${LIBURING_ANY_VERSION} is installed but >= 2.4 "
+                    "is required (multishot recv APIs). Install a newer "
+                    "liburing or pass -DEVENT__DISABLE_LIBURING=AUTO/ON.")
+            else()
+                message(FATAL_ERROR
+                    "liburing >= 2.4 required, but not found. Install "
+                    "liburing-dev (Ubuntu 24.04+ / Debian 13+ / etc.) or "
+                    "build it from https://github.com/axboe/liburing.")
+            endif()
+        endif()
+    elseif (EVENT__DISABLE_LIBURING STREQUAL "OFF")
+        message(FATAL_ERROR "liburing required, but only supported on Linux.")
+    endif()
+elseif (EVENT__DISABLE_LIBURING STREQUAL "ON")
+    message(STATUS "Disable liburing support")
+else()
+    message(FATAL_ERROR "EVENT__DISABLE_LIBURING must be set to one of: AUTO, ON or OFF. Got: ${EVENT__DISABLE_LIBURING}")
+endif()
+
 if (NOT EVENT__DISABLE_TESTS)
     # Zlib is only used for testing.
     find_package(ZLIB)
@@ -1076,7 +1136,9 @@ configure_file(
 # Create the libraries.
 #
 include(AddEventLibrary)
-add_event_library(event_core SOURCES ${SRC_CORE})
+add_event_library(event_core
+    LIBRARIES ${LIBURING_TARGETS}
+    SOURCES ${SRC_CORE})
 add_event_library(event_extra
     INNER_LIBRARIES event_core
     SOURCES ${SRC_EXTRA})
@@ -1112,7 +1174,9 @@ endif()
 # library exists for historical reasons; it contains the contents of
 # both libevent_core and libevent_extra. You shouldn’t use it; it may
 # go away in a future version of Libevent.
-add_event_library(event SOURCES ${SRC_CORE} ${SRC_EXTRA})
+add_event_library(event
+    LIBRARIES ${LIBURING_TARGETS}
+    SOURCES ${SRC_CORE} ${SRC_EXTRA})
 
 set(WIN32_GETOPT)
 if (WIN32)
@@ -1214,6 +1278,13 @@ if (NOT EVENT__DISABLE_BENCHMARK)
 
     add_bench_prog(bench test/bench.c ${WIN32_GETOPT})
     add_bench_prog(bench_cascade test/bench_cascade.c ${WIN32_GETOPT})
+
+    if (NOT WIN32)
+        # bench_bufferevent_io exercises socket bufferevent throughput with
+        # an opt-in EVENT_BASE_FLAG_IO_URING toggle for head-to-head
+        # comparison against the synchronous read/write path.
+        add_bench_prog(bench_bufferevent_io test/bench_bufferevent_io.c)
+    endif()
 endif()
 
 #
@@ -1308,6 +1379,10 @@ if (NOT EVENT__DISABLE_TESTS)
 
             if (EVENT__HAVE_MBEDTLS)
                 list(APPEND SRC_REGRESS test/regress_mbedtls.c)
+            endif()
+
+            if (EVENT__HAVE_LIBURING)
+                list(APPEND SRC_REGRESS test/regress_io_uring.c)
             endif()
 
             add_executable(regress ${SRC_REGRESS})

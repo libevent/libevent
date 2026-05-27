@@ -173,6 +173,18 @@ struct bufferevent_private {
 	/** Flag: set if a connect failed prematurely; this is a hack for
 	 * getting around the bufferevent abstraction. */
 	unsigned connection_refused : 1;
+	/** Flag: set while an io_uring readv submission is awaiting its CQE.
+	 * Suppresses further read submissions and read syscalls on the same
+	 * socket until the in-flight op completes. */
+	unsigned uring_read_in_flight : 1;
+	/** Flag: set while an io_uring writev submission is awaiting its CQE. */
+	unsigned uring_write_in_flight : 1;
+	/** Flag: set when a multishot recv has been submitted via io_uring
+	 * for this bufferevent. The bufferevent's ev_read stays out of
+	 * epoll while this is set — the multishot CQE chain is the
+	 * data-arrival signal. Cleared when the final CQE (without
+	 * IORING_CQE_F_MORE) is observed by the recv completion callback. */
+	unsigned uring_recv_multishot : 1;
 	/** Set to the events pending if we have deferred callbacks and
 	 * an events callback is pending. */
 	short eventcb_pending;

@@ -138,6 +138,62 @@
   public function event_base_get_signal_method() to obtain an underlying kernel
   signal handling mechanism.
 
+1.7. io_uring acceleration for socket bufferevents (experimental, Linux)
+
+  Opt-in path that routes socket bufferevent reads and writes through an
+  event_base-owned io_uring(7) ring instead of synchronous readv()/writev().
+  Built when liburing >= 2.0 is detected at configure time; gated at runtime
+  by passing EVENT_BASE_FLAG_IO_URING to event_base_new_with_config().
+
+    struct event_config *cfg = event_config_new();
+    event_config_set_flag(cfg, EVENT_BASE_FLAG_IO_URING);
+    struct event_base *base = event_base_new_with_config(cfg);
+    event_config_free(cfg);
+
+  Silently ignored when:
+   - libevent was built without liburing (EVENT__DISABLE_LIBURING),
+   - the platform isn't Linux,
+   - EVENT_NOIO_URING is set in the environment (unless
+     EVENT_BASE_FLAG_IGNORE_ENV is also set on the config).
+
+  Backend dispatch (epoll/kqueue/...) is unchanged. epoll still drives
+  readiness; io_uring only replaces the actual read/write syscall.
+
+  Known limitation: bufferevent read/write timeouts are not enforced while
+  an io_uring op is in flight (only between ops). A follow-up will bind
+  IORING_OP_LINK_TIMEOUT so the kernel cancels the I/O if the deadline
+  passes.
+
+  Performance (test/bench_bufferevent_io, Linux 6.18):
+
+    64 KiB payload, round-trip ping-pong:
+       pairs   syscall (MiB/s)   io_uring (MiB/s)   delta
+       1       2116              2193                +4%
+       4       1185              1242                +5%
+       16      1135              1247               +10%
+       64      1183              1926               +63%
+       128     1093              1866               +71%
+
+    1 KiB payload:
+       pairs   syscall (MiB/s)   io_uring (MiB/s)   delta
+       1        126               161               +27%
+       16       154               244               +58%
+       64       150               235               +57%
+
+  The io_uring path uses multishot recv (IORING_RECV_MULTISHOT) with a
+  provided buffer ring: one SQE per bufferevent, submitted when
+  EV_READ is enabled. The kernel completes it repeatedly as data
+  arrives, drawing buffers from the ring without involving epoll for
+  data delivery. Writes are batched in the SQ across one event_base
+  loop iteration and flushed in a single io_uring_enter syscall. The
+  wakeup mechanism polls the io_uring ring fd directly — no eventfd
+  indirection, no per-iteration read() to drain a counter.
+
+  Buffer ring sizing today: 128 buffers of 16 KiB each (2 MiB per
+  base). Exhaustion (ENOBUFS) is reported via event_warnx and the
+  affected bufferevent falls back to the epoll-driven one-shot path
+  for that read so reads still progress.
+
 2. HTTP New APIs and features
 
 2.1. Support for custom HTTP methods
