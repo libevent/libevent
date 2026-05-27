@@ -181,6 +181,10 @@ test_regress_CPPFLAGS += $(MBEDTLS_INCS)
 test_regress_LDADD += libevent_mbedtls.la $(MBEDTLS_LIBS)
 endif
 
+if LIBURING
+test_regress_SOURCES += test/regress_io_uring.c
+endif
+
 test_bench_SOURCES = test/bench.c
 test_bench_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_cascade_SOURCES = test/bench_cascade.c

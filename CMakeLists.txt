@@ -1344,6 +1344,10 @@ if (NOT EVENT__DISABLE_TESTS)
                 list(APPEND SRC_REGRESS test/regress_mbedtls.c)
             endif()
 
+            if (EVENT__HAVE_LIBURING)
+                list(APPEND SRC_REGRESS test/regress_io_uring.c)
+            endif()
+
             add_executable(regress ${SRC_REGRESS})
 
             target_link_libraries(regress

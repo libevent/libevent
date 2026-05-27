@@ -2119,6 +2119,14 @@ event_base_loop(struct event_base *base, int flags)
 				done = 1;
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
+
+		/* Drain again after callbacks ran. event_process_active may
+		 * have called submission helpers (e.g. bufferevent_sock io_uring
+		 * paths) whose SQEs completed inline; without this second drain
+		 * the resulting CQEs would sit in the ring until the next
+		 * dispatch wakeup, even though the eventfd notification was
+		 * already consumed in this iteration. */
+		event_io_uring_drain_(base);
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
 

@@ -32,9 +32,12 @@
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/eventfd.h>
 
 #include <liburing.h>
 
+#include "event2/event.h"
 #include "event-internal.h"
 #include "event_io_uring-internal.h"
 #include "log-internal.h"
@@ -48,7 +51,29 @@
 
 struct event_io_uring {
 	struct io_uring ring;
+	/* CQE-arrival eventfd. The kernel writes to it whenever a CQE is
+	 * queued; we register it with the event_base as a persistent EV_READ
+	 * watcher so that epoll_wait wakes up when completions arrive (it
+	 * otherwise has no knowledge of the ring). The watcher itself does
+	 * no work — draining happens unconditionally in event_base_loop. */
+	int notify_fd;
+	struct event notify_ev;
 };
+
+static void
+event_io_uring_notify_cb_(evutil_socket_t fd, short what, void *arg)
+{
+	uint64_t v;
+	ssize_t r;
+	(void)what;
+	(void)arg;
+	/* Reset the eventfd counter; we don't care about the value, only the
+	 * fact that the loop woke up. The CQEs themselves are drained from
+	 * event_base_loop()'s post-dispatch hook. */
+	do {
+		r = read(fd, &v, sizeof(v));
+	} while (r < 0 && errno == EINTR);
+}
 
 /* Per-submission record. Lifetime: allocated in submit_*, freed in drain
  * after the user callback returns. The pointer is stashed in the SQE's
@@ -70,6 +95,7 @@ event_io_uring_init_(struct event_base *base)
 	r = mm_calloc(1, sizeof(*r));
 	if (r == NULL)
 		return -1;
+	r->notify_fd = -1;
 
 	rv = io_uring_queue_init(EVENT_IO_URING_QUEUE_DEPTH, &r->ring, 0);
 	if (rv < 0) {
@@ -79,8 +105,35 @@ event_io_uring_init_(struct event_base *base)
 		return -1;
 	}
 
+	r->notify_fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+	if (r->notify_fd < 0) {
+		event_warnx("%s: eventfd: %s", __func__, strerror(errno));
+		goto err_ring;
+	}
+	rv = io_uring_register_eventfd(&r->ring, r->notify_fd);
+	if (rv < 0) {
+		event_warnx("%s: io_uring_register_eventfd: %s",
+		    __func__, strerror(-rv));
+		goto err_fd;
+	}
+
+	event_assign(&r->notify_ev, base, r->notify_fd,
+	    EV_READ | EV_PERSIST, event_io_uring_notify_cb_, r);
+	if (event_add(&r->notify_ev, NULL) < 0) {
+		event_warnx("%s: event_add(notify) failed", __func__);
+		io_uring_unregister_eventfd(&r->ring);
+		goto err_fd;
+	}
+
 	base->io_uring = r;
 	return 0;
+
+err_fd:
+	close(r->notify_fd);
+err_ring:
+	io_uring_queue_exit(&r->ring);
+	mm_free(r);
+	return -1;
 }
 
 void
@@ -90,6 +143,11 @@ event_io_uring_free_(struct event_base *base)
 	if (r == NULL)
 		return;
 
+	if (r->notify_fd >= 0) {
+		event_del(&r->notify_ev);
+		io_uring_unregister_eventfd(&r->ring);
+		close(r->notify_fd);
+	}
 	io_uring_queue_exit(&r->ring);
 	mm_free(r);
 	base->io_uring = NULL;
