@@ -27,6 +27,7 @@
  */
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #ifdef EVENT__HAVE_LIBURING
 
@@ -37,6 +38,7 @@
 #include <liburing.h>
 
 #include "event2/event.h"
+#include "event2/util.h"
 #include "event-internal.h"
 #include "event_io_uring-internal.h"
 #include "evthread-internal.h"
@@ -165,7 +167,10 @@ event_io_uring_init_(struct event_base *base)
 	/* Poll the ring's own fd; the kernel signals POLLIN when the CQ has
 	 * entries. No eventfd indirection, no per-iteration read() syscall
 	 * to clear a counter — draining the CQ via io_uring_cqe_seen is
-	 * what de-asserts POLLIN. */
+	 * what de-asserts POLLIN. Set O_NONBLOCK on the ring fd so debug
+	 * mode (which asserts nonblocking for every fd handed to
+	 * event_assign with EV_READ) is satisfied. */
+	(void)evutil_make_socket_nonblocking(r->ring.ring_fd);
 	event_assign(&r->notify_ev, base, r->ring.ring_fd,
 	    EV_READ | EV_PERSIST, event_io_uring_notify_cb_, r);
 	if (event_add(&r->notify_ev, NULL) < 0) {
