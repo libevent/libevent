@@ -452,8 +452,12 @@ struct testgroup_t testgroups[] = {
 	{ "bufferevent/", bufferevent_testcases },
 	{ "http/", http_testcases },
 	{ "dns/", dns_testcases },
+#ifndef EVENT__DISABLE_EVENT_TAGGING
 	{ "evtag/", evtag_testcases },
+#endif
+#ifndef EVENT__DISABLE_RPC
 	{ "rpc/", rpc_testcases },
+#endif
 	{ "thread/", thread_testcases },
 	{ "listener/", listener_testcases },
 	{ "watch/", watch_testcases },

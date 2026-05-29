@@ -71,7 +71,7 @@
 #include "regress.h"
 #include "regress_thread.h"
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(EVENT__DISABLE_RPC)
 #include "regress.gen.h"
 #endif
 
@@ -2548,10 +2548,12 @@ test_multiple_events_for_same_fd(void)
    cleanup_test();
 }
 
+#ifndef EVENT__DISABLE_EVENT_TAGGING
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 int evtag_decode_int64(ev_uint64_t *pnumber, struct evbuffer *evbuf);
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t number);
 int evtag_decode_tag(ev_uint32_t *pnumber, struct evbuffer *evbuf);
+#endif
 
 static void
 read_once_cb(evutil_socket_t fd, short event, void *arg)
@@ -2602,6 +2604,7 @@ test_want_only_once(void)
 	cleanup_test();
 }
 
+#ifndef EVENT__DISABLE_EVENT_TAGGING
 #define TEST_MAX_INT	6
 
 static void
@@ -2739,6 +2742,7 @@ evtag_test_peek(void *ptr)
 end:
 	evbuffer_free(tmp);
 }
+#endif /* EVENT__DISABLE_EVENT_TAGGING */
 
 
 static void
@@ -3776,6 +3780,7 @@ struct testcase_t main_testcases[] = {
 	END_OF_TESTCASES
 };
 
+#ifndef EVENT__DISABLE_EVENT_TAGGING
 struct testcase_t evtag_testcases[] = {
 	{ "int", evtag_int_test, TT_FORK, NULL, NULL },
 	{ "fuzz", evtag_fuzz, TT_FORK, NULL, NULL },
@@ -3784,6 +3789,7 @@ struct testcase_t evtag_testcases[] = {
 
 	END_OF_TESTCASES
 };
+#endif /* EVENT__DISABLE_EVENT_TAGGING */
 
 /* Apparently there is a bug in OSX that leads to subsequent ALRM signal
  * delivered even though it_interval is set to 0, so let's retry the tests */
