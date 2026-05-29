@@ -92,7 +92,9 @@ test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
 DISTCLEANFILES += test/regress.gen.c test/regress.gen.h
 
 if BUILD_REGRESS
+if !DISABLE_RPC
 BUILT_SOURCES += test/regress.gen.c test/regress.gen.h
+endif
 endif
 
 test_test_init_SOURCES = test/test-init.c
@@ -125,8 +127,6 @@ endif
 
 test_regress_SOURCES = 				\
 	test/regress.c				\
-	test/regress.gen.c				\
-	test/regress.gen.h				\
 	test/regress_buffer.c			\
 	test/regress_bufferevent.c			\
 	test/regress_dns.c				\
@@ -137,17 +137,27 @@ test_regress_SOURCES = 				\
 	test/regress_listener.c			\
 	test/regress_main.c				\
 	test/regress_minheap.c			\
-	test/regress_rpc.c				\
 	test/regress_testutils.c			\
 	test/regress_testutils.h			\
 	test/regress_util.c				\
 	test/regress_watch.c				\
-	test/regress_ws.c				\
-	test/regress_ws.h				\
 	test/regress_timer_timeout.c		\
 	test/tinytest.c				\
 	$(regress_thread_SOURCES)		\
 	$(regress_zlib_SOURCES)
+
+if !DISABLE_RPC
+test_regress_SOURCES +=				\
+	test/regress.gen.c			\
+	test/regress.gen.h			\
+	test/regress_rpc.c
+endif
+
+if !DISABLE_WS
+test_regress_SOURCES +=				\
+	test/regress_ws.c			\
+	test/regress_ws.h
+endif
 
 if PTHREADS
 regress_thread_SOURCES = test/regress_thread.c
