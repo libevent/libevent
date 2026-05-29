@@ -148,6 +148,21 @@ option(EVENT__DISABLE_REGRESS
 option(EVENT__DISABLE_SAMPLES
     "Disable sample files" OFF)
 
+option(EVENT__DISABLE_RPC
+    "Define if libevent should be compiled without the RPC subsystem (evrpc_*)" OFF)
+
+option(EVENT__DISABLE_EVENT_TAGGING
+    "Define if libevent should be compiled without the event-tagging subsystem (evtag_*). Requires EVENT__DISABLE_RPC=ON because evrpc uses evtag internally." OFF)
+
+option(EVENT__DISABLE_WS
+    "Define if libevent should be compiled without the WebSocket subsystem (evws_*); also drops sha1.c which is only used by ws.c" OFF)
+
+if (EVENT__DISABLE_EVENT_TAGGING AND NOT EVENT__DISABLE_RPC)
+    message(FATAL_ERROR
+        "EVENT__DISABLE_EVENT_TAGGING=ON requires EVENT__DISABLE_RPC=ON "
+        "(evrpc.c calls evtag_init()).")
+endif()
+
 option(EVENT__DISABLE_CLOCK_GETTIME
     "Do not use clock_gettime even if it is available" OFF)
 
@@ -1000,12 +1015,21 @@ if (NOT EVENT__DISABLE_TESTS)
 endif()
 
 set(SRC_EXTRA
-    event_tagging.c
     http.c
-    evdns.c
-    ws.c
-    sha1.c
-    evrpc.c)
+    evdns.c)
+
+if (NOT EVENT__DISABLE_WS)
+    # sha1.c is only used by ws.c (Sec-WebSocket-Accept handshake)
+    list(APPEND SRC_EXTRA ws.c sha1.c)
+endif()
+
+if (NOT EVENT__DISABLE_EVENT_TAGGING)
+    list(APPEND SRC_EXTRA event_tagging.c)
+endif()
+
+if (NOT EVENT__DISABLE_RPC)
+    list(APPEND SRC_EXTRA evrpc.c)
+endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.20")
   include(TestBigEndian)
@@ -1255,20 +1279,20 @@ if (NOT EVENT__DISABLE_TESTS)
 
             add_definitions(-DTINYTEST_LOCAL)
 
-            add_custom_command(
-                OUTPUT
-                    ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c
-                    ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.h
-                DEPENDS
-                    event_rpcgen.py
-                    test/regress.rpc
-                COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py --quiet regress.rpc
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
+            if (NOT EVENT__DISABLE_RPC)
+                add_custom_command(
+                    OUTPUT
+                        ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c
+                        ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.h
+                    DEPENDS
+                        event_rpcgen.py
+                        test/regress.rpc
+                    COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py --quiet regress.rpc
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
+            endif()
 
             list(APPEND SRC_REGRESS
                  test/regress.c
-                 test/regress.gen.c
-                 test/regress.gen.h
                  test/regress_buffer.c
                  test/regress_bufferevent.c
                  test/regress_dns.c
@@ -1279,15 +1303,26 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_listener.c
                  test/regress_main.c
                  test/regress_minheap.c
-                 test/regress_rpc.c
                  test/regress_testutils.c
                  test/regress_testutils.h
                  test/regress_util.c
                  test/regress_watch.c
                  test/regress_timer_timeout.c
-                 test/regress_ws.c
-                 test/regress_ws.h
                  test/tinytest.c)
+
+            if (NOT EVENT__DISABLE_RPC)
+                # regress.gen.{c,h} are generated from regress.rpc
+                list(APPEND SRC_REGRESS
+                     test/regress.gen.c
+                     test/regress.gen.h
+                     test/regress_rpc.c)
+            endif()
+
+            if (NOT EVENT__DISABLE_WS)
+                list(APPEND SRC_REGRESS
+                     test/regress_ws.c
+                     test/regress_ws.h)
+            endif()
 
             if (WIN32)
                 list(APPEND SRC_REGRESS test/regress_iocp.c)

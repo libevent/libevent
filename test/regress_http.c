@@ -65,7 +65,9 @@
 #include "http-internal.h"
 #include "regress.h"
 #include "regress_http.h"
+#ifndef EVENT__DISABLE_WS
 #include "regress_ws.h"
+#endif
 #include "regress_testutils.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
@@ -231,7 +233,9 @@ http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, base);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, base);
 	evhttp_set_cb(myhttp, "/oncomplete", http_on_complete_cb, base);
+#ifndef EVENT__DISABLE_WS
 	evhttp_set_cb(myhttp, "/ws", http_on_ws_cb, base);
+#endif
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
 	return (myhttp);
 }
@@ -6181,7 +6185,9 @@ struct testcase_t http_testcases[] = {
 	HTTP(terminate_chunked),
 	HTTP(terminate_chunked_oneshot),
 	HTTP(on_complete),
+#ifndef EVENT__DISABLE_WS
 	HTTP(ws),
+#endif
 
 	HTTP(highport),
 	HTTP(dispatcher),
