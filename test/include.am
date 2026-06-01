@@ -17,6 +17,7 @@ EXTRA_DIST+=					\
 TESTPROGRAMS = \
 	test/bench					\
 	test/bench_cascade				\
+	test/bench_loop					\
 	test/bench_http				\
 	test/bench_httpclient			\
 	test/test-changelist				\
@@ -185,6 +186,8 @@ test_bench_SOURCES = test/bench.c
 test_bench_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_cascade_SOURCES = test/bench_cascade.c
 test_bench_cascade_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_loop_SOURCES = test/bench_loop.c
+test_bench_loop_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_http_SOURCES = test/bench_http.c
 test_bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_httpclient_SOURCES = test/bench_httpclient.c
