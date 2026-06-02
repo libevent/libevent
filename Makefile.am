@@ -236,6 +236,9 @@ endif
 if SIGNALFD_SUPPORT
 SYS_SRC += signalfd.c
 endif
+if LIBURING
+SYS_SRC += event_io_uring.c
+endif
 
 BUILT_SOURCES += include/event2/event-config.h
 
@@ -285,11 +288,11 @@ AM_LDFLAGS = $(LIBEVENT_LDFLAGS)
 GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED) $(AM_LDFLAGS)
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRAS_SRC)
-libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) $(SYS_CORE_LIBS)
+libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) $(SYS_CORE_LIBS) $(LIBURING_LIBS)
 libevent_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
-libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) $(SYS_CORE_LIBS)
+libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) $(SYS_CORE_LIBS) $(LIBURING_LIBS)
 libevent_core_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if PTHREADS
@@ -329,6 +332,7 @@ noinst_HEADERS +=				\
 	epolltable-internal.h		\
 	evbuffer-internal.h			\
 	event-internal.h			\
+	event_io_uring-internal.h		\
 	evmap-internal.h			\
 	evrpc-internal.h			\
 	evsignal-internal.h			\

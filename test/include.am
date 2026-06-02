@@ -29,6 +29,10 @@ TESTPROGRAMS = \
 	test/test-time				\
 	test/test-weof
 
+if !BUILD_WIN32
+TESTPROGRAMS += test/bench_bufferevent_io
+endif
+
 if PTHREADS
 if KQUEUE_BACKEND
 TESTPROGRAMS += test/test-kq-collision
@@ -181,6 +185,10 @@ test_regress_CPPFLAGS += $(MBEDTLS_INCS)
 test_regress_LDADD += libevent_mbedtls.la $(MBEDTLS_LIBS)
 endif
 
+if LIBURING
+test_regress_SOURCES += test/regress_io_uring.c
+endif
+
 test_bench_SOURCES = test/bench.c
 test_bench_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_cascade_SOURCES = test/bench_cascade.c
@@ -189,6 +197,8 @@ test_bench_http_SOURCES = test/bench_http.c
 test_bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 test_bench_httpclient_SOURCES = test/bench_httpclient.c
 test_bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) libevent_core.la
+test_bench_bufferevent_io_SOURCES = test/bench_bufferevent_io.c
+test_bench_bufferevent_io_LDADD = $(LIBEVENT_GC_SECTIONS) libevent_core.la
 
 test/regress.gen.c test/regress.gen.h: test/rpcgen-attempted
 

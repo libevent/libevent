@@ -470,6 +470,9 @@ struct testgroup_t testgroups[] = {
 #ifdef EVENT__HAVE_MBEDTLS
 	{ "mbedtls/", mbedtls_testcases },
 #endif
+#ifdef EVENT__HAVE_LIBURING
+	{ "io_uring/", io_uring_testcases },
+#endif
 	END_OF_GROUPS
 };
 
