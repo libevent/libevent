@@ -1214,6 +1214,10 @@ if (NOT EVENT__DISABLE_BENCHMARK)
 
     add_bench_prog(bench test/bench.c ${WIN32_GETOPT})
     add_bench_prog(bench_cascade test/bench_cascade.c ${WIN32_GETOPT})
+    add_bench_prog(bench_bufferevent test/bench_bufferevent.c)
+    if (NOT EVENT__DISABLE_OPENSSL)
+        target_link_libraries(bench_bufferevent event_openssl ${OPENSSL_LIBRARIES})
+    endif()
 endif()
 
 #
