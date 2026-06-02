@@ -149,12 +149,12 @@ jobs:
             cmake --build . --target verify
           fi
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure() && matrix.EVENT_MATRIX != 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure() && matrix.EVENT_MATRIX == 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-dist
@@ -216,7 +216,7 @@ jobs:
           cd build
           make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
@@ -365,7 +365,7 @@ jobs:
             $host.SetShouldExit($LastExitCode)
           }
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
@@ -430,7 +430,7 @@ jobs:
           make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
           D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -521,7 +521,7 @@ jobs:
           cd build
           ctest --output-on-failure
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -609,7 +609,7 @@ jobs:
             cmake --build . --target verify
           fi
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -656,7 +656,7 @@ jobs:
           cd build
           make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -746,7 +746,7 @@ jobs:
           fi
           EOF
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -796,7 +796,7 @@ jobs:
           make verify
           EOF
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -895,7 +895,7 @@ jobs:
           fi
           EOF
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -949,7 +949,7 @@ jobs:
           make verify
           EOF
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
@@ -1121,12 +1121,12 @@ jobs:
           ./extra/abi-check/abi_check.sh
         env:
           ABI_CHECK_ROOT: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         if: failure()
         with:
           name: build
           path: /tmp/le-abi-root
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.1
         with:
           name: build
           path: /tmp/le-abi-root/work/abi-check
