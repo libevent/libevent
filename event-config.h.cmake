@@ -44,6 +44,15 @@
 /* Define if libevent should not be compiled with thread support */
 #cmakedefine EVENT__DISABLE_THREAD_SUPPORT 1
 
+/* Define if libevent should be compiled without the RPC subsystem */
+#cmakedefine EVENT__DISABLE_RPC 1
+
+/* Define if libevent should be compiled without the event-tagging subsystem */
+#cmakedefine EVENT__DISABLE_EVENT_TAGGING 1
+
+/* Define if libevent should be compiled without the WebSocket subsystem */
+#cmakedefine EVENT__DISABLE_WS 1
+
 /* Define to 1 if you have the `accept4' function. */
 #cmakedefine EVENT__HAVE_ACCEPT4 1
 

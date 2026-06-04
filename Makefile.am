@@ -264,11 +264,20 @@ CORE_SRC =					\
 
 EXTRAS_SRC =					\
 	evdns.c					\
-	event_tagging.c				\
-	evrpc.c					\
-	sha1.c					\
-	ws.c					\
 	http.c
+
+if !DISABLE_WS
+# sha1.c is only used by ws.c (Sec-WebSocket-Accept handshake)
+EXTRAS_SRC += ws.c sha1.c
+endif
+
+if !DISABLE_EVENT_TAGGING
+EXTRAS_SRC += event_tagging.c
+endif
+
+if !DISABLE_RPC
+EXTRAS_SRC += evrpc.c
+endif
 
 if BUILD_WITH_NO_UNDEFINED
 NO_UNDEFINED = -no-undefined

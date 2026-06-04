@@ -4082,7 +4082,9 @@ evhttp_free(struct evhttp* http)
 {
 	struct evhttp_cb *http_cb;
 	struct evhttp_connection *evcon;
+#ifndef EVENT__DISABLE_WS
 	struct evws_connection *evws;
+#endif
 	struct evhttp_bound_socket *bound;
 	struct evhttp* vhost;
 	struct evhttp_server_alias *alias;
@@ -4101,9 +4103,11 @@ evhttp_free(struct evhttp* http)
 		evhttp_connection_free(evcon);
 	}
 
+#ifndef EVENT__DISABLE_WS
 	while ((evws = TAILQ_FIRST(&http->ws_sessions)) != NULL) {
 		evws_connection_free(evws);
 	}
+#endif
 
 	while ((http_cb = TAILQ_FIRST(&http->callbacks)) != NULL) {
 		TAILQ_REMOVE(&http->callbacks, http_cb, next);
