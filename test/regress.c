@@ -57,6 +57,7 @@
 #include <ctype.h>
 
 #include "event2/event.h"
+#include "event2/watch.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
 #include "event2/tag.h"
@@ -3661,6 +3662,71 @@ end:
 #endif
 }
 
+/* Regression test for the EVLOOP_NONBLOCK + empty-heap time-cache skip.
+ * A check watcher runs right after the (skipped) update_time_cache() call,
+ * so it observes tv_cache while the loop is mid-iteration: it must still be
+ * cleared, proving the optimization fired. A non-firing keepalive event
+ * keeps the loop from exiting early so it actually reaches dispatch. The
+ * cleared cache must still let event_base_gettimeofday_cached() return a
+ * sane live time. */
+static int nbtc_cache_sec_in_check;
+static void
+nbtc_check_cb(struct evwatch *w, const struct evwatch_check_cb_info *info,
+    void *arg)
+{
+	struct event_base *base = arg;
+	nbtc_cache_sec_in_check = (int)base->tv_cache.tv_sec;
+}
+static void
+nbtc_keepalive_cb(evutil_socket_t fd, short what, void *arg)
+{
+	/* never invoked: the socket is never readable */
+}
+static void
+test_loop_nonblock_time_cache(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *keepalive = NULL;
+	struct evwatch *check = NULL;
+	struct timeval now, cached;
+	evutil_socket_t pair[2] = { -1, -1 };
+
+	tt_int_op(evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair),
+	    ==, 0);
+	keepalive = event_new(base, pair[0], EV_READ | EV_PERSIST,
+	    nbtc_keepalive_cb, NULL);
+	tt_assert(keepalive);
+	tt_int_op(event_add(keepalive, NULL), ==, 0);
+
+	check = evwatch_check_new(base, nbtc_check_cb, base);
+	tt_assert(check);
+
+	/* One non-blocking iteration with an empty timer heap; the keepalive
+	 * keeps the loop alive so it reaches dispatch and the check watcher. */
+	nbtc_cache_sec_in_check = -1;
+	tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), >=, 0);
+
+	/* The watcher fired after the guard and saw a cleared cache. */
+	tt_int_op(nbtc_cache_sec_in_check, ==, 0);
+
+	/* Readers still get a sane live time despite the cleared cache. */
+	evutil_gettimeofday(&now, NULL);
+	tt_int_op(0, ==, event_base_gettimeofday_cached(base, &cached));
+	tt_int_op(cached.tv_sec, >, 0);
+	tt_int_op(labs(timeval_msec_diff(&now, &cached)), <, 100);
+
+end:
+	if (check)
+		evwatch_free(check);
+	if (keepalive)
+		event_free(keepalive);
+	if (pair[0] >= 0)
+		evutil_closesocket(pair[0]);
+	if (pair[1] >= 0)
+		evutil_closesocket(pair[1]);
+}
+
 struct testcase_t main_testcases[] = {
 	/* Some converted-over tests */
 	{ "methods", test_methods, TT_FORK, NULL, NULL },
@@ -3760,6 +3826,7 @@ struct testcase_t main_testcases[] = {
 	{ "gettimeofday_cached_reset", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep reset" },
 	{ "gettimeofday_cached_disabled", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep disable" },
 	{ "gettimeofday_cached_disabled_nosleep", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"disable" },
+	{ "loop_nonblock_time_cache", test_loop_nonblock_time_cache, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	BASIC(active_by_fd, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 

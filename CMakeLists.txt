@@ -1214,6 +1214,7 @@ if (NOT EVENT__DISABLE_BENCHMARK)
 
     add_bench_prog(bench test/bench.c ${WIN32_GETOPT})
     add_bench_prog(bench_cascade test/bench_cascade.c ${WIN32_GETOPT})
+    add_bench_prog(bench_loop test/bench_loop.c ${WIN32_GETOPT})
 endif()
 
 #
