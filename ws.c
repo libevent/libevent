@@ -367,6 +367,12 @@ ws_evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	/* when client just disappears after connection (wscat closed by Cmd+Q) */
 	if (what & BEV_EVENT_EOF) {
 		close_after_write_cb(bufev, arg);
+	} else if (what & BEV_EVENT_ERROR) {
+		/* On an abrupt reset or a failed write there is nothing left to
+		 * flush, so free the session now. Otherwise evws_connection_free()
+		 * -- and the user close callback it invokes -- is never reached and
+		 * the connection leaks. */
+		evws_connection_free(arg);
 	}
 }
 
