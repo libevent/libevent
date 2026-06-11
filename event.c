@@ -725,7 +725,7 @@ event_base_new_with_config(const struct event_config *cfg)
 		return NULL;
 	}
 
-	if (evutil_getenv_("EVENT_SHOW_METHOD"))
+	if (should_check_environment && evutil_getenv_("EVENT_SHOW_METHOD"))
 		event_msgx("libevent using: %s", base->evsel->name);
 
 	/* allocate a single active event queue */
