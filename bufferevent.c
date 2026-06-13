@@ -798,6 +798,12 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 	 */
 	if (underlying)
 		bufferevent_decref_(underlying);
+	
+	/*Free proxy*/
+	if (bufev->proxy_address != NULL)
+		mm_free(bufev->proxy_address);
+	if (bufev->proxy_target_address != NULL)
+		mm_free(bufev->proxy_target_address);
 }
 
 int
