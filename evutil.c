@@ -2531,7 +2531,7 @@ evutil_memclear_(void *mem, size_t len)
 int
 evutil_sockaddr_is_loopback_(const struct sockaddr *addr)
 {
-	static const char LOOPBACK_S6[16] =
+	EVUTIL_NONSTRING static const char LOOPBACK_S6[16] =
 	    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1";
 	if (addr->sa_family == AF_INET) {
 		struct sockaddr_in *sin = (struct sockaddr_in *)addr;
