@@ -164,6 +164,8 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 	*allocatedp = a;
 	*wastedp = w;
 	*usedp = u;
+
+	(void) n;
 }
 
 #define evbuffer_validate(buf)			\

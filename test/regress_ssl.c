@@ -323,7 +323,7 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 	int n;
 
 	enum regress_openssl_type type;
-	type = (enum regress_openssl_type)ctx;
+	type = (enum regress_openssl_type)(size_t)ctx;
 
 	line = evbuffer_readln(b, NULL, EVBUFFER_EOL_LF);
 	if (! line)
@@ -366,7 +366,7 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 	X509 *peer_cert = NULL;
 	enum regress_openssl_type type;
 
-	type = (enum regress_openssl_type)ctx;
+	type = (enum regress_openssl_type)(size_t)ctx;
 
 	TT_BLATHER(("Got event %d", (int)what));
 	if (what & BEV_EVENT_CONNECTED) {
@@ -466,7 +466,7 @@ regress_bufferevent_openssl(void *arg)
 	evutil_socket_t *fd_pair = NULL;
 
 	enum regress_openssl_type type;
-	type = (enum regress_openssl_type)data->setup_data;
+	type = (enum regress_openssl_type)(size_t)data->setup_data;
 
 	if (type & REGRESS_OPENSSL_RENEGOTIATE) {
 		if (OPENSSL_VERSION_NUMBER >= 0x10001000 &&
@@ -583,7 +583,7 @@ acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 	enum regress_openssl_type type;
 	SSL *ssl = SSL_new(get_ssl_ctx());
 
-	type = (enum regress_openssl_type)data->setup_data;
+	type = (enum regress_openssl_type)(size_t)data->setup_data;
 
 	SSL_use_certificate(ssl, the_cert);
 	SSL_use_PrivateKey(ssl, the_key);
@@ -739,7 +739,7 @@ regress_bufferevent_openssl_connect(void *arg)
 	struct rwcount rw = { -1, 0, 0 };
 	enum regress_openssl_type type;
 
-	type = (enum regress_openssl_type)data->setup_data;
+	type = (enum regress_openssl_type)(size_t)data->setup_data;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -889,7 +889,7 @@ regress_bufferevent_openssl_wm(void *arg)
 	struct sockaddr_in sin;
 	struct sockaddr_storage ss;
 	enum regress_openssl_type type =
-		(enum regress_openssl_type)data->setup_data;
+		(enum regress_openssl_type)(size_t)data->setup_data;
 	int bev_flags = BEV_OPT_CLOSE_ON_FREE;
 	ev_socklen_t slen;
 	SSL *ssl;
