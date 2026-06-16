@@ -443,7 +443,7 @@ test_evbuffer_pullup_with_empty(void *ptr)
 	buf = evbuffer_new();
 	evbuffer_validate(buf);
 	tt_int_op(evbuffer_get_length(buf), ==, 0);
-	tt_int_op(evbuffer_pullup(buf, -1), ==, NULL);
+	tt_ptr_op(evbuffer_pullup(buf, -1), ==, NULL);
 
 	evbuffer_free(buf);
 	buf = evbuffer_new();
