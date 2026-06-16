@@ -210,7 +210,7 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 
 int
 evutil_ersatz_socketpair_(int family, int type, int protocol,
-    evutil_socket_t fd[2])
+    evutil_socket_t fd[])
 {
 	/* This code is originally from Tor.  Used with permission. */
 
