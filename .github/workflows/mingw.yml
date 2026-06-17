@@ -82,7 +82,7 @@ jobs:
           make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
           D:\a\_temp\msys\msys64\usr\bin\bash.exe -c $script
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
@@ -163,7 +163,7 @@ jobs:
           cmake --build .
           ctest -V
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: mingw-${{ matrix.EVENT_MATRIX }}-build
