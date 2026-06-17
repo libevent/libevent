@@ -43,12 +43,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v2
       - name: Cache Dist Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v5
         with:
           path: dist
           key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v2
@@ -143,12 +143,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v2
       - name: Cache Dist Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v5
         with:
           path: dist
           key: ${{ matrix.os }}-autotools-dist-${{ matrix.EVENT_MATRIX }}-v2

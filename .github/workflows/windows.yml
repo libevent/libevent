@@ -33,13 +33,13 @@ jobs:
 
       - name: Cache Depends
         id: cache-depends
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v5
         with:
           path: C:\vcpkg\installed
           key: ${{ matrix.os }}-vcpkg
 
       - name: Cache Build
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
@@ -139,13 +139,13 @@ jobs:
 
       - name: Cache Depends
         id: cache-depends
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v5
         with:
           path: C:\vcpkg\installed
           key: ${{ matrix.os }}-vcpkg
 
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v5
         with:
           path: build
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
