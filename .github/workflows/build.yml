@@ -9,6 +9,7 @@ on:
       - opened
     branches:
       - master
+      - patches-2.1
     paths-ignore:
       - '**.md'
       - '.mailmap'
@@ -18,6 +19,7 @@ on:
   push:
     branches:
       - master
+      - patches-2.1
     paths-ignore:
       - '**.md'
       - '.mailmap'
