@@ -45,6 +45,9 @@ jobs:
           path: build
           key: macos-10.15-cmake-${{ matrix.EVENT_MATRIX }}-v2
 
+      - name: Install Depends
+        run: brew install openssl
+
       - name: Build And Test
         shell: bash
         run: |
