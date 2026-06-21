@@ -31,15 +31,16 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
+#ifndef _WIN32_WINNT
+/* For structs needed by GetAdaptersAddresses and AI_NUMERICSERV */
+#define _WIN32_WINNT 0x0600
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 #include <io.h>
 #include <tchar.h>
 #include <process.h>
-#undef _WIN32_WINNT
-/* For structs needed by GetAdaptersAddresses */
-#define _WIN32_WINNT 0x0501
 #include <iphlpapi.h>
 #include <netioapi.h>
 #endif
