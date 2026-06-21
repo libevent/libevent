@@ -270,6 +270,9 @@
 /* Define to 1 if you have the `strlcpy' function. */
 #cmakedefine EVENT__HAVE_STRLCPY 1
 
+/* Define to 1 if you have the 'strndup' function. */
+#cmakedefine EVENT__HAVE_STRNDUP 1
+
 /* Define to 1 if you have the `strsep' function. */
 #cmakedefine EVENT__HAVE_STRSEP 1
 
