@@ -49,9 +49,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
-            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1
+            export OPENSSL_ROOT_DIR=/opt/homebrew/Cellar/openssl@1.1
           else
-            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+            export OPENSSL_ROOT_DIR=/opt/homebrew
           fi
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
