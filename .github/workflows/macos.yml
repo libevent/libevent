@@ -76,6 +76,8 @@ jobs:
             EVENT_CMAKE_OPTIONS=""
           fi
 
+	  EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
           #run build and test
           JOBS=1
           export CTEST_PARALLEL_LEVEL=$JOBS
