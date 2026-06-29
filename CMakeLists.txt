@@ -502,6 +502,7 @@ list(APPEND SYMBOLS_TO_CHECK
     signal
     socketpair
     strlcpy
+    strndup
     strsep
     strtok_r
     strtoll

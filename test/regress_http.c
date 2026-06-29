@@ -1770,7 +1770,7 @@ http_cancel_test(void *arg)
 	struct event_base *base_to_fill = data->base;
 
 	enum http_cancel_test_type type =
-		(enum http_cancel_test_type)data->setup_data;
+	    (enum http_cancel_test_type)(size_t)data->setup_data;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
 	if (type & BY_HOST) {
@@ -5124,8 +5124,8 @@ struct terminate_state {
 	struct evhttp_request *req;
 	struct bufferevent *bev;
 	evutil_socket_t fd;
-	int gotclosecb: 1;
-	int oneshot: 1;
+	unsigned int gotclosecb: 1;
+	unsigned int oneshot: 1;
 };
 
 static void

@@ -3483,10 +3483,6 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 			goto out;
 		}
 
-		if (slen > (size_t)(UINTPTR_MAX - (uintptr_t)uri)) {
-			goto out;
-		}
-
 		end = uri + slen;
 	}
 
