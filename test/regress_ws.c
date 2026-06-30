@@ -72,6 +72,14 @@
 
 static struct event_base *exit_base;
 
+#define TEST_WS_FRAGMENT_LEN (6 * 1024 * 1024)
+#define TEST_WS_CLOSE_TOO_BIG 1009
+
+struct ws_limit_test_state {
+	struct event_base *base;
+	int phase;
+};
+
 static void
 on_ws_msg_cb(struct evws_connection *evws, int type, const unsigned char *data,
 	size_t len, void *arg)
@@ -338,6 +346,162 @@ http_ws_readcb_bad(struct bufferevent *bev, void *arg)
 }
 
 static void
+send_ws_repeated_msg(struct evbuffer *buf, unsigned char ch, size_t len,
+	enum WSOptions options)
+{
+	uint8_t a = 0, b = 0;
+	uint16_t c = 0;
+	uint64_t d = 0;
+	uint8_t mask_key[4] = {1, 2, 3, 4};
+	unsigned char block[4096];
+	size_t i, chunk;
+
+	memset(block, ch, sizeof(block));
+
+	a = options;
+	b |= 1 << 7;
+
+	if (len < 126) {
+		b |= len;
+	} else if (len < (1 << 16)) {
+		b |= 126;
+		c = htons(len);
+	} else {
+		b |= 127;
+		d = htonll(len);
+	}
+
+	evbuffer_add(buf, &a, 1);
+	evbuffer_add(buf, &b, 1);
+
+	if (c)
+		evbuffer_add(buf, &c, sizeof(c));
+	else if (d)
+		evbuffer_add(buf, &d, sizeof(d));
+
+	evbuffer_add(buf, &mask_key, 4);
+
+	for (i = 0; i < sizeof(block); ++i) {
+		block[i] ^= mask_key[i % 4];
+	}
+
+	while (len) {
+		chunk = len < sizeof(block) ? len : sizeof(block);
+		evbuffer_add(buf, block, chunk);
+		len -= chunk;
+	}
+}
+
+static int
+receive_ws_close_code(struct evbuffer *buf, uint16_t *reason_out)
+{
+	unsigned char *data;
+	size_t data_len = evbuffer_get_length(buf);
+	size_t payload_len;
+	uint16_t reason;
+
+	if (data_len < 4) {
+		return 0;
+	}
+
+	data = evbuffer_pullup(buf, data_len);
+	if (data == NULL) {
+		return 0;
+	}
+
+	if ((data[0] & 0x0F) != 0x08) {
+		return 0;
+	}
+
+	payload_len = data[1] & 0x7F;
+	if (data[1] & 0x80) {
+		return 0;
+	}
+	if (payload_len != 2) {
+		return 0;
+	}
+
+	if (data_len < 4) {
+		return 0;
+	}
+
+	memcpy(&reason, data + 2, sizeof(reason));
+	*reason_out = ntohs(reason);
+	evbuffer_drain(buf, 4);
+	return 1;
+}
+
+static void
+on_ws_msg_limit_cb(struct evws_connection *evws, int type,
+	const unsigned char *data, size_t len, void *arg)
+{
+	(void)evws;
+	(void)type;
+	(void)data;
+	(void)len;
+	(void)arg;
+	test_ok = -1;
+	event_base_loopexit(exit_base, NULL);
+}
+
+static void
+http_on_ws_limit_cb(struct evhttp_request *req, void *arg)
+{
+	struct evws_connection *evws;
+
+	evws = evws_new_session(req, on_ws_msg_limit_cb, NULL, 0);
+	if (!evws)
+		return;
+	(void)arg;
+}
+
+static void
+http_ws_msg_limit_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	struct ws_limit_test_state *state = arg;
+
+	(void)bev;
+	if (what & BEV_EVENT_CONNECTED)
+		return;
+	if (test_ok == 0) {
+		test_ok = -3;
+	}
+	event_base_loopexit(state->base, NULL);
+}
+
+static void
+http_ws_msg_limit_readcb(struct bufferevent *bev, void *arg)
+{
+	struct evbuffer *input = bufferevent_get_input(bev);
+	struct evbuffer *output = bufferevent_get_output(bev);
+	size_t nread = 0;
+	char *line;
+	uint16_t reason;
+	struct ws_limit_test_state *state = arg;
+
+	if (state->phase == 0) {
+		while ((line = evbuffer_readln(input, &nread, EVBUFFER_EOL_CRLF))) {
+			if (strlen(line) == 0) {
+				free(line);
+				send_ws_repeated_msg(
+					output, 'A', TEST_WS_FRAGMENT_LEN, WS_TEXT);
+				send_ws_repeated_msg(
+					output, 'B', TEST_WS_FRAGMENT_LEN, WS_TEXT | WS_FIN);
+				state->phase = 1;
+				return;
+			}
+			free(line);
+		}
+		return;
+	}
+
+	if (receive_ws_close_code(input, &reason)) {
+		test_ok = (reason == TEST_WS_CLOSE_TOO_BIG) ? 1 : -2;
+		event_base_loopexit(exit_base, NULL);
+	}
+}
+
+static void
 http_ws_test_with_connection(void *arg, const char* conn_value)
 {
 	struct basic_test_data *data = arg;
@@ -398,3 +562,122 @@ http_ws_test(void *arg)
 	http_ws_test_with_connection(arg, "Upgrade");
 	http_ws_test_with_connection(arg, "keep-alive, Upgrade");
 }
+
+void
+http_ws_msg_limit_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	struct evhttp *http = NULL;
+	struct evbuffer *out;
+	struct ws_limit_test_state state;
+	evutil_socket_t fd;
+	ev_uint16_t port = 0;
+
+	exit_base = data->base;
+	test_ok = 0;
+	memset(&state, 0, sizeof(state));
+	state.base = data->base;
+
+	http = http_setup(&port, data->base, 0);
+	evhttp_set_cb(http, "/ws-limit", http_on_ws_limit_cb, data->base);
+
+	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
+
+	bev = create_bev(data->base, fd, 0, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+	bufferevent_setcb(
+		bev, http_ws_msg_limit_readcb, http_writecb,
+		http_ws_msg_limit_errorcb, &state);
+
+	out = bufferevent_get_output(bev);
+	evbuffer_add_printf(out, "GET /ws-limit HTTP/1.1\r\n"
+		"Host: somehost\r\n"
+		"Connection: Upgrade\r\n"
+		"Upgrade: websocket\r\n"
+		"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
+		"\r\n");
+
+	event_base_dispatch(data->base);
+	tt_int_op(test_ok, ==, 1);
+
+end:
+	if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+}
+
+static struct bufferevent *
+ws_threadsafe_bevcb(struct event_base *base, void *arg)
+{
+	return bufferevent_socket_new(
+		base, -1, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE);
+}
+
+static int ws_early_free_session_was_null;
+
+static void
+http_on_ws_early_free_cb(struct evhttp_request *req, void *arg)
+{
+	struct evws_connection *evws;
+
+	evws = evws_new_session(req, on_ws_msg_cb, (void *)0xDEADBEEF,
+		BEV_OPT_THREADSAFE);
+	if (evws == NULL) {
+		ws_early_free_session_was_null = 1;
+		test_ok++;
+	}
+}
+
+static void
+ws_early_free_drain_readcb(struct bufferevent *bev, void *arg)
+{
+	evbuffer_drain(bufferevent_get_input(bev), evbuffer_get_length(
+		bufferevent_get_input(bev)));
+}
+
+void
+http_ws_early_free_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	evutil_socket_t fd;
+	ev_uint16_t port = 0;
+	struct evhttp *http = http_setup(&port, data->base, 0);
+	struct evbuffer *out;
+	struct timeval tv = {5, 0};
+
+	exit_base = data->base;
+	ws_early_free_session_was_null = 0;
+
+	evhttp_set_bevcb(http, ws_threadsafe_bevcb, NULL);
+	evhttp_set_cb(http, "/ws_early_free", http_on_ws_early_free_cb, NULL);
+
+	fd = http_connect("127.0.0.1", port);
+	bev = create_bev(data->base, fd, 0, BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(bev, ws_early_free_drain_readcb, http_writecb,
+		http_ws_errorcb, data->base);
+	out = bufferevent_get_output(bev);
+
+	evbuffer_add_printf(out,
+		"GET /ws_early_free HTTP/1.1\r\n"
+		"Host: somehost\r\n"
+		"Connection: Upgrade\r\n"
+		"Upgrade: websocket\r\n"
+		"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
+		"\r\n");
+
+	test_ok = 0;
+	event_base_loopexit(data->base, &tv);
+	event_base_dispatch(data->base);
+
+	tt_int_op(ws_early_free_session_was_null, ==, 1);
+
+	evhttp_free(http);
+end:
+	if (bev)
+		bufferevent_free(bev);
+}
+

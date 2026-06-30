@@ -530,7 +530,12 @@ main(int argc, char **argv)
 		}
 
 		addr.sun_family = AF_UNIX;
-		strcpy(addr.sun_path, o.unixsock);
+		if (strlen(o.unixsock) >= sizeof(addr.sun_path)) {
+			fprintf(stderr, "Unix socket path too long\n");
+			return 1;
+		}
+		strncpy(addr.sun_path, o.unixsock, sizeof(addr.sun_path) - 1);
+		addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
 
 		lev = evconnlistener_new_bind(base, NULL, NULL,
 			LEV_OPT_CLOSE_ON_FREE, -1,

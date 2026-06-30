@@ -64,6 +64,8 @@ void evtag_init(void);
 /**
    Unmarshals the header and returns the length of the payload
 
+   Returns an error if the payload length is above INT_MAX.
+
    @param evbuf the buffer from which to unmarshal data
    @param ptag a pointer in which the tag id is being stored
    @returns -1 on failure or the number of bytes in the remaining payload.

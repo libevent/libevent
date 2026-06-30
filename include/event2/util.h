@@ -532,7 +532,7 @@ int evutil_socket_geterror(evutil_socket_t sock);
 /** Convert a socket error to a string. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_socket_error_to_string(int errcode);
-#define EVUTIL_INVALID_SOCKET INVALID_SOCKET
+#define EVUTIL_INVALID_SOCKET ((evutil_socket_t)INVALID_SOCKET)
 #elif defined(EVENT_IN_DOXYGEN_)
 /**
    @name Socket error functions

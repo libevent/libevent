@@ -43,6 +43,11 @@
  * as a DoS prevention measure.
  */
 static const size_t WS_MAX_RECV_FRAME_SZ = 10485760;
+/*
+ * We also limit the total size of a fragmented message to 10 MiB so that
+ * clients cannot bypass the per-frame cap by streaming unbounded fragments.
+ */
+static const size_t WS_MAX_RECV_MSG_SZ = 10485760;
 
 struct evws_connection {
 	TAILQ_ENTRY(evws_connection) next;
@@ -197,6 +202,23 @@ evws_force_disconnect_(struct evws_connection *evws)
 	evws_close(evws, WS_CR_NONE);
 }
 
+static int
+ws_message_limit_exceeded_(struct evws_connection *evws, size_t msg_len)
+{
+	size_t buffered = 0;
+
+	if (evws->incomplete_frames != NULL) {
+		buffered = evbuffer_get_length(evws->incomplete_frames);
+	}
+
+	if (msg_len > WS_MAX_RECV_MSG_SZ - buffered) {
+		evws_close(evws, WS_CR_DATA_TOO_BIG);
+		return 1;
+	}
+
+	return 0;
+}
+
 /* parse base frame according to
  * https://www.rfc-editor.org/rfc/rfc6455#section-5.2
  */
@@ -320,6 +342,9 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 		case TEXT_FRAME:
 		case BINARY_FRAME:
 			if (evws->incomplete_frames != NULL) {
+				if (ws_message_limit_exceeded_(evws, msg_len)) {
+					break;
+				}
 				/* we already have incomplete frames in internal buffer
 				 * and need to concatenate them with final one */
 				evbuffer_add(evws->incomplete_frames, data, msg_len);
@@ -339,6 +364,13 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 			 * postpone callback until all data arrives */
 			if (evws->incomplete_frames == NULL) {
 				evws->incomplete_frames = evbuffer_new();
+			}
+			if (evws->incomplete_frames == NULL) {
+				evws_force_disconnect_(evws);
+				break;
+			}
+			if (ws_message_limit_exceeded_(evws, msg_len)) {
+				break;
 			}
 			evbuffer_remove_buffer(input, evws->incomplete_frames, msg_len);
 			continue;
@@ -379,6 +411,8 @@ evws_new_session(
 	const char *upgrade, *connection, *ws_key, *ws_protocol;
 	struct evkeyvalq *out_hdrs;
 	struct evhttp_connection *evcon;
+	struct evhttp *ws_http_server;
+	int req_owned = 1;
 
 	in_hdrs = evhttp_request_get_input_headers(req);
 	upgrade = evhttp_find_header(in_hdrs, "Upgrade");
@@ -413,12 +447,14 @@ evws_new_session(
 	evws->cb_arg = arg;
 
 	evcon = evhttp_request_get_connection(req);
-	evws->http_server = evcon->http_server;
+	ws_http_server = evcon->http_server;
 
+	/* evhttp_start_ws_ frees both req and evcon on success */
 	evws->bufev = evhttp_start_ws_(req);
 	if (evws->bufev == NULL) {
 		goto error;
 	}
+	req_owned = 0;
 
 	if (options & BEV_OPT_THREADSAFE) {
 		if (bufferevent_enable_locking_(evws->bufev, NULL) < 0)
@@ -428,6 +464,7 @@ evws_new_session(
 	bufferevent_setcb(
 		evws->bufev, ws_evhttp_read_cb, NULL, ws_evhttp_error_cb, evws);
 
+	evws->http_server = ws_http_server;
 	TAILQ_INSERT_TAIL(&evws->http_server->ws_sessions, evws, next);
 	evws->http_server->connection_cnt++;
 
@@ -437,7 +474,8 @@ error:
 	if (evws)
 		evws_connection_free(evws);
 
-	evhttp_send_reply(req, HTTP_BADREQUEST, NULL, NULL);
+	if (req_owned)
+		evhttp_send_reply(req, HTTP_BADREQUEST, NULL, NULL);
 	return NULL;
 }
 

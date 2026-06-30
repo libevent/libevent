@@ -34,6 +34,7 @@ extern "C" {
 #include "event2/event_struct.h"
 #include "evconfig-private.h"
 #include "event2/util.h"
+#include "util-internal.h"
 #include "defer-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
@@ -225,10 +226,10 @@ struct bufferevent_private {
 	 * So we need to save it, just after we connected to remote server, or
 	 * after resolving (to avoid extra dns requests during retrying, since UDP
 	 * is slow) */
-	union {
-		struct sockaddr_in6 in6;
-		struct sockaddr_in in;
-	} conn_address;
+	/* NOTE: it might be nice to use fewer bytes here, but we need to store
+	 * sockaddr_un sometimes in order to make AF_UNIX sockets work as expected
+	 * with http.c. */
+	struct sockaddr_storage conn_address;
 
 	struct evdns_getaddrinfo_request *dns_request;
 };
@@ -457,7 +458,7 @@ void
 bufferevent_socket_set_conn_address_fd_(struct bufferevent *bev, evutil_socket_t fd);
 
 EVENT2_EXPORT_SYMBOL
-void
+int
 bufferevent_socket_set_conn_address_(struct bufferevent *bev, struct sockaddr *addr, size_t addrlen);
 
 

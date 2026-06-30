@@ -6,7 +6,7 @@ dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
 AC_PREREQ([2.67])
-AC_INIT(libevent,2.2.1-alpha-dev)
+AC_INIT(libevent,2.2.2-alpha)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -21,7 +21,7 @@ AM_SILENT_RULES([yes])
 
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
 dnl The last number is development version or not.
-AC_DEFINE(NUMERIC_VERSION, 0x02020100, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02020200, [Numeric representation of the version])
 
 dnl Try and get a full POSIX environment on obscure systems
 AC_USE_SYSTEM_EXTENSIONS
@@ -250,7 +250,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_stir epoll_create1 epoll_pwait2 eventfd fcntl getegid geteuid getifaddrs getrandom gettimeofday issetugid mach_absolute_time mmap mmap64 nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal socketpair strlcpy strsep strsignal strtok_r strtoll sysctl timerfd_create umask unsetenv usleep])
+AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_stir epoll_create1 epoll_pwait2 eventfd fcntl getegid geteuid getifaddrs getrandom gettimeofday issetugid mach_absolute_time mmap mmap64 nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal socketpair strlcpy strndup strsep strsignal strtok_r strtoll sysctl timerfd_create umask unsetenv usleep])
 
 AS_IF([test "$bwin32" = "true"], [
   AC_CHECK_FUNCS(_gmtime64_s, , [AC_CHECK_FUNCS(_gmtime64)])
