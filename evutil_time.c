@@ -621,3 +621,122 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 
 }
 #endif
+
+/* ====================================================================
+   High-precision nanosecond clock for latency measurement.
+
+   This is deliberately separate from evutil_monotonic_timer above: that
+   machinery defaults to the coarse clock (great for timeouts, useless for
+   timing a microsecond-scale SSL_read).  Here we always want precision, and
+   on x86 with an invariant TSC we drop below even the vDSO by reading the
+   TSC directly via rdtscp and converting cycles->ns with a ratio calibrated
+   once against CLOCK_MONOTONIC.
+   ==================================================================== */
+
+#if (defined(__x86_64__) || defined(__i386__)) && defined(__GNUC__) && \
+    !defined(__MINGW32__)
+#define EVUTIL_PRECISE_TSC_CANDIDATE 1
+#include <cpuid.h>
+#include <x86intrin.h>
+#endif
+
+static ev_uint64_t
+evutil_precise_ns_os_(void)
+{
+#if defined(HAVE_POSIX_MONOTONIC)
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+		return (ev_uint64_t)ts.tv_sec * 1000000000ULL +
+		    (ev_uint64_t)ts.tv_nsec;
+#elif defined(HAVE_MACH_MONOTONIC)
+	static mach_timebase_info_data_t mtb = {0, 0};
+	if (mtb.denom == 0)
+		mach_timebase_info(&mtb);
+	if (mtb.denom)
+		return mach_absolute_time() * mtb.numer / mtb.denom;
+#elif defined(HAVE_WIN32_MONOTONIC)
+	LARGE_INTEGER freq, ctr;
+	if (QueryPerformanceFrequency(&freq) && freq.QuadPart &&
+	    QueryPerformanceCounter(&ctr))
+		return (ev_uint64_t)((double)ctr.QuadPart * 1000000000.0 /
+		    (double)freq.QuadPart);
+#endif
+	{
+		/* Last resort: microsecond wall clock scaled to ns. */
+		struct timeval tv;
+		evutil_gettimeofday(&tv, NULL);
+		return (ev_uint64_t)tv.tv_sec * 1000000000ULL +
+		    (ev_uint64_t)tv.tv_usec * 1000ULL;
+	}
+}
+
+/* Init state.  The lazy init may run in more than one thread the first time;
+ * the calibration is deterministic so a benign race just recomputes the same
+ * values.  `inited` is written last. */
+static int evutil_precise_inited_ = 0;
+static int evutil_precise_use_tsc_ = 0;
+static double evutil_precise_ns_per_cycle_ = 0.0;
+
+#ifdef EVUTIL_PRECISE_TSC_CANDIDATE
+static int
+evutil_x86_tsc_usable_(void)
+{
+	unsigned a, b, c, d;
+	/* rdtscp support: CPUID.80000001H:EDX[27]. */
+	if (!__get_cpuid(0x80000001U, &a, &b, &c, &d) || !(d & (1U << 27)))
+		return 0;
+	/* Invariant TSC: CPUID.80000007H:EDX[8] (runs at a fixed rate across
+	 * frequency changes and is synchronised across cores). */
+	if (!__get_cpuid(0x80000007U, &a, &b, &c, &d) || !(d & (1U << 8)))
+		return 0;
+	return 1;
+}
+#endif
+
+static void
+evutil_precise_init_(void)
+{
+#ifdef EVUTIL_PRECISE_TSC_CANDIDATE
+	if (evutil_x86_tsc_usable_()) {
+		unsigned aux;
+		ev_uint64_t t0, t1, c0, c1, target;
+		t0 = evutil_precise_ns_os_();
+		c0 = __rdtscp(&aux);
+		/* Busy-wait ~2ms so the cycles/ns ratio is stable. */
+		target = t0 + 2000000ULL;
+		do {
+			t1 = evutil_precise_ns_os_();
+		} while (t1 < target);
+		c1 = __rdtscp(&aux);
+		if (c1 > c0 && t1 > t0) {
+			evutil_precise_ns_per_cycle_ =
+			    (double)(t1 - t0) / (double)(c1 - c0);
+			evutil_precise_use_tsc_ = 1;
+		}
+	}
+#endif
+	evutil_precise_inited_ = 1;
+}
+
+ev_uint64_t
+evutil_gettime_precise_ns_(void)
+{
+	if (!evutil_precise_inited_)
+		evutil_precise_init_();
+#ifdef EVUTIL_PRECISE_TSC_CANDIDATE
+	if (evutil_precise_use_tsc_) {
+		unsigned aux;
+		return (ev_uint64_t)((double)__rdtscp(&aux) *
+		    evutil_precise_ns_per_cycle_);
+	}
+#endif
+	return evutil_precise_ns_os_();
+}
+
+int
+evutil_gettime_precise_ns_is_tsc_(void)
+{
+	if (!evutil_precise_inited_)
+		evutil_precise_init_();
+	return evutil_precise_use_tsc_;
+}
