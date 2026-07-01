@@ -767,8 +767,130 @@ end:
 		event_base_loop(base, EVLOOP_ONCE);
 }
 
+/* Verify the opt-in per-call timing (EVENT_SSL_TIMING) records handshake and
+ * I/O time and is readable via bufferevent_ssl_get_time_ns(). Self-contained
+ * (own ephemeral key/cert, own callbacks): client writes, server echoes,
+ * client exits the loop on the echo; a loop timeout guards against a stalled
+ * handshake so the test can never hang the harness. */
+static void
+tmg_srv_read(struct bufferevent *b, void *arg)
+{
+	(void)arg;
+	bufferevent_write_buffer(b, bufferevent_get_input(b)); /* echo */
+}
+static void
+tmg_cli_read(struct bufferevent *b, void *arg)
+{
+	(void)b;
+	event_base_loopexit((struct event_base *)arg, NULL);
+}
+static void
+tmg_event(struct bufferevent *b, short what, void *arg)
+{
+	(void)b;
+	if (what & BEV_EVENT_ERROR)
+		event_base_loopexit((struct event_base *)arg, NULL);
+}
+static void
+regress_bufferevent_openssl_timing(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev1 = NULL, *bev2 = NULL;
+	SSL_CTX *sctx = NULL, *cctx = NULL;
+	SSL *ss = NULL, *cs = NULL;
+	EVP_PKEY_CTX *pk = NULL;
+	EVP_PKEY *key = NULL;
+	X509 *crt = NULL;
+	X509_NAME *nm;
+	evutil_socket_t sp[2] = { -1, -1 };
+	struct timeval guard = { 3, 0 };
+	ev_uint64_t r = 0, w = 0, h = 0;
+
+	/* Timing is opt-in and resolved when the SSL bufferevent is created,
+	 * so the environment variable must be set first. */
+	setenv("EVENT_SSL_TIMING", "1", 1);
+
+	/* Ephemeral RSA key + self-signed cert (never an embedded key). */
+	pk = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+	tt_assert(pk);
+	tt_assert(EVP_PKEY_keygen_init(pk) > 0);
+	tt_assert(EVP_PKEY_CTX_set_rsa_keygen_bits(pk, 2048) > 0);
+	tt_assert(EVP_PKEY_keygen(pk, &key) > 0);
+	crt = X509_new();
+	tt_assert(crt);
+	X509_set_version(crt, 2);
+	ASN1_INTEGER_set(X509_get_serialNumber(crt), 1);
+	X509_gmtime_adj(X509_getm_notBefore(crt), 0);
+	X509_gmtime_adj(X509_getm_notAfter(crt), 31536000L);
+	X509_set_pubkey(crt, key);
+	nm = X509_get_subject_name(crt);
+	X509_NAME_add_entry_by_txt(nm, "CN", MBSTRING_ASC,
+	    (const unsigned char *)"l", -1, -1, 0);
+	X509_set_issuer_name(crt, nm);
+	tt_assert(X509_sign(crt, key, EVP_sha256()));
+
+	sctx = SSL_CTX_new(SSLv23_method());
+	cctx = SSL_CTX_new(SSLv23_method());
+	tt_assert(sctx);
+	tt_assert(cctx);
+	tt_assert(SSL_CTX_use_certificate(sctx, crt) == 1);
+	tt_assert(SSL_CTX_use_PrivateKey(sctx, key) == 1);
+	SSL_CTX_set_verify(cctx, SSL_VERIFY_NONE, 0);
+
+	tt_assert(evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, sp) == 0);
+	evutil_make_socket_nonblocking(sp[0]);
+	evutil_make_socket_nonblocking(sp[1]);
+	ss = SSL_new(sctx);
+	cs = SSL_new(cctx);
+	tt_assert(ss);
+	tt_assert(cs);
+
+	bev2 = bufferevent_ssl_socket_new(data->base, sp[0], ss,
+	    BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+	bev1 = bufferevent_ssl_socket_new(data->base, sp[1], cs,
+	    BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev1);
+	tt_assert(bev2);
+	bufferevent_setcb(bev2, tmg_srv_read, NULL, tmg_event, data->base);
+	bufferevent_setcb(bev1, tmg_cli_read, NULL, tmg_event, data->base);
+	bufferevent_enable(bev1, EV_READ | EV_WRITE);
+	bufferevent_enable(bev2, EV_READ | EV_WRITE);
+	bufferevent_write(bev1, "hello", 5);
+
+	event_base_loopexit(data->base, &guard); /* hang guard */
+	event_base_dispatch(data->base);
+
+	/* Timing was enabled: the getter must succeed, the handshake must have
+	 * taken measurable time, and at least one I/O op must have happened. */
+	tt_int_op(bufferevent_ssl_get_time_ns(bev1, &r, &w, &h), ==, 0);
+	tt_assert(h > 0);
+	tt_assert(r > 0 || w > 0);
+
+	/* The getter must reject a NULL / non-SSL bufferevent. */
+	tt_int_op(bufferevent_ssl_get_time_ns(NULL, &r, &w, &h), ==, -1);
+
+end:
+	unsetenv("EVENT_SSL_TIMING");
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
+		bufferevent_free(bev2);
+	if (sctx)
+		SSL_CTX_free(sctx);
+	if (cctx)
+		SSL_CTX_free(cctx);
+	if (crt)
+		X509_free(crt);
+	if (key)
+		EVP_PKEY_free(key);
+	if (pk)
+		EVP_PKEY_CTX_free(pk);
+}
+
 struct testcase_t TESTCASES_NAME[] = {
 #define T(a) ((void *)(a))
+	{ "bufferevent_timing", regress_bufferevent_openssl_timing,
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, NULL },
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
 	{ "bufferevent_socketpair_batch_write", regress_bufferevent_openssl,
