@@ -59,20 +59,12 @@ void evutil_usleep_(const struct timeval *tv);
 
 /* A high-precision monotonic clock in nanoseconds, intended for measuring
  * short intervals (per-call latency), NOT for timeouts.  Unlike the
- * event_base's monotonic timer this never uses the coarse clock: on x86 with
- * an invariant TSC it reads the TSC via rdtscp (~10ns), otherwise it falls
- * back to clock_gettime(CLOCK_MONOTONIC) (~20ns via the vDSO), then to the
- * platform mach/QPC/gettimeofday paths.  The epoch is arbitrary; only
- * differences between two reads are meaningful.  Initialisation (TSC
- * detection + calibration) happens once, lazily, on first use. */
+ * event_base's monotonic timer this never uses the coarse clock: it uses
+ * clock_gettime(CLOCK_MONOTONIC) (serviced from the vDSO, ~20ns, and already
+ * TSC-backed on modern kernels), falling back to mach/QPC/gettimeofday.  The
+ * epoch is arbitrary; only differences between two reads are meaningful. */
 EVENT2_EXPORT_SYMBOL
 ev_uint64_t evutil_gettime_precise_ns_(void);
-
-/* For diagnostics: returns 1 if evutil_gettime_precise_ns_() is using the x86
- * invariant-TSC (rdtscp) fast path, 0 if it fell back to clock_gettime()/OS.
- * Forces lazy init if it hasn't happened yet. */
-EVENT2_EXPORT_SYMBOL
-int evutil_gettime_precise_ns_is_tsc_(void);
 
 #ifdef _WIN32
 typedef ULONGLONG (WINAPI *ev_GetTickCount_func)(void);
