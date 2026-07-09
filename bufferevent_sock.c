@@ -116,13 +116,17 @@ bufferevent_socket_set_conn_address_fd_(struct bufferevent *bev,
 		getpeername(fd, addr, &len);
 }
 
-void
+int
 bufferevent_socket_set_conn_address_(struct bufferevent *bev,
 	struct sockaddr *addr, size_t addrlen)
 {
 	struct bufferevent_private *bev_p = BEV_UPCAST(bev);
-	EVUTIL_ASSERT(addrlen <= sizeof(bev_p->conn_address));
-	memcpy(&bev_p->conn_address, addr, addrlen);
+	if (addrlen <= sizeof(bev_p->conn_address)) {
+		memcpy(&bev_p->conn_address, addr, addrlen);
+		return 0;
+	} else {
+		return EVUTIL_EAI_FAIL;
+	}
 }
 
 static void
@@ -477,6 +481,11 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 		bufferevent_decref_and_unlock_(bev);
 		return;
 	}
+	if (result == 0) {
+		/* XXX use the other addrinfos? */
+		result = bufferevent_socket_set_conn_address_(
+			bev, ai->ai_addr, (int)ai->ai_addrlen);
+	}
 	if (result != 0) {
 		bev_p->dns_error = result;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
@@ -486,8 +495,6 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 		return;
 	}
 
-	/* XXX use the other addrinfos? */
-	bufferevent_socket_set_conn_address_(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	if (r < 0)
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);

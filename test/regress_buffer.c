@@ -2352,6 +2352,40 @@ end:
 }
 
 static void
+test_evbuffer_multicast_empty_chain(void *ptr)
+{
+	const char chunk[] = "If you have found the answer to such a problem";
+	size_t len = strlen(chunk);
+
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+
+	evbuffer_add_reference(buf2, "", 0, NULL, NULL);
+	evbuffer_validate(buf2);
+	tt_int_op(evbuffer_get_length(buf2), ==, 0);
+
+	evbuffer_add(buf1, chunk, len);
+	evbuffer_validate(buf1);
+
+	tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
+	evbuffer_validate(buf2);
+	tt_int_op(evbuffer_get_length(buf2), ==, len);
+
+	tt_assert(!strncmp((char *)evbuffer_pullup(buf2, -1), chunk, len));
+	evbuffer_validate(buf2);
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
+static void
 check_prepend(struct evbuffer *buffer,
     const struct evbuffer_cb_info *cbinfo,
     void *arg)
@@ -2960,6 +2994,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "add_reference_with_offset", test_evbuffer_add_reference_with_offset, 0, NULL, NULL},
 	{ "multicast", test_evbuffer_multicast, 0, NULL, NULL },
 	{ "multicast_drain", test_evbuffer_multicast_drain, 0, NULL, NULL },
+	{ "multicast_empty_chain", test_evbuffer_multicast_empty_chain, TT_FORK, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, TT_FORK, NULL, NULL },
 	{ "empty_reference_prepend", test_evbuffer_empty_reference_prepend, TT_FORK, NULL, NULL },
 	{ "empty_reference_prepend_buffer", test_evbuffer_empty_reference_prepend_buffer, TT_FORK, NULL, NULL },

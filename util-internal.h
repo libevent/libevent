@@ -558,6 +558,7 @@ evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 #define EVUTIL_EFD_CLOEXEC 0x8000
 #endif
 
+EVENT2_EXPORT_SYMBOL
 void evutil_memclear_(void *mem, size_t len);
 
 struct in_addr;

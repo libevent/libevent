@@ -34,7 +34,7 @@ RELEASE = -release 2.2
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
 # UNLESS YOU REALLY REALLY HAVE TO.
-VERSION_INFO = 1:0:0
+VERSION_INFO = 1:1:0
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -71,6 +71,7 @@ VERSION_INFO = 1:0:0
 #
 # For Libevent 2.2:
 #  2.2.1-alpha --     2.2        1:0:0
+#  2.2.2-alpha --     2.2        1:1:0 (No ABI change)
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.

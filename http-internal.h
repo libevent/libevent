@@ -212,6 +212,22 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_connection_fail_(struct evhttp_connection *,
     enum evhttp_request_error error);
 
+enum evhttp_transfer_encoding_header_status {
+	/* This Transfer-Encoding line was invalid.
+	 * (We consider all "chunked" encodings invalid except those at the end
+	 * of the sequence.) */
+	TE_INVALID,
+	/* This Transfer-Encoding line ended with the "chunked" encoding. */
+	TE_ENDS_IN_CHUNKED,
+	/* This Transfer-Encoding line was valid and did not contain "chunked" */
+	TE_NO_CHUNKED,
+};
+EVENT2_EXPORT_SYMBOL
+int evhttp_str_is_chunked_(const char *value, const char *eos);
+EVENT2_EXPORT_SYMBOL
+enum evhttp_transfer_encoding_header_status
+evhttp_check_transfer_encoding_(const char *value);
+
 enum message_read_status;
 
 EVENT2_EXPORT_SYMBOL
