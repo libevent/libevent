@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Submitted by David Pacheco (dp.spambait@gmail.com)
  *
  * Copyright 2006-2007 Niels Provos

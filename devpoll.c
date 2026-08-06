@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2000-2009 Niels Provos <provos@citi.umich.edu>
  * Copyright 2009-2012 Niels Provos and Nick Mathewson
  *

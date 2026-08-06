@@ -1,4 +1,6 @@
 #
+# SPDX-License-Identifier: BSD-3-Clause
+#
 # Libevent CMake project
 #
 # Based on initial work by:

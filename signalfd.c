@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Signal handling backend based on signalfd(2) system call
  * Written by Dmitry Antipov <dantipov@cloudlinux.com> 2022
  *
