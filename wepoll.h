@@ -2,6 +2,8 @@
  * wepoll - epoll for Windows
  * https://github.com/piscisaureus/wepoll
  *
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright 2012-2020, Bert Belder <bertbelder@gmail.com>
  * All rights reserved.
  *
