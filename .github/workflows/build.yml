@@ -668,7 +668,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.4", "14.1"]
+        release: ["14", "15"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -695,6 +695,7 @@ jobs:
           release: ${{ matrix.release }}
           prepare: |
             pkg install -y mbedtls3 cmake python3
+          cache-after-prepare: true
           usesh: true
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -733,8 +734,7 @@ jobs:
         run: |
           ssh freebsd sh <<EOF
           cd $GITHUB_WORKSPACE
-          JOBS=1
-          export CTEST_PARALLEL_LEVEL=$JOBS
+          export CTEST_PARALLEL_LEVEL=1
           export CTEST_OUTPUT_ON_FAILURE=1
           cd build
           if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
@@ -758,7 +758,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.4", "14.1"]
+        release: ["14", "15"]
 
     steps:
       - uses: actions/checkout@v6
@@ -777,6 +777,7 @@ jobs:
           release: ${{ matrix.release }}
           prepare: |
             pkg install -y mbedtls3 python3 autoconf automake libtool pkgconf
+          cache-after-prepare: true
           usesh: true
           run: |
             ./autogen.sh
@@ -843,6 +844,7 @@ jobs:
           release: ${{ matrix.release }}
           prepare: |
             pkg_add mbedtls cmake py3-pip
+          cache-after-prepare: true
           usesh: true
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -882,8 +884,7 @@ jobs:
           ssh openbsd sh <<EOF
           ulimit -n 102400
           cd $GITHUB_WORKSPACE
-          JOBS=1
-          export CTEST_PARALLEL_LEVEL=$JOBS
+          export CTEST_PARALLEL_LEVEL=1
           export CTEST_OUTPUT_ON_FAILURE=1
           cd build
           if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
@@ -926,6 +927,7 @@ jobs:
           release: ${{ matrix.release }}
           prepare: |
             pkg_add mbedtls py3-pip automake-1.16.5p0 autoconf-2.72p0 libtool pkg-config
+          cache-after-prepare: true
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
