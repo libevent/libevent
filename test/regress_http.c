@@ -696,6 +696,56 @@ static void http_basic_trailing_space_test(void *arg)
 
 
 static void
+http_parse_header_trim_whitespace_test(void *arg)
+{
+	struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+	struct evbuffer *evb = evbuffer_new();
+	enum message_read_status done;
+	const char *v;
+
+	(void)arg;
+
+	evbuffer_add_printf(evb, "PrefixWS1: \t prefix whitespace\r\n");
+	evbuffer_add_printf(evb, "PrefixWS2:   \tabc\r\n");
+	evbuffer_add_printf(evb, "PrefixWS3:    abc\r\n");
+	evbuffer_add_printf(evb, "PostfixWS1: abc  efg hij\t     \r\n");
+	evbuffer_add_printf(evb, "BothWS1:   \t\t both\t     \r\n");
+	evbuffer_add_printf(evb, "Fold:   User-Agent: Mozilla/5.0 \r\n");
+	evbuffer_add_printf(evb, "\t(Windows NT 10.0; Win64; x64)\r\n");
+	evbuffer_add_printf(evb, "\tAppleWebKit/537.36\r\n");
+	evbuffer_add_printf(evb, "BothWS2:   header value     \r\n\r\n");
+
+	done = evhttp_parse_headers_(req, evb);
+	tt_int_op(done, ==, ALL_DATA_READ);
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "PrefixWS1");
+	tt_want_str_op(v, ==, "prefix whitespace");
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "PrefixWS2");
+	tt_want_str_op(v, ==, "abc");
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "PrefixWS3");
+	tt_want_str_op(v, ==, "abc");
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "PostfixWS1");
+	tt_want_str_op(v, ==, "abc  efg hij");
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "BothWS1");
+	tt_want_str_op(v, ==, "both");
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "Fold");
+	tt_want_str_op(v, ==,
+		"User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+		"AppleWebKit/537.36");
+
+	v = evhttp_find_header(evhttp_request_get_input_headers(req), "BothWS2");
+	tt_want_str_op(v, ==, "header value");
+end:
+	evbuffer_free(evb);
+	evhttp_request_free(req);
+}
+
+static void
 http_delay_reply(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_request *req = arg;
@@ -6172,6 +6222,7 @@ struct testcase_t http_testcases[] = {
 	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
 	HTTP(basic),
 	HTTP(basic_trailing_space),
+	HTTP(parse_header_trim_whitespace),
 	HTTP(simple),
 	HTTP(simple_preexisting),
 	HTTP(simple_nonconformant),

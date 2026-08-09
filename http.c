@@ -2340,7 +2340,7 @@ evhttp_parse_headers_impl_(
 		if (svalue == NULL)
 			goto error;
 
-		svalue += strspn(svalue, " ");
+		svalue += strspn(svalue, " \t");
 		evutil_rtrim_lws_(svalue);
 
 		if (evhttp_add_header(headers, skey, svalue) == -1)
