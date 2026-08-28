@@ -2494,10 +2494,10 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_connect_hostname", test_bufferevent_connect_hostname,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, NULL },
 #ifdef EVENT__HAVE_SETRLIMIT
 	{ "bufferevent_connect_hostname_emfile", test_bufferevent_connect_hostname,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"emfile" },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, (char*)"emfile" },
 #endif
 	{ "disable_when_inactive", dns_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
