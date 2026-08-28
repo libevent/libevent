@@ -149,8 +149,10 @@ def export_dll(dir):
 def unexport_dll(dir):
     if need_exportdll:
         paths = os.environ["PATH"].split(os.pathsep)
-        paths = list(set(paths))
-        if dir in paths:
+        # Remove the entry without list(set(...)): that scrambled the
+        # ordering of PATH, so whichever cmake/tool happened to land first
+        # was used for everything afterwards.
+        while dir in paths:
             paths.remove(dir)
         os.environ["PATH"] = os.pathsep.join(paths)
 
