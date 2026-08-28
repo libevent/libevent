@@ -4,12 +4,17 @@ name: upstream
 on:
   push:
     branches:
-      - master
+      - patches-2.1
+      - release-*-pull
+    tags:
+      - release-*
 
 permissions: read-all
 
 jobs:
   coverage-job:
+    # 2.1 backport dropped coverage (be3acd7c).
+    if: false
     permissions:
       checks: write  # for coverallsapp/github-action to create new checks
       contents: read  # for actions/checkout to fetch code
@@ -25,7 +30,7 @@ jobs:
           key: ${{ matrix.os }}-coverage-v2
 
       - name: Install Depends
-        run: sudo apt install zlib1g-dev libssl-dev build-essential lcov libmbedtls-dev
+        run: sudo apt install zlib1g-dev libssl-dev build-essential lcov
 
       - name: Build
         shell: bash
@@ -129,6 +134,8 @@ jobs:
           path: /tmp/le-abi-root/work/abi-check
 
   doxygen-job:
+    # 2.1 backport dropped doxygen deploy (be3acd7c).
+    if: false
     permissions:
       contents: write  # for Git to git push
     runs-on: ubuntu-22.04
@@ -144,7 +151,6 @@ jobs:
           wget -q https://www.doxygen.nl/files/doxygen-1.16.1.linux.bin.tar.gz
           tar xzf doxygen-1.16.1.linux.bin.tar.gz
           sudo cp doxygen-1.16.1/bin/doxygen /usr/local/bin/
-          sudo apt install libmbedtls-dev
 
       - name: Generate Doxygen
         shell: bash
