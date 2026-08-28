@@ -634,7 +634,9 @@ jobs:
           key: ${{ matrix.os }}-autotools-v3
 
       - name: Install Depends
-        run: brew install autoconf automake libtool pkg-config mbedtls
+        run: |
+          brew install autoconf automake libtool pkg-config mbedtls python3
+          echo "$(brew --prefix python3)/libexec/bin" >> "$GITHUB_PATH"
 
       - name: Build
         shell: bash
@@ -694,7 +696,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg install -y mbedtls3 cmake python3
+            pkg install -y mbedtls3 cmake python
           cache-after-prepare: true
           usesh: true
           run: |
@@ -776,7 +778,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg install -y mbedtls3 python3 autoconf automake libtool pkgconf
+            pkg install -y mbedtls3 python autoconf automake libtool pkgconf
           cache-after-prepare: true
           usesh: true
           run: |
