@@ -604,6 +604,19 @@ enum event_base_config_flag {
 	 * But note, that in some edge cases signalfd() may works differently.
 	 */
 	EVENT_BASE_FLAG_USE_SIGNALFD = 0x80,
+
+	/** Enable io_uring(7) acceleration for socket bufferevent I/O.
+	 *
+	 * Opt-in on Linux when libevent was built with liburing support
+	 * (EVENT__HAVE_LIBURING). The backend dispatch (epoll/kqueue/...)
+	 * is unchanged; only evbuffer reads and writes are routed through
+	 * an event_base-owned io_uring ring.
+	 *
+	 * The flag is silently ignored when the EVENT_NOIO_URING environment
+	 * variable is set (unless EVENT_BASE_FLAG_IGNORE_ENV is also set),
+	 * and when libevent was built without liburing.
+	 */
+	EVENT_BASE_FLAG_IO_URING = 0x100,
 };
 
 /**

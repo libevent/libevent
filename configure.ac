@@ -60,6 +60,9 @@ AC_ARG_ENABLE([openssl],
 AC_ARG_ENABLE([mbedtls],
      AS_HELP_STRING([--disable-mbedtls, disable support for mbedtls encryption]),
     [], [enable_mbedtls=auto])
+AC_ARG_ENABLE([liburing],
+     AS_HELP_STRING([--disable-liburing, disable support for io_uring via liburing]),
+    [], [enable_liburing=auto])
 AC_ARG_ENABLE([debug-mode],
      AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
     [], [enable_debug_mode=yes])
@@ -180,6 +183,7 @@ AC_SYS_LARGEFILE
 
 LIBEVENT_OPENSSL
 LIBEVENT_MBEDTLS
+LIBEVENT_LIBURING
 
 dnl Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/auxv.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])

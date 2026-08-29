@@ -366,6 +366,10 @@ struct event_base {
 	struct event_iocp_port *iocp;
 #endif
 
+	/** Per-base io_uring state, allocated when EVENT_BASE_FLAG_IO_URING
+	 * is set and the platform supports it. Stays NULL otherwise. */
+	struct event_io_uring *io_uring;
+
 	/** Flags that this base was configured with */
 	enum event_base_config_flag flags;
 

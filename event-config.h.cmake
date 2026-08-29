@@ -207,6 +207,9 @@
 /* Define if the system has mbedtls */
 #cmakedefine EVENT__HAVE_MBEDTLS 1
 
+/* Define if the system has liburing */
+#cmakedefine EVENT__HAVE_LIBURING 1
+
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine EVENT__HAVE_PIPE 1
 

@@ -61,6 +61,7 @@
 #include "event2/event_compat.h"
 #include "event2/watch.h"
 #include "event-internal.h"
+#include "event_io_uring-internal.h"
 #include "defer-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
@@ -760,6 +761,19 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_base_start_iocp_(base, cfg->n_cpus_hint);
 #endif
 
+	if (cfg && (cfg->flags & EVENT_BASE_FLAG_IO_URING)) {
+		int disabled_by_env = should_check_environment &&
+		    evutil_getenv_("EVENT_NOIO_URING") != NULL;
+		if (!disabled_by_env && event_io_uring_init_(base) < 0) {
+			/* Either libevent wasn't built with liburing, or the
+			 * kernel rejected the setup. Warn and continue without
+			 * io_uring rather than failing base creation. */
+			event_warnx("%s: EVENT_BASE_FLAG_IO_URING requested but "
+			    "io_uring is unavailable; continuing without it",
+			    __func__);
+		}
+	}
+
 	/* initialize watcher lists */
 	for (i = 0; i < EVWATCH_MAX; ++i)
 		TAILQ_INIT(&base->watchers[i]);
@@ -922,6 +936,14 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	}
 	if (base->common_timeout_queues)
 		mm_free(base->common_timeout_queues);
+
+	/* Tear down io_uring BEFORE the finalizer drain. The teardown
+	 * cancels every in-flight SQE and drains the resulting CQEs; the
+	 * CQE callbacks may bufferevent_decref to zero, which schedules
+	 * finalizers on the active queue. The drain below picks those up;
+	 * if io_uring were torn down after the drain, the finalizers would
+	 * sit unprocessed and the activequeue assertion would fire. */
+	event_io_uring_free_(base);
 
 	for (;;) {
 		/* For finalizers we can register yet another finalizer out from
@@ -2067,6 +2089,11 @@ event_base_loop(struct event_base *base, int flags)
 			EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 		}
 
+		/* Flush any SQEs queued by submit helpers since the previous
+		 * iteration. Batching submissions into one io_uring_enter call
+		 * is much cheaper than one syscall per SQE. */
+		event_io_uring_flush_(base);
+
 		clear_time_cache(base);
 
 		res = evsel->dispatch(base, tv_p);
@@ -2077,6 +2104,11 @@ event_base_loop(struct event_base *base, int flags)
 			retval = -1;
 			goto done;
 		}
+
+		/* Drain any io_uring completions submitted by buffer/bufferevent
+		 * code so their continuations land in this loop iteration. No-op
+		 * when base->io_uring is NULL. */
+		event_io_uring_drain_(base);
 
 		update_time_cache(base);
 
@@ -2098,6 +2130,14 @@ event_base_loop(struct event_base *base, int flags)
 				done = 1;
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
+
+		/* Submit any SQEs queued by submit helpers during the
+		 * callbacks above, then drain any CQEs that completed inline.
+		 * Without this trailing flush+drain the SQEs would sit in the
+		 * ring until the next iteration's flush, adding a full
+		 * dispatch round-trip of latency per submission. */
+		event_io_uring_flush_(base);
+		event_io_uring_drain_(base);
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
 

@@ -46,6 +46,14 @@ endif()
 if(@EVENT__HAVE_OPENSSL@)
     find_dependency(OpenSSL)
 endif()
+if(@EVENT__HAVE_LIBURING@)
+    # event_core links PkgConfig::LIBURING; the consumer needs to
+    # re-create that imported target by re-running pkg_check_modules
+    # before importing libevent's targets. Same matching version as
+    # the original probe.
+    find_dependency(PkgConfig)
+    pkg_check_modules(LIBURING REQUIRED IMPORTED_TARGET liburing>=2.4)
+endif()
 
 # IMPORTED targets from LibeventTargets.cmake
 set(LIBEVENT_STATIC_LIBRARIES "@LIBEVENT_STATIC_LIBRARIES@")
