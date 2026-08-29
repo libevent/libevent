@@ -668,6 +668,8 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 	out:
 		evhttp_request_free(req);
 		evbuffer_drain(bufferevent_get_input(bev), evbuffer_get_length(bufferevent_get_input(bev)));
+		bufferevent_disable(bev, EV_READ);
+		event_base_loopexit(arg, NULL);
 	}
 
 	shutdown(bufferevent_getfd(bev), EVUTIL_SHUT_WR);
@@ -737,7 +739,7 @@ http_bad_request_test(void *arg)
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
 	bufferevent_setcb(bev, http_badreq_readcb, http_writecb,
-	    http_badreq_errorcb, data->base);
+	    http_errorcb, data->base);
 	bufferevent_enable(bev, EV_READ);
 
 	/* first half of the http request */
@@ -747,10 +749,6 @@ http_bad_request_test(void *arg)
 		"\r\n";
 
 	bufferevent_write(bev, http_request, strlen(http_request));
-
-	timerclear(&tv);
-	tv.tv_usec = 10000;
-	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
 	event_base_dispatch(data->base);
 
