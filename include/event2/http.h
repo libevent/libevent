@@ -98,6 +98,47 @@ EVENT2_EXPORT_SYMBOL
 struct evhttp *evhttp_new(struct event_base *base);
 
 /**
+   Obtain evhttp_connection when accepting an incoming request
+
+   @param http the evhttp server object will handle the connection
+   @param fd accept gets the socket
+   @param sa remote address
+   @param salen remote address length
+   @param bev Optional associated bufferevent
+
+   @return evhttp_connection * on success, NULL on error.
+ */
+EVENT2_EXPORT_SYMBOL
+struct evhttp_connection *
+evhttp_get_request_connection(
+	struct evhttp* http,
+	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
+	struct bufferevent* bev);
+
+/**
+   Obtain evhttp_connection when accepting an incoming request with an existing bufferevent
+
+   @param http the evhttp server object will handle the connection
+   @param bev associated bufferevent
+
+   @return evhttp_connection * on success, NULL on error.
+ */
+EVENT2_EXPORT_SYMBOL
+struct evhttp_connection *
+evhttp_get_request_connection_reuse_bufferevent(struct evhttp* http, struct bufferevent* bev);
+
+/**
+   Submit an incoming evhttp_connection to the http service for processing
+
+   @param http the evhttp server object will handle the connection
+   @param bev associated bufferevent
+
+   @return evhttp_connection * on success, NULL on error.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_serve(struct evhttp *http, struct evhttp_connection *evcon);
+
+/**
  * Binds an HTTP server on the specified address and port.
  *
  * Can be called multiple times to bind the same http server
@@ -357,7 +398,6 @@ void evhttp_set_gencb(struct evhttp *http,
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_bevcb(struct evhttp *http,
     struct bufferevent *(*cb)(struct event_base *, void *), void *arg);
-
 
 /**
    Set a callback which allows the user to note or throttle incoming requests.
@@ -716,6 +756,19 @@ struct evhttp_connection *evhttp_connection_base_bufferevent_unix_new(
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *
 evhttp_connection_base_bufferevent_reuse_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev);
+
+/**
+ * Set peer address of a connection object.
+ *
+ * @param evcon the connection object
+ * @param address the address to which to connect
+ * @param port the port to connect to
+ * @return 0 on success, -1 on failure; if peer already exists, returns -1.
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_connection_set_peer(struct evhttp_connection *evcon,
+    const char *address, ev_uint16_t port);
+
 
 /**
  * Return the bufferevent that an evhttp_connection is using.
