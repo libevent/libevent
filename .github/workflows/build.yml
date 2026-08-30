@@ -44,6 +44,7 @@ jobs:
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
+          - DISABLE_EVERYTHING
           - COMPILER_CLANG
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
@@ -99,6 +100,16 @@ jobs:
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_DEBUG_MODE=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_MM_REPLACEMENT=ON"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_EVERYTHING" ]; then
+            EVENT_CMAKE_OPTIONS="
+              -DEVENT__DISABLE_OPENSSL=ON
+              -DEVENT__DISABLE_MBEDTLS=ON
+              -DEVENT__DISABLE_THREAD_SUPPORT=ON
+              -DEVENT__DISABLE_DEBUG_MODE=ON
+              -DEVENT__DISABLE_MM_REPLACEMENT=ON
+              -DEVENT__DISABLE_RPC=ON
+              -DEVENT__DISABLE_EVENT_TAGGING=ON
+              -DEVENT__DISABLE_WS=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "COMPILER_CLANG" ]; then
             EVENT_CMAKE_OPTIONS=""
             export CC=clang

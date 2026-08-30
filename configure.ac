@@ -63,6 +63,15 @@ AC_ARG_ENABLE([mbedtls],
 AC_ARG_ENABLE([debug-mode],
      AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
     [], [enable_debug_mode=yes])
+AC_ARG_ENABLE([rpc],
+     AS_HELP_STRING([--disable-rpc, disable support for the RPC subsystem (evrpc_*)]),
+    [], [enable_rpc=yes])
+AC_ARG_ENABLE([event-tagging],
+     AS_HELP_STRING([--disable-event-tagging, disable support for the event-tagging subsystem (evtag_*); requires --disable-rpc]),
+    [], [enable_event_tagging=yes])
+AC_ARG_ENABLE([ws],
+     AS_HELP_STRING([--disable-ws, disable support for the WebSocket subsystem (evws_*); also drops sha1.c which is only used by ws.c]),
+    [], [enable_ws=yes])
 AC_ARG_ENABLE([libevent-install],
      AS_HELP_STRING([--disable-libevent-install, disable installation of libevent]),
 	[], [enable_libevent_install=yes])
@@ -689,6 +698,32 @@ if test "$enable_debug_mode" = "no"; then
   AC_DEFINE(DISABLE_DEBUG_MODE, 1,
         [Define if libevent should build without support for a debug mode])
 fi
+
+dnl check whether to omit the RPC subsystem (evrpc_*)
+if test "$enable_rpc" = "no"; then
+  AC_DEFINE(DISABLE_RPC, 1,
+        [Define if libevent should be compiled without the RPC subsystem])
+fi
+AM_CONDITIONAL(DISABLE_RPC, [test "$enable_rpc" = "no"])
+
+dnl check whether to omit event-tagging (evtag_*). RPC uses evtag internally,
+dnl so disabling tagging requires disabling RPC too.
+if test "$enable_event_tagging" = "no" && test "$enable_rpc" != "no"; then
+  AC_MSG_ERROR([--disable-event-tagging requires --disable-rpc (evrpc.c calls evtag_init()).])
+fi
+if test "$enable_event_tagging" = "no"; then
+  AC_DEFINE(DISABLE_EVENT_TAGGING, 1,
+        [Define if libevent should be compiled without the event-tagging subsystem])
+fi
+AM_CONDITIONAL(DISABLE_EVENT_TAGGING, [test "$enable_event_tagging" = "no"])
+
+dnl check whether to omit the WebSocket subsystem (evws_*). sha1.c is only
+dnl used by ws.c, so it follows automatically.
+if test "$enable_ws" = "no"; then
+  AC_DEFINE(DISABLE_WS, 1,
+        [Define if libevent should be compiled without the WebSocket subsystem])
+fi
+AM_CONDITIONAL(DISABLE_WS, [test "$enable_ws" = "no"])
 
 dnl check if we should enable verbose debugging
 if test "$enable_verbose_debug" = "yes"; then
