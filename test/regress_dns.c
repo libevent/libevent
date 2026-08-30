@@ -2373,7 +2373,10 @@ gaic_server_cb(struct evdns_server_request *req, void *arg)
 	tt_assert(dr);
 	dr->req = req;
 	event_assign(&dr->timer, base, -1, 0, gaic_server_response_cb, dr);
-	event_add(&dr->timer, &tv);
+	if (event_add(&dr->timer, &tv) < 0) {
+		free(dr);
+		goto end;
+	}
 	return;
 end:
 	evdns_server_request_respond(req, DNS_ERR_REFUSED);
