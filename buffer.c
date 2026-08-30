@@ -1161,7 +1161,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		buf->total_len -= len;
 		remaining = len;
 		for (chain = buf->first;
-		     remaining >= chain->off;
+		     chain != NULL && remaining >= chain->off;
 		     chain = next) {
 			next = chain->next;
 			remaining -= chain->off;
@@ -1181,10 +1181,12 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 				evbuffer_chain_free(chain);
 		}
 
-		buf->first = chain;
-		EVUTIL_ASSERT(remaining <= chain->off);
-		chain->misalign += remaining;
-		chain->off -= remaining;
+        buf->first = chain;
+        if (chain != NULL) {
+            EVUTIL_ASSERT(remaining <= chain->off);
+            chain->misalign += remaining;
+            chain->off -= remaining;
+        }
 	}
 
 	buf->n_del_for_cb += len;
