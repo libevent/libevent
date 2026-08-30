@@ -288,6 +288,73 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			    qname, 1, addr6, 123);
 			if (r<0)
 				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_NS &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			r = evdns_server_request_add_ns_reply(req, qname,
+			    "NS1.EXAMPLE.COM", 555);
+			if (r<0)
+				dns_ok = 0;
+			r = evdns_server_request_add_ns_reply(req, qname,
+			    "NS2.EXAMPLE.COM", 566);
+			if (r<0)
+				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_CNAME &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "www.example.com")) {
+			r = evdns_server_request_add_cname_reply(req, qname,
+			    "EXAMPLE.COM", 7200);
+			if (r<0)
+				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_SOA &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			char nsname[] = "DNS1.ICANN.ORG";
+			char email[] = "HOSTMASTER.ICANN.ORG";
+			struct evdns_reply_soa soa = {
+				.nsname = nsname,
+				.email = email,
+				.serial = 2011061946,
+				.refresh = 2 * 60 * 60, // 2h
+				.retry = 1 * 60 * 60, // 1h
+				.expire = 14 * 24 * 60 * 60 , // 14d
+				.minimum = 1 * 60 * 60, // 1h
+			};
+			r = evdns_server_request_add_soa_reply(req, qname, &soa, 0, 666);
+			if (r<0)
+				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_MX &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			char mxname[EVDNS_NAME_MAX+1];
+			struct evdns_reply_mx mx = {
+				.pref = 10,
+				.name = mxname,
+			};
+			sprintf(mxname, "MX1.EXAMPLE.COM");
+			r = evdns_server_request_add_mx_reply(req, qname, &mx, 3600);
+			if (r<0)
+				dns_ok = 0;
+			sprintf(mxname, "MX2.EXAMPLE.COM");
+			mx.pref = 20;
+			r = evdns_server_request_add_mx_reply(req, qname, &mx, 3700);
+			if (r<0)
+				dns_ok = 0;
+		} else if (qtype == EVDNS_TYPE_TXT &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "example.com")) {
+			char text1[EVDNS_NAME_MAX+1];
+			char text2[EVDNS_NAME_MAX+1];
+			struct evdns_reply_txt txt1 = { .text = text1, };
+			struct evdns_reply_txt txt2 = { .text = text2, };
+			sprintf(text1, "hello world");
+			sprintf(text2, "foo bar");
+			r = evdns_server_request_add_txt_reply(req, qname, &txt1, 600);
+			if (r<0)
+				dns_ok = 0;
+			r = evdns_server_request_add_txt_reply(req, qname, &txt2, 900);
+			if (r<0)
+				dns_ok = 0;
 		} else if (qtype == EVDNS_TYPE_PTR &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, TEST_ARPA)) {
@@ -309,6 +376,19 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			if (evdns_server_request_drop(req)<0)
 				dns_ok = 0;
 			return;
+		} else if (qtype == EVDNS_TYPE_SRV &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "_ldap._tcp.example.com")) {
+			char name[] = "LDAP.EXAMPLE.COM";
+			struct evdns_reply_srv srv = {
+				.name = name,
+				.priority = 5,
+				.weight = 0,
+				.port = 389,
+			};
+			r = evdns_server_request_add_srv_reply(req, qname, &srv, 7200);
+			if (r<0)
+				dns_ok = 0;
 		} else {
 			printf("Unexpected question %d %d \"%s\" ",
 			    qtype, qclass, qname);
@@ -339,14 +419,14 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		dns_ok = 0;
 		goto out;
 	}
-	if (count != 1) {
-		printf("Unexpected answer count %d. ", count);
-		dns_ok = 0;
-		goto out;
-	}
 	switch (type) {
 	case DNS_IPv4_A: {
 		struct in_addr *in_addrs = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
 		if (in_addrs[0].s_addr != htonl(0xc0a80b0bUL) || ttl != 12345) {
 			printf("Bad IPv4 response \"%s\" %d. ",
 					inet_ntoa(in_addrs[0]), ttl);
@@ -359,6 +439,11 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 #if defined (EVENT__HAVE_STRUCT_IN6_ADDR) && defined(EVENT__HAVE_INET_NTOP) && defined(INET6_ADDRSTRLEN)
 		struct in6_addr *in6_addrs = addresses;
 		char buf[INET6_ADDRSTRLEN+1];
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
 		if (memcmp(&in6_addrs[0].s6_addr, "abcdefghijklmnop", 16)
 		    || ttl != 123) {
 			const char *b = evutil_inet_ntop(AF_INET6, &in6_addrs[0],buf,sizeof(buf));
@@ -369,8 +454,107 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 #endif
 		break;
 	}
+	case DNS_NS: {
+		struct evdns_reply_ns *ns = addresses;
+		if (count != 2) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(ns[0].name, "NS1.EXAMPLE.COM") || ns[0].ttl != 555 || ttl != 555) {
+			printf("Bad NS 0 response \"%s\" %d. ", ns[0].name, ns[0].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		/* 566 larger than 555 and in reply we use min ttl for all answers */
+		if (strcmp(ns[1].name, "NS2.EXAMPLE.COM") || ns[1].ttl != 566 || ttl != 555) {
+			printf("Bad NS 1 response \"%s\" %d. ", ns[1].name, ns[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
+	case DNS_CNAME: {
+		char *cname = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(cname, "EXAMPLE.COM") || ttl != 7200) {
+			printf("Bad CNAME response \"%s\" %d. ", cname, ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
+	case DNS_SOA: {
+		struct evdns_reply_soa *soa = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(soa->nsname, "DNS1.ICANN.ORG")
+		    || strcmp(soa->email, "HOSTMASTER.ICANN.ORG")
+		    || soa->serial != 2011061946 || soa->refresh != 7200
+		    || soa->retry != 3600 || soa->expire != 1209600
+		    || soa->minimum != 3600 || ttl != 666
+		) {
+			printf("Bad SOA response \"%s %s %" PRIu32 " %" PRIu32 " %" PRIu32
+				" %" PRIu32 " %" PRIu32 "\" %d. ", soa->nsname, soa->email,
+				soa->serial, soa->refresh, soa->retry, soa->expire,
+				soa->minimum, ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
+	case DNS_MX: {
+		struct evdns_reply_mx *mx = addresses;
+		if (count != 2) {
+			printf("Unexpected MX answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(mx[0].name, "MX1.EXAMPLE.COM") || mx[0].ttl != 3600 || ttl != 3600) {
+			printf("Bad MX 0 response \"%s\" %d. ", mx[0].name, mx[0].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(mx[1].name, "MX2.EXAMPLE.COM") || mx[1].ttl != 3700 || ttl != 3600) {
+			printf("Bad MX 1 response \"%s\" %d. ", mx[1].name, mx[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
+	case DNS_TXT: {
+		struct evdns_reply_txt *txt = addresses;
+		if (count != 2) {
+			printf("Unexpected TXT answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(txt[0].text, "hello world") || txt[0].ttl != 600 || ttl != 600) {
+			printf("Bad TXT 0 response \"%s\" %d. ", txt[0].text, txt[0].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(txt[1].text, "foo bar") || txt[1].ttl != 900 || ttl != 600) {
+			printf("Bad TXT 1 response \"%s\" %d. ", txt[1].text, txt[1].ttl);
+			dns_ok = 0;
+			goto out;
+		}
+		break;
+	}
 	case DNS_PTR: {
 		char **addrs = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
 		if (arg != (void*)6) {
 			if (strcmp(addrs[0], "ZZ.EXAMPLE.COM") ||
 			    ttl != 54321) {
@@ -387,6 +571,25 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 				dns_ok = 0;
 				goto out;
 			}
+		}
+		break;
+	}
+	case DNS_SRV: {
+		struct evdns_reply_srv *srv = addresses;
+		if (count != 1) {
+			printf("Unexpected answer count %d. ", count);
+			dns_ok = 0;
+			goto out;
+		}
+		if (strcmp(srv->name, "LDAP.EXAMPLE.COM")
+		    || srv->priority != 5 || srv->weight != 0
+		    || srv->port != 389 || ttl != 7200
+		) {
+			printf("Bad SRV response \"%s %" PRIu32 " %" PRIu16 " %" PRIu16
+				" %" PRIu16 "\" %d. ", srv->name, srv->ttl, srv->priority,
+				srv->weight, srv->port, ttl);
+			dns_ok = 0;
+			goto out;
 		}
 		break;
 	}
@@ -466,6 +669,22 @@ dns_server(void)
 	evdns_base_resolve_ipv6(base, "zz.example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
+
+	evdns_base_resolve_ns(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
+	evdns_base_resolve_cname(base, "www.example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
+	evdns_base_resolve_soa(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
+	evdns_base_resolve_mx(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
+	evdns_base_resolve_txt(base, "example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
+
 	evdns_base_resolve_reverse(base, &resolve_addr, 0,
 	    dns_server_gethostbyname_cb, NULL);
 	memcpy(resolve_addr6.s6_addr,
@@ -477,6 +696,9 @@ dns_server(void)
 	req = evdns_base_resolve_ipv4(base,
 	    "drop.example.com", DNS_QUERY_NO_SEARCH,
 	    dns_server_gethostbyname_cb, (void*)(char*)90909);
+
+	evdns_base_resolve_srv(base, "_ldap._tcp.example.com", DNS_QUERY_NO_SEARCH,
+					   dns_server_gethostbyname_cb, NULL);
 
 	evdns_cancel_request(base, req);
 
@@ -513,6 +735,7 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
     void *arg)
 {
 	size_t len = 0;
+	int copy_addr = 1;
 	struct generic_dns_callback_result *res = arg;
 	res->result = result;
 	res->type = type;
@@ -524,13 +747,66 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 			len = count * 4;
 		else if (type == DNS_IPv6_AAAA)
 			len = count * 16;
+		else if (type == DNS_NS) {
+			struct evdns_reply_ns *ns = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%" PRIu32 " %s%s", ns[i].ttl,
+					ns[i].name, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		} else if (type == DNS_SOA) {
+			struct evdns_reply_soa *soa = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%s %s %" PRIu32 " %" PRIu32 " %" PRIu32
+					" %" PRIu32 " %" PRIu32 "%s", soa[i].nsname, soa[i].email,
+					soa[i].serial, soa[i].refresh, soa[i].retry, soa[i].expire,
+					soa[i].minimum, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		} else if (type == DNS_MX) {
+			struct evdns_reply_mx *mx = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%" PRIu32 " %" PRIu16 " %s%s", mx[i].ttl,
+					mx[i].pref, mx[i].name, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		} else if (type == DNS_TXT) {
+			struct evdns_reply_txt *txt = addresses;
+			char *p;
+			for (int i = 0; i < count; ++i) {
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%" PRIu32 " ", txt[i].ttl);
+				p = txt[i].text;
+				for (int j = 0; j < txt[i].parts; ++j) {
+					len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%s%s", p, (j < txt[i].parts-1) ? "\t":"");
+					p += strlen(p) + 1;
+				}
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+						"%s", (i < count-1) ? ",":"");
+			}
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		} else if (type == DNS_SRV) {
+			struct evdns_reply_srv *srv = addresses;
+			for (int i = 0; i < count; ++i)
+				len += snprintf(&res->addrs_buf[len], sizeof(res->addrs_buf) - len,
+					"%s %" PRIu32 " %" PRIu16 " %" PRIu16 " %" PRIu16
+					"%s", srv[i].name, srv[i].ttl, srv[i].priority, srv[i].weight,
+					srv[i].port, (i < count-1) ? ",":"");
+			copy_addr = 0;
+			res->addrs = res->addrs_buf;
+		}
 		else if (type == DNS_PTR || type == DNS_CNAME)
 			len = strlen(addresses)+1;
 	} else {
 		res->addrs_len = len = 0;
 		res->addrs = NULL;
 	}
-	if (len) {
+	if (len && copy_addr) {
 		res->addrs_len = len;
 		if (len > ARRAY_SIZE(res->addrs_buf))
 			len = ARRAY_SIZE(res->addrs_buf);
@@ -564,8 +840,15 @@ static struct regress_dns_server_table search_table[] = {
 	{ "hostn.b.example.com", "errsoa", "3", 0, 0 },
 	{ "hostn.c.example.com", "err", "0", 0, 0 },
 	{ "hostc.c.example.com", "CNAME", "cname.c.example.com", 0, 0 },
+	{ "www.example.com", "CNAME", "example.com", 0, 0 },
 	{ "host", "err", "3", 0, 0 },
 	{ "host2", "err", "3", 0, 0 },
+	{ "example.com", "NS", "555 ns1.example.com,566 ns2.example.com", 0, 0 },
+	{ "nons.example.com", "errsoa", "3", 0, 0 },
+	{ "domain.com", "SOA", "ns1.domain.com admin.domain.com 2024120102 7200 3600 1209600 3600", 0, 0 },
+	{ "mailsend.net", "MX", "600 10 mx1.mailsend.net,1200 20 mx.example.com", 0, 0 },
+	{ "text.example.com", "TXT", "600 v=spf1 +a +mx -all,1200 part1=hello\tpart2=world", 0, 0 },
+	{ "_collab-edge._tls.example.com", "SRV", "600 3 7 8843 vcse1.example.com,600 4 8 8843 vcse2.example.com,600 5 0 8843 vcse3.example.com", 0, 0 },
 	{ "*", "err", "3", 0, 0 },
 	{ NULL, NULL, NULL, 0, 0 }
 };
@@ -600,7 +883,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[9];
+	struct generic_dns_callback_result r[17];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -633,6 +916,20 @@ dns_search_test_impl(void *arg, int lower)
 	evdns_base_resolve_ipv4(dns, "hostc.c.example.com", DNS_NO_SEARCH | DNS_CNAME_CALLBACK,
 				generic_dns_callback, &r[8]);
 
+	evdns_base_resolve_ns(dns, "example.com", 0, generic_dns_callback, &r[9]);
+	evdns_base_resolve_ns(dns, "nons.example.com", 0, generic_dns_callback, &r[10]);
+
+	evdns_base_resolve_soa(dns, "domain.com", 0, generic_dns_callback, &r[11]);
+
+	evdns_base_resolve_mx(dns, "mailsend.net", 0, generic_dns_callback, &r[12]);
+
+	evdns_base_resolve_txt(dns, "text.example.com", 0, generic_dns_callback, &r[13]);
+
+	evdns_base_resolve_srv(dns, "_collab-edge._tls.example.com", 0, generic_dns_callback, &r[14]);
+
+	evdns_base_resolve_cname(dns, "www.example.com", 0, generic_dns_callback, &r[15]);
+	evdns_base_resolve_cname(dns, "example.com", 0, generic_dns_callback, &r[16]);
+
 	event_base_dispatch(base);
 
 	tt_int_op(r[0].type, ==, DNS_IPv4_A);
@@ -654,6 +951,35 @@ dns_search_test_impl(void *arg, int lower)
 	tt_int_op(r[8].count, ==, 1);
 	tt_str_op(r[8].addrs, ==, "cname.c.example.com");
 
+	tt_int_op(r[9].count, ==, 2);
+	tt_int_op(r[9].type, ==, DNS_NS);
+	tt_str_op(r[9].addrs, ==, "555 ns1.example.com,566 ns2.example.com");
+
+	tt_int_op(r[10].count, ==, 0);
+	tt_int_op(r[10].result, ==, DNS_ERR_NOTEXIST);
+
+	tt_int_op(r[11].count, ==, 1);
+	tt_int_op(r[11].type, ==, DNS_SOA);
+	tt_str_op(r[11].addrs, ==, "ns1.domain.com admin.domain.com 2024120102 7200 3600 1209600 3600");
+
+	tt_int_op(r[12].count, ==, 2);
+	tt_int_op(r[12].type, ==, DNS_MX);
+	tt_str_op(r[12].addrs, ==, "600 10 mx1.mailsend.net,1200 20 mx.example.com");
+
+	tt_int_op(r[13].count, ==, 2);
+	tt_int_op(r[13].type, ==, DNS_TXT);
+	tt_str_op(r[13].addrs, ==, "600 v=spf1 +a +mx -all,1200 part1=hello\tpart2=world");
+
+	tt_int_op(r[14].count, ==, 3);
+	tt_int_op(r[14].type, ==, DNS_SRV);
+	tt_str_op(r[14].addrs, ==, "vcse1.example.com 600 3 7 8843,vcse2.example.com 600 4 8 8843,vcse3.example.com 600 5 0 8843");
+
+	tt_int_op(r[15].count, ==, 1);
+	tt_int_op(r[15].type, ==, DNS_CNAME);
+	tt_str_op(r[15].addrs, ==, "example.com");
+
+	tt_int_op(r[16].count, ==, 0);
+	tt_int_op(r[16].result, ==, DNS_ERR_NOTEXIST);
 end:
 	if (dns)
 		evdns_base_free(dns, 0);
