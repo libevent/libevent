@@ -2078,7 +2078,18 @@ event_base_loop(struct event_base *base, int flags)
 			goto done;
 		}
 
-		update_time_cache(base);
+		/* Refresh the cached time after dispatch. We can skip this only
+		 * when the loop is non-blocking AND there are no pending
+		 * timeouts: EVLOOP_NONBLOCK polls with a zero timeout so
+		 * timeout_process() returns early on an empty heap, and with no
+		 * timers there is nothing to reschedule. In that case tv_cache
+		 * is simply left cleared and every reader (gettime(),
+		 * event_base_gettimeofday_cached()) degrades to a live clock
+		 * read rather than a stale cached value -- correct, just not
+		 * pre-cached. Do NOT extend this skip to blocking loops or a
+		 * non-empty heap, where timeout processing relies on the cache. */
+		if (!(flags & EVLOOP_NONBLOCK) || !min_heap_empty_(&base->timeheap))
+			update_time_cache(base);
 
 		/* Invoke check watchers after polling for events, and before
 		 * processing them */
