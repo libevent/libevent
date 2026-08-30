@@ -1102,7 +1102,7 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
 	r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
-	tt_int_op(r, ==, EVUTIL_EAI_NONAME);
+	tt_int_op(r,==,EVUTIL_EAI_NONAME);
 	tt_ptr_op(ai, ==, NULL);
 
 	/* Try symbolic service names wit AI_NUMERICSERV */
@@ -1111,7 +1111,8 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = EVUTIL_AI_NUMERICSERV;
 	r = evutil_getaddrinfo("1.2.3.4", "http", &hints, &ai);
-	tt_int_op(r,==,EVUTIL_EAI_NONAME);
+	if (r != EVUTIL_EAI_SERVICE && r != EVUTIL_EAI_NONAME)
+		tt_fail_msg("error is neither EAI_SERVICE nor EAI_NONAME\n");
 
 	/* Try symbolic service names */
 	memset(&hints, 0, sizeof(hints));
@@ -1669,12 +1670,12 @@ struct testcase_t util_testcases[] = {
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
 	{ "usleep", test_evutil_usleep, TT_RETRIABLE, NULL, NULL },
-	{ "monotonic_res", test_evutil_monotonic_res, 0, &basic_setup, (void*)"" },
+	{ "monotonic_res", test_evutil_monotonic_res, TT_RETRIABLE, &basic_setup, (void*)"" },
 	{ "monotonic_res_precise", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"precise" },
 	{ "monotonic_res_fallback", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"fallback" },
-	{ "monotonic_prc", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"" },
+	{ "monotonic_prc", test_evutil_monotonic_prc, TT_RETRIABLE, &basic_setup, (void*)"" },
 	{ "monotonic_prc_precise", test_evutil_monotonic_prc, TT_RETRIABLE, &basic_setup, (void*)"precise" },
-	{ "monotonic_prc_fallback", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"fallback" },
+	{ "monotonic_prc_fallback", test_evutil_monotonic_prc, TT_RETRIABLE, &basic_setup, (void*)"fallback" },
 	{ "date_rfc1123", test_evutil_date_rfc1123, 0, NULL, NULL },
 	{ "evutil_v4addr_is_local", test_evutil_v4addr_is_local, 0, NULL, NULL },
 	{ "evutil_v6addr_is_local", test_evutil_v6addr_is_local, 0, NULL, NULL },

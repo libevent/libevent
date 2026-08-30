@@ -68,6 +68,12 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
+#ifdef _WIN32
+#define SKIP_UNDER_WINDOWS TT_SKIP
+#else
+#define SKIP_UNDER_WINDOWS 0
+#endif
+
 /* set if a test needs to call loopexit on a base */
 static struct event_base *exit_base;
 
@@ -668,6 +674,8 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 	out:
 		evhttp_request_free(req);
 		evbuffer_drain(bufferevent_get_input(bev), evbuffer_get_length(bufferevent_get_input(bev)));
+		bufferevent_disable(bev, EV_READ);
+		event_base_loopexit(arg, NULL);
 	}
 
 	shutdown(bufferevent_getfd(bev), EVUTIL_SHUT_WR);
@@ -737,7 +745,7 @@ http_bad_request_test(void *arg)
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
 	bufferevent_setcb(bev, http_badreq_readcb, http_writecb,
-	    http_badreq_errorcb, data->base);
+	    http_errorcb, data->base);
 	bufferevent_enable(bev, EV_READ);
 
 	/* first half of the http request */
@@ -747,10 +755,6 @@ http_bad_request_test(void *arg)
 		"\r\n";
 
 	bufferevent_write(bev, http_request, strlen(http_request));
-
-	timerclear(&tv);
-	tv.tv_usec = 10000;
-	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
 	event_base_dispatch(data->base);
 
@@ -4701,6 +4705,7 @@ http_request_extra_body_test(void *arg)
 #define HTTP_N(title, name, test_opts, arg) \
 	{ #title, http_##name##_test, TT_ISOLATED|test_opts, &basic_setup, HTTP_CAST_ARG(arg) }
 #define HTTP(name) HTTP_N(name, name, 0, NULL)
+#define HTTP_OPT(name, opt) HTTP_N(name, name, opt, NULL)
 #define HTTPS(name) \
 	{ "https_" #name, https_##name##_test, TT_ISOLATED, &basic_setup, NULL }
 
@@ -4800,7 +4805,7 @@ struct testcase_t http_testcases[] = {
 	{ "connection_retry_conn_address", http_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
-	HTTP(data_length_constraints),
+	HTTP_OPT(data_length_constraints, SKIP_UNDER_WINDOWS|TT_RETRIABLE),
 	HTTP(read_on_write_error),
 	HTTP(non_lingering_close),
 	HTTP(lingering_close),

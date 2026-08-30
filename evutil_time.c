@@ -316,6 +316,8 @@ evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
 	const int fallback = flags & EV_MONOT_FALLBACK;
 	struct timespec	ts;
 
+	memset(base, 0, sizeof(*base));
+
 #ifdef CLOCK_MONOTONIC_COARSE
 	if (CLOCK_MONOTONIC_COARSE < 0) {
 		/* Technically speaking, nothing keeps CLOCK_* from being

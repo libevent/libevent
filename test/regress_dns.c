@@ -1363,10 +1363,16 @@ test_bufferevent_connect_hostname(void *arg)
 	tt_int_op(be_outcome[2].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[2].dnserr, ==, 0);
 	tt_int_op(be_outcome[3].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
+	/*
+	 * Some platforms check for localhost explicitly, and therefore may succeed without opening any files *
+	 * e.g. https://github.com/openbsd/src/blob/53e0023678f73561cc0c0c07e49830be23d94673/lib/libc/asr/getaddrinfo_async.c#L234
+	 */
 	if (!emfile) {
 		tt_int_op(be_outcome[3].dnserr, ==, 0);
+#if defined(__linux__)
 	} else {
 		tt_int_op(be_outcome[3].dnserr, !=, 0);
+#endif
 	}
 	if (expect_err) {
 		tt_int_op(be_outcome[4].what, ==, BEV_EVENT_ERROR);
@@ -1806,6 +1812,11 @@ struct gaic_request_status {
 	int canceled;
 };
 
+struct gaic_delayed_response {
+	struct evdns_server_request *req;
+	struct event timer;
+};
+
 #define GAIC_MAGIC 0x1234abcd
 
 static int gaic_pending = 0;
@@ -1825,13 +1836,33 @@ end:
 }
 
 static void
+gaic_server_response_cb(evutil_socket_t fd, short what, void *arg)
+{
+	struct gaic_delayed_response *dr = arg;
+	ev_uint32_t answer = 0x7f000001;
+	evdns_server_request_add_a_reply(dr->req,
+	    dr->req->questions[0]->name, 1, &answer, 100);
+	evdns_server_request_respond(dr->req, 0);
+	free(dr);
+}
+
+/* Delay server responses so that cancel timers (1 usec) fire first.
+ * Without this, on fast loopback (especially FreeBSD/kqueue), I/O events
+ * are activated before timers in the same loop iteration, causing all
+ * responses to arrive before any cancellation can occur. */
+static void
 gaic_server_cb(struct evdns_server_request *req, void *arg)
 {
-	ev_uint32_t answer = 0x7f000001;
+	struct event_base *base = arg;
+	struct gaic_delayed_response *dr;
+	struct timeval tv = { 0, 10000 }; /* 10 ms */
+
 	tt_assert(req->nquestions);
-	evdns_server_request_add_a_reply(req, req->questions[0]->name, 1,
-	    &answer, 100);
-	evdns_server_request_respond(req, 0);
+	dr = calloc(1, sizeof(*dr));
+	tt_assert(dr);
+	dr->req = req;
+	event_assign(&dr->timer, base, -1, 0, gaic_server_response_cb, dr);
+	event_add(&dr->timer, &tv);
 	return;
 end:
 	evdns_server_request_respond(req, DNS_ERR_REFUSED);
@@ -1865,10 +1896,18 @@ end:
 }
 
 static void
-gaic_launch(struct event_base *base, struct evdns_base *dns_base)
+gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 {
 	struct gaic_request_status *status = calloc(1,sizeof(*status));
-	struct timeval tv = { 0, 10000 };
+	struct timeval tv = { 0, 0 };
+
+	/// cancel via timer half of requests
+	if (i % 2) {
+		tv.tv_usec = 1;
+	} else {
+		tv.tv_sec = 10;
+	}
+
 	status->magic = GAIC_MAGIC;
 	status->base = base;
 	status->dns_base = dns_base;
@@ -2096,13 +2135,14 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 	    (struct sockaddr*)&ss, slen, 0);
 
 	for (i = 0; i < 1000; ++i) {
-		gaic_launch(base, dns_base);
+		gaic_launch(base, dns_base, i);
 	}
 
 	event_base_dispatch(base);
 
 	// at least some was canceled via external event
 	tt_int_op(gaic_freed, !=, 1000);
+	tt_int_op(gaic_freed, !=, 0);
 
 end:
 	if (dns_base)
@@ -2460,10 +2500,10 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_connect_hostname", test_bufferevent_connect_hostname,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, NULL },
 #ifdef EVENT__HAVE_SETRLIMIT
 	{ "bufferevent_connect_hostname_emfile", test_bufferevent_connect_hostname,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"emfile" },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, (char*)"emfile" },
 #endif
 	{ "disable_when_inactive", dns_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },

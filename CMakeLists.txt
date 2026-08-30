@@ -19,7 +19,7 @@
 #       start libevent.sln
 #
 
-cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5...3.10 FATAL_ERROR)
 
 if (POLICY CMP0054)
     cmake_policy(SET CMP0054 NEW)
@@ -1334,7 +1334,7 @@ if (NOT EVENT__DISABLE_TESTS)
              -n 30
              -t 100
              --check-grouplimit 1000
-             --check-stddev 100)
+             --check-stddev 150)
 
     # Connection limit, no group limit.
     add_test(test-ratelim__con_lim

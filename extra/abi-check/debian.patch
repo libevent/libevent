@@ -1,0 +1,15 @@
+--- /usr/bin/abi-compliance-checker	2024-02-20 03:34:20.805679599 +0000
++++ /usr/bin/abi-compliance-checker	2024-02-20 03:34:32.095652901 +0000
+@@ -9343,9 +9343,9 @@
+                 exitStatus("Not_Found", "can't find \"tar\" command");
+             }
+             chdir($UnpackDir);
+-            my @res = child_exec("$TarCmd -xvzf \"$Path\" >\"$TmpDir/null\"");
+-            if($res[0]) {
+-                exitStatus("Error", "can't extract \'$Path\' ($res[0]): $res[1]");
++            system("$TarCmd -xvzf \"$Path\" >\"$TmpDir/null\"");
++            if($?) {
++                exitStatus("Error", "can't extract \'$Path\' ($?): $!");
+             }
+             chdir($In::Opt{"OrigDir"});
+             my @Contents = cmdFind($UnpackDir, "f");
