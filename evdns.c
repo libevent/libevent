@@ -507,6 +507,7 @@ static void incoming_conn_cb(struct evconnlistener *listener, evutil_socket_t fd
     struct sockaddr *address, int socklen, void *arg);
 
 static int strtoint(const char *const str);
+static void retransmit_all_tcp_requests_for(struct nameserver *server);
 
 #ifdef EVENT__DISABLE_THREAD_SUPPORT
 #define EVDNS_LOCK(base)  EVUTIL_NIL_CONDITION_(base)
@@ -1151,15 +1152,35 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			/* rcode 2 (servfailed) sometimes means "we
 			 * are broken" and sometimes (with some binds)
 			 * means "that request was very confusing."
-			 * Treat this as a timeout, not a failure.
 			 */
-			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver"
-				"at %s; will allow the request to time out.",
+
+			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver at %s.",
 			    evutil_format_sockaddr_port_(
 				    (struct sockaddr *)&req->ns->address,
 				    addrbuf, sizeof(addrbuf)));
-			/* Call the timeout function */
-			evdns_request_timeout_callback(0, 0, req);
+			
+			EVDNS_LOCK(req->base);
+			if (req->tx_count >= req->base->global_max_retransmits) {
+				reply_schedule_callback(req, 0, DNS_ERR_SERVERFAILED, NULL);
+				request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
+			} else {
+				if (req->handle->tcp_flags & DNS_QUERY_USEVC) {
+					disconnect_and_free_connection(req->ns->connection);
+					req->ns->connection = NULL;
+					retransmit_all_tcp_requests_for(req->ns);
+				} else {
+					log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d by udp", req, req->tx_count);
+					(void) evtimer_del(&req->timeout_event);
+					request_swap_ns(req, nameserver_pick(req->base));
+					evdns_request_transmit(req);
+					req->ns->timedout++;
+					if (req->ns->timedout > req->base->global_max_nameserver_timeout) {
+						req->ns->timedout = 0;
+						nameserver_failed(req->ns, "request timed out.", 0);
+					}
+				}
+			}
+			EVDNS_UNLOCK(req->base);
 			return;
 		default:
 			/* we got a good reply from the nameserver: it is up. */
