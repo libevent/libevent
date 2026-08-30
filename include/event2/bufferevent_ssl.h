@@ -104,6 +104,27 @@ ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags
 EVENT2_EXPORT_SYMBOL
 ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t flags);
 
+/**
+ * Read the accumulated time spent inside the SSL library's read, write, and
+ * handshake calls for an SSL bufferevent, in nanoseconds.
+ *
+ * This is opt-in latency instrumentation: it is only collected when the
+ * bufferevent was created with the EVENT_SSL_TIMING environment variable set.
+ * Any of the out-pointers may be NULL. The values are cumulative over the life
+ * of the bufferevent; measure a phase by diffing two reads.
+ *
+ * @param bev the ssl bufferevent.
+ * @param read_ns_out if non-NULL, receives total ns spent in SSL reads.
+ * @param write_ns_out if non-NULL, receives total ns spent in SSL writes.
+ * @param handshake_ns_out if non-NULL, receives total ns spent handshaking.
+ * @return 0 on success, -1 if bev is not an SSL bufferevent or timing was not
+ *   enabled for it.
+ */
+EVENT2_EXPORT_SYMBOL
+int bufferevent_ssl_get_time_ns(struct bufferevent *bev,
+    ev_uint64_t *read_ns_out, ev_uint64_t *write_ns_out,
+    ev_uint64_t *handshake_ns_out);
+
 #endif /* defined(EVENT__HAVE_OPENSSL) || defined(EVENT__HAVE_MBEDTLS) */
 
 #if defined(EVENT__HAVE_OPENSSL) || defined(EVENT_IN_DOXYGEN_)

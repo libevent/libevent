@@ -621,3 +621,44 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 
 }
 #endif
+
+/* ====================================================================
+   High-precision nanosecond clock for latency measurement.
+
+   Deliberately separate from evutil_monotonic_timer above: that machinery
+   defaults to the coarse clock (great for timeouts, useless for timing a
+   microsecond-scale SSL_read).  Here we always want precision, so we use
+   CLOCK_MONOTONIC (serviced from the vDSO on modern kernels, ~20ns and
+   already TSC-backed), falling back to mach_absolute_time / QPC /
+   gettimeofday.  The epoch is arbitrary; only differences are meaningful.
+   ==================================================================== */
+
+ev_uint64_t
+evutil_gettime_precise_ns_(void)
+{
+#if defined(HAVE_POSIX_MONOTONIC)
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+		return (ev_uint64_t)ts.tv_sec * 1000000000ULL +
+		    (ev_uint64_t)ts.tv_nsec;
+#elif defined(HAVE_MACH_MONOTONIC)
+	static mach_timebase_info_data_t mtb = {0, 0};
+	if (mtb.denom == 0)
+		mach_timebase_info(&mtb);
+	if (mtb.denom)
+		return mach_absolute_time() * mtb.numer / mtb.denom;
+#elif defined(HAVE_WIN32_MONOTONIC)
+	LARGE_INTEGER freq, ctr;
+	if (QueryPerformanceFrequency(&freq) && freq.QuadPart &&
+	    QueryPerformanceCounter(&ctr))
+		return (ev_uint64_t)((double)ctr.QuadPart * 1000000000.0 /
+		    (double)freq.QuadPart);
+#endif
+	{
+		/* Last resort: microsecond wall clock scaled to ns. */
+		struct timeval tv;
+		evutil_gettimeofday(&tv, NULL);
+		return (ev_uint64_t)tv.tv_sec * 1000000000ULL +
+		    (ev_uint64_t)tv.tv_usec * 1000ULL;
+	}
+}

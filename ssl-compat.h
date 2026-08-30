@@ -80,8 +80,22 @@ struct bufferevent_ssl {
 	unsigned state : 2;
 	/* If we reset fd, we should reset state too */
 	unsigned old_state : 2;
+	/* Opt-in latency instrumentation (EVENT_SSL_TIMING env var). When set,
+	   the wrappers around the SSL read/write/handshake calls accumulate the
+	   nanoseconds spent inside them into the counters below. Off by default
+	   so the hot path stays a single predictable branch. */
+	unsigned timing_enabled : 1;
 
 	ev_uint64_t flags;
+
+	/* Accumulated ns and op counts inside the SSL library's
+	   read/write/handshake calls; populated only when timing_enabled.
+	   Readable via bufferevent_ssl_get_time_ns(). */
+	ev_uint64_t t_read_ns;
+	ev_uint64_t t_write_ns;
+	ev_uint64_t t_handshake_ns;
+	ev_uint64_t n_read_ops;
+	ev_uint64_t n_write_ops;
 };
 
 struct bufferevent *bufferevent_ssl_new_impl(struct event_base *base,

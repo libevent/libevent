@@ -63,6 +63,8 @@
 #include "bufferevent-internal.h"
 #include "log-internal.h"
 #include "ssl-compat.h"
+#include "util-internal.h"
+#include "time-internal.h"
 
 /* --------------------
    Now, here's the OpenSSL-based implementation of bufferevent.
@@ -272,8 +274,17 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 		if (bev_ssl->bev.read_suspended)
 			break;
 		bev_ssl->ssl_ops->clear_error();
-		r = bev_ssl->ssl_ops->read(
-			bev_ssl->ssl, (unsigned char *)space[i].iov_base + len, space[i].iov_len - len);
+		{
+			ev_uint64_t t0 = bev_ssl->timing_enabled ?
+			    evutil_gettime_precise_ns_() : 0;
+			r = bev_ssl->ssl_ops->read(
+				bev_ssl->ssl, (unsigned char *)space[i].iov_base + len, space[i].iov_len - len);
+			if (bev_ssl->timing_enabled) {
+				bev_ssl->t_read_ns +=
+				    evutil_gettime_precise_ns_() - t0;
+				bev_ssl->n_read_ops++;
+			}
+		}
 		if (r > 0) {
 			result |= OP_MADE_PROGRESS;
 			if (bev_ssl->read_blocked_on_write)
@@ -374,8 +385,17 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 		}
 
 		bev_ssl->ssl_ops->clear_error();
-		r = bev_ssl->ssl_ops->write(bev_ssl->ssl, space[i].iov_base,
-		    space[i].iov_len);
+		{
+			ev_uint64_t t0 = bev_ssl->timing_enabled ?
+			    evutil_gettime_precise_ns_() : 0;
+			r = bev_ssl->ssl_ops->write(bev_ssl->ssl,
+			    space[i].iov_base, space[i].iov_len);
+			if (bev_ssl->timing_enabled) {
+				bev_ssl->t_write_ns +=
+				    evutil_gettime_precise_ns_() - t0;
+				bev_ssl->n_write_ops++;
+			}
+		}
 		if (r > 0) {
 			result |= OP_MADE_PROGRESS;
 			if (bev_ssl->write_blocked_on_read)
@@ -719,7 +739,14 @@ do_handshake(struct bufferevent_ssl *bev_ssl)
 	case BUFFEREVENT_SSL_CONNECTING:
 	case BUFFEREVENT_SSL_ACCEPTING:
 		bev_ssl->ssl_ops->clear_error();
-		r = bev_ssl->ssl_ops->handshake(bev_ssl->ssl);
+		{
+			ev_uint64_t t0 = bev_ssl->timing_enabled ?
+			    evutil_gettime_precise_ns_() : 0;
+			r = bev_ssl->ssl_ops->handshake(bev_ssl->ssl);
+			if (bev_ssl->timing_enabled)
+				bev_ssl->t_handshake_ns +=
+				    evutil_gettime_precise_ns_() - t0;
+		}
 		break;
 	}
 	bev_ssl->ssl_ops->decrement_buckets(bev_ssl);
@@ -938,6 +965,22 @@ be_ssl_destruct(struct bufferevent *bev)
 				evutil_closesocket(fd);
 		}
 	}
+	if (bev_ssl->timing_enabled &&
+	    (bev_ssl->n_read_ops || bev_ssl->n_write_ops ||
+	     bev_ssl->t_handshake_ns)) {
+		event_warnx("ssl-timing: handshake=%llu ns; read=%llu ns over "
+		    "%llu ops (%llu ns/op); write=%llu ns over %llu ops "
+		    "(%llu ns/op)",
+		    (unsigned long long)bev_ssl->t_handshake_ns,
+		    (unsigned long long)bev_ssl->t_read_ns,
+		    (unsigned long long)bev_ssl->n_read_ops,
+		    (unsigned long long)(bev_ssl->n_read_ops ?
+			bev_ssl->t_read_ns / bev_ssl->n_read_ops : 0),
+		    (unsigned long long)bev_ssl->t_write_ns,
+		    (unsigned long long)bev_ssl->n_write_ops,
+		    (unsigned long long)(bev_ssl->n_write_ops ?
+			bev_ssl->t_write_ns / bev_ssl->n_write_ops : 0));
+	}
 	bev_ssl->ssl_ops->free(bev_ssl->ssl, bev_ssl->bev.options);
 }
 
@@ -1066,6 +1109,13 @@ bufferevent_ssl_new_impl(struct event_base *base,
 	bev_ssl->old_state = state;
 	bev_ssl->last_write = -1;
 
+	/* Opt-in latency instrumentation: EVENT_SSL_TIMING in the environment
+	 * turns on the per-call read/write/handshake ns accounting. Resolved
+	 * once here so the hot path only tests a bit. evutil_getenv_ returns
+	 * NULL for setuid/setgid processes, so this can't be abused. */
+	if (evutil_getenv_("EVENT_SSL_TIMING") != NULL)
+		bev_ssl->timing_enabled = 1;
+
 	bev_ssl->ssl_ops->init_bio_counts(bev_ssl);
 
 	fd = be_ssl_auto_fd(bev_ssl, fd);
@@ -1126,6 +1176,32 @@ ev_uint64_t bufferevent_ssl_get_flags(struct bufferevent *bev)
 	BEV_UNLOCK(bev);
 
 	return flags;
+}
+
+int bufferevent_ssl_get_time_ns(struct bufferevent *bev,
+    ev_uint64_t *read_ns_out, ev_uint64_t *write_ns_out,
+    ev_uint64_t *handshake_ns_out)
+{
+	struct bufferevent_ssl *bev_ssl;
+	int rv = -1;
+
+	if (bev == NULL || !BEV_IS_SSL(bev))
+		return -1;
+
+	BEV_LOCK(bev);
+	bev_ssl = bufferevent_ssl_upcast(bev);
+	if (bev_ssl->timing_enabled) {
+		if (read_ns_out)
+			*read_ns_out = bev_ssl->t_read_ns;
+		if (write_ns_out)
+			*write_ns_out = bev_ssl->t_write_ns;
+		if (handshake_ns_out)
+			*handshake_ns_out = bev_ssl->t_handshake_ns;
+		rv = 0;
+	}
+	BEV_UNLOCK(bev);
+
+	return rv;
 }
 ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags)
 {

@@ -57,6 +57,15 @@ long evutil_tv_to_msec_(const struct timeval *tv);
 EVENT2_EXPORT_SYMBOL
 void evutil_usleep_(const struct timeval *tv);
 
+/* A high-precision monotonic clock in nanoseconds, intended for measuring
+ * short intervals (per-call latency), NOT for timeouts.  Unlike the
+ * event_base's monotonic timer this never uses the coarse clock: it uses
+ * clock_gettime(CLOCK_MONOTONIC) (serviced from the vDSO, ~20ns, and already
+ * TSC-backed on modern kernels), falling back to mach/QPC/gettimeofday.  The
+ * epoch is arbitrary; only differences between two reads are meaningful. */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t evutil_gettime_precise_ns_(void);
+
 #ifdef _WIN32
 typedef ULONGLONG (WINAPI *ev_GetTickCount_func)(void);
 #endif
