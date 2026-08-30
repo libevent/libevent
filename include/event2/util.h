@@ -511,14 +511,54 @@ int evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock);
 /** Do platform-specific operations to set/unset TCP keep-alive options
  * TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on a socket.
  *
+ * Note that this function accepts only the timeout parameter for setting TCP_KEEPIDLE,
+ * and calculates the values for TCP_KEEPINTVL and TCP_KEEPCNT based on the timeout value.
+ * The default values for TCP_KEEPINTVL and TCP_KEEPCNT are set to one third of the timeout value
+ * and 3 respectively, which are commonly used settings for TCP keep-alive.
+ *
  *  @param sock The socket to be set TCP keep-alive
  *  @param on Nonzero value to enable TCP keep-alive, 0 to disable
  *  @param timeout The timeout in seconds with no activity until
- * 	   the first keepalive probe is sent
+ * 	   the first keepalive probe is sent, it must be greater or equal to 1
  *  @return 0 on success, -1 on failure
 */
 EVENT2_EXPORT_SYMBOL
 int evutil_set_tcp_keepalive(evutil_socket_t sock, int on, int timeout);
+
+/** Do platform-specific operations to set/unset TCP keep-alive options,
+  * enable / disable TCP keep-alive with all socket options: `TCP_KEEPIDLE`,
+	* `TCP_KEEPINTVL` and `TCP_KEEPCNT`.
+  * `idle` is the value for `TCP_KEEPIDLE`, `intvl` is the value for `TCP_KEEPINTVL`,
+  * `cnt` is the value for `TCP_KEEPCNT`, all will be ignored when `on` is zero.
+  *
+  * With TCP keep-alive enabled, `idle` is the time (in seconds) the connection needs to remain idle before
+  * TCP starts sending keep-alive probes. `intvl` is the time (in seconds) between individual keep-alive probes.
+  * TCP will drop the connection after sending `cnt` probes without getting any replies from the peer, then the
+  * handle is destroyed with a ``UV_ETIMEDOUT`` error passed to the corresponding callback.
+  *
+  * If one of `idle`, `intvl`, or `cnt` is less than 1, -1 is returned.
+  *
+  * Ensure that the socket options are supported by the underlying operating system.
+  * Currently supported platforms:
+  *   - AIX
+  *   - DragonFlyBSD
+  *   - FreeBSD
+  *   - illumos
+  *   - Linux
+  *   - macOS
+  *   - NetBSD
+  *   - Solaris
+  *   - Windows
+  *
+	* @param sock The socket to be set TCP_CORK/TCP_NOPUSH
+	* @param on Nonzero value to enable TCP_CORK/TCP_NOPUSH, 0 to disable
+	* @param idle The timeout in seconds with no activity until the first keepalive probe is sent
+	* @param intvl The time in seconds between individual keep-alive probes
+	* @param cnt The number of keep-alive probes TCP should send before dropping the connection
+	* @return 0 on success, -1 on failure
+*/
+EVENT2_EXPORT_SYMBOL
+int evutil_set_tcp_keepalive_ex(evutil_socket_t sock, int on, unsigned int idle, unsigned int intvl, unsigned int cnt);
 
 #ifdef _WIN32
 /** Return the most recent socket error.  Not idempotent on all platforms. */
@@ -707,7 +747,7 @@ int evutil_sockaddr_cmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
     int include_port);
 
 /** As strcasecmp, but always compares the characters in locale-independent
-    ASCII.  That's useful if you're handling data in ASCII-based protocols. 
+    ASCII.  That's useful if you're handling data in ASCII-based protocols.
     str1 and str2 must not be NULL.
  */
 EVENT2_EXPORT_SYMBOL

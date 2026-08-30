@@ -3181,6 +3181,14 @@ evutil_free_globals_(void)
 	evutil_free_sock_err_globals();
 }
 
+int
+evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
+{
+	if (timeout < 1)
+		return -1;
+	return evutil_set_tcp_keepalive_ex(fd, on, timeout, timeout/3, 3);
+}
+
 #if (defined(EVENT__SOLARIS_11_4) && !EVENT__SOLARIS_11_4) || \
     (defined(__DragonFly__) && __DragonFly_version < 500702) || \
     (defined(_WIN32) && !defined(TCP_KEEPIDLE))
@@ -3190,36 +3198,24 @@ evutil_free_globals_(void)
 #else
 #define EVENT_KEEPALIVE_FACTOR(x)
 #endif
+
 int
-evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
+evutil_set_tcp_keepalive_ex(evutil_socket_t fd, int on, unsigned int idle, unsigned int intvl, unsigned int cnt)
 {
-	int idle;
-	int intvl;
-	int cnt;
-
-	/* Prevent compiler from complaining unused variables warnings. */
-	(void) idle;
-	(void) intvl;
-	(void) cnt;
-
-	if (timeout <= 0)
-		return 0;
-
 #ifdef _WIN32
 	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (const char*)&on, sizeof(on)))
 #else
 	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
 #endif
 		return -1;
+
 	if (!on)
 		return 0;
 
-#ifdef _WIN32
-	idle = timeout;
-	intvl = idle/3;
-	if (intvl == 0)
-		intvl = 1;
+	if (idle < 1 || intvl < 1 || cnt < 1)
+		return -1;
 
+#ifdef _WIN32
 	EVENT_KEEPALIVE_FACTOR(idle);
 	EVENT_KEEPALIVE_FACTOR(intvl);
 
@@ -3233,7 +3229,6 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&intvl, sizeof(intvl)))
 		return -1;
 
-	cnt = 3;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (const char*)&cnt, sizeof(cnt)))
 		return -1;
 
@@ -3279,13 +3274,16 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 * The TCP connection will be aborted after certain amount of probes, which is set by TCP_KEEPCNT, without receiving response.
 	 */
 
-	idle = timeout;
-	/* Kernel expects at least 10 seconds. */
+	/* Kernel expects at least 10 seconds for TCP_KEEPIDLE and TCP_KEEPINTVL. */
 	if (idle < 10)
 		idle = 10;
-	/* Kernel expects at most 10 days. */
+	if (intvl < 10)
+		intvl = 10;
+	/* Kernel expects at most 10 days for TCP_KEEPIDLE and TCP_KEEPINTVL. */
 	if (idle > 10*24*60*60)
 		idle = 10*24*60*60;
+	if (intvl > 10*24*60*60)
+		intvl = 10*24*60*60;
 
 	EVENT_KEEPALIVE_FACTOR(idle);
 
@@ -3296,15 +3294,10 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
 		return -1;
 
-	intvl = idle/3;
-	/* Kernel expects at least 10 seconds. */
-	if (intvl < 10)
-		intvl = 10;
 	EVENT_KEEPALIVE_FACTOR(intvl);
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
 		return -1;
 
-	cnt = 3;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
 		return -1;
 #else
@@ -3317,14 +3310,14 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	/* Note that the consequent probes will not be sent at equal intervals on Solaris,
 	 * but will be sent using the exponential backoff algorithm.
 	 */
-	int time_to_abort = idle;
+	unsigned int time_to_abort = intvl * cnt;
+	EVENT_KEEPALIVE_FACTOR(time_to_abort);
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
 		return -1;
 #endif
 
 #else /* !__sun */
 
-	idle = timeout;
 	EVENT_KEEPALIVE_FACTOR(idle);
 #ifdef TCP_KEEPIDLE
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
@@ -3336,23 +3329,12 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 #endif
 
 #ifdef TCP_KEEPINTVL
-	/* Set the interval between individual keep-alive probes as timeout / 3
-	 * and the maximum number of keepalive probes as 3 to make it double timeout
-	 * before aborting a dead connection.
-	 */
-	intvl = timeout/3;
-	if (intvl == 0)
-		intvl = 1;
 	EVENT_KEEPALIVE_FACTOR(intvl);
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
 		return -1;
 #endif
 
 #ifdef TCP_KEEPCNT
-	/* Set the maximum number of keepalive probes as 3 to collaborate with
-	 * TCP_KEEPINTVL, see the previous comment.
-	 */
-	cnt = 3;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
 		return -1;
 #endif
