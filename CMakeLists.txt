@@ -1628,6 +1628,12 @@ if (NOT EVENT__DISABLE_TESTS)
     enable_testing()
 
     include(CTest)
+
+    add_test(version-via-git-parent-repository
+        ${CMAKE_COMMAND}
+            -D SOURCE_DIR=${PROJECT_SOURCE_DIR}
+            -D TEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/version-via-git-parent-repository
+            -P ${PROJECT_SOURCE_DIR}/test/version-via-git-parent-repository.cmake)
 endif()
 
 #
