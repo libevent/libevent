@@ -26,6 +26,9 @@ sample_becat_SOURCES = sample/becat.c
 sample_becat_LDADD = libevent.la libevent_openssl.la $(OPENSSL_LIBS) $(OPENSSL_LIBADD)
 sample_becat_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 
+SAMPLES += sample/https-client-proxy.c
+sample_https-client-proxy_SOURCES = sample/https-client-proxy.c.c
+
 SAMPLES += sample/https-client
 sample_https_client_SOURCES = \
 	sample/https-client.c \
