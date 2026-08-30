@@ -760,6 +760,45 @@ void evhttp_request_set_header_cb(struct evhttp_request *,
     int (*cb)(struct evhttp_request *, void *));
 
 /**
+ * Stream the request body to the caller as it arrives.
+ *
+ * On the server side this lets a handler process an upload without buffering
+ * the whole body in memory: register the callback from a body-start callback
+ * (see evhttp_request_set_body_start_cb()) and the callback will be invoked
+ * each time more body bytes are read off the wire, for both
+ * Content-Length and Transfer-Encoding: chunked bodies. On the client side
+ * this behaves like evhttp_request_set_chunked_cb() but takes an explicit
+ * @p arg instead of reusing the request completion callback's argument.
+ *
+ * The callback should consume req->input_buffer (e.g. via evbuffer_remove or
+ * evbuffer_write); whatever it leaves behind is drained automatically on
+ * return. It is never called on an empty buffer.
+ *
+ * @param cb will be called after every read of body data.
+ * @param arg user-supplied argument passed to @p cb on every invocation.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_request_set_body_read_cb(struct evhttp_request *,
+    void (*cb)(struct evhttp_request *, void *), void *arg);
+
+/**
+ * Register a callback to fire once request headers have been fully parsed,
+ * before the body is read.
+ *
+ * Intended for server-side streaming uploads: by the time this fires the URI,
+ * method, request headers, Content-Length and chunked flag are all known, so
+ * the application can decide whether and how to stream the body via
+ * evhttp_request_set_body_read_cb(). To install this callback for every
+ * incoming request, register it from an evhttp_set_newreqcb() handler.
+ *
+ * @param cb will be called after all headers received, before body read.
+ * @param arg user-supplied argument passed to @p cb on every invocation.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_request_set_body_start_cb(struct evhttp_request *,
+    void (*cb)(struct evhttp_request *, void *), void *arg);
+
+/**
  * The different error types supported by evhttp
  *
  * @see evhttp_request_set_error_cb()

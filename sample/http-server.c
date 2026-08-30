@@ -9,6 +9,7 @@
 /* Compatibility for possible missing IPv6 declarations */
 #include "../util-internal.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,6 +76,15 @@
 #endif
 #ifndef O_RDONLY
 #define O_RDONLY _O_RDONLY
+#endif
+#ifndef O_WRONLY
+#define O_WRONLY _O_WRONLY
+#endif
+#ifndef O_CREAT
+#define O_CREAT _O_CREAT
+#endif
+#ifndef O_TRUNC
+#define O_TRUNC _O_TRUNC
 #endif
 #endif /* _WIN32 */
 
@@ -347,6 +357,112 @@ done:
 		evbuffer_free(evb);
 }
 
+/* Streaming-upload demo: receive a request body without buffering the whole
+ * thing in memory.  The form at GET /upload submits to POST /upload, which is
+ * streamed to disk as it arrives. */
+
+struct upload_state {
+	int fd;
+	ev_uint64_t bytes;
+	char path[128];
+};
+
+static void
+upload_state_free(struct upload_state *st)
+{
+	if (st == NULL)
+		return;
+	if (st->fd >= 0)
+		close(st->fd);
+	free(st);
+}
+
+static void
+upload_drain_to_fd(struct evbuffer *src, int fd)
+{
+	while (evbuffer_get_length(src) > 0) {
+		int written = evbuffer_write(src, fd);
+		if (written < 0) {
+			if (errno == EINTR)
+				continue;
+			perror("write");
+			return;
+		}
+		if (written == 0)
+			return;
+	}
+}
+
+static void
+upload_body_read_cb(struct evhttp_request *req, void *arg)
+{
+	struct upload_state *st = arg;
+	struct evbuffer *in = evhttp_request_get_input_buffer(req);
+	size_t n = evbuffer_get_length(in);
+
+	if (st->fd < 0)
+		return;
+	st->bytes += n;
+	upload_drain_to_fd(in, st->fd);
+}
+
+static void
+upload_on_complete_cb(struct evhttp_request *req, void *arg)
+{
+	struct upload_state *st = arg;
+	printf("Upload to %s complete: %llu bytes\n",
+	    st->path, (unsigned long long)st->bytes);
+	upload_state_free(st);
+}
+
+static void
+upload_body_start_cb(struct evhttp_request *req, void *arg)
+{
+	struct upload_state *st;
+
+	if (evhttp_request_get_command(req) != EVHTTP_REQ_POST)
+		return;
+	if (strcmp(evhttp_request_get_uri(req), "/upload") != 0)
+		return;
+
+	st = calloc(1, sizeof(*st));
+	if (st == NULL)
+		return;
+	st->fd = -1;
+	evutil_snprintf(st->path, sizeof(st->path), "upload.txt");
+
+	st->fd = open(st->path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (st->fd < 0) {
+		perror("open");
+		upload_state_free(st);
+		evhttp_send_error(req, HTTP_INTERNAL, NULL);
+		return;
+	}
+	printf("Start file receive -> %s\n", st->path);
+	evhttp_request_set_body_read_cb(req, upload_body_read_cb, st);
+	evhttp_request_set_on_complete_cb(req, upload_on_complete_cb, st);
+}
+
+static int
+upload_newreq_cb(struct evhttp_request *req, void *arg)
+{
+	evhttp_request_set_body_start_cb(req, upload_body_start_cb, NULL);
+	return 0;
+}
+
+static void
+upload_form_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *out = evhttp_request_get_output_buffer(req);
+	evbuffer_add_printf(out,
+	    "<html><body>"
+	    "<form enctype=\"multipart/form-data\" action=\"/upload\" method=\"POST\">"
+	    "<input type=\"file\" name=\"file\">"
+	    "<p><input type=\"submit\"></p>"
+	    "</form></body></html>\n");
+	evhttp_send_reply(req, HTTP_OK, "OK", NULL);
+}
+
 static void
 print_usage(FILE *out, const char *prog, int exit_code)
 {
@@ -512,6 +628,12 @@ main(int argc, char **argv)
 
 	/* The /dump URI will dump all requests to stdout and say 200 ok. */
 	evhttp_set_cb(http, "/dump", dump_request_cb, NULL);
+
+	/* GET /upload serves a form; POST /upload streams its body to disk
+	 * without ever buffering it whole. The streaming wiring is installed
+	 * from upload_newreq_cb() below. */
+	evhttp_set_cb(http, "/upload", upload_form_cb, NULL);
+	evhttp_set_newreqcb(http, upload_newreq_cb, NULL);
 
 	/* We want to accept arbitrary requests, so we need to set a "generic"
 	 * cb.  We can also add callbacks for specific paths. */

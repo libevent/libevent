@@ -110,6 +110,7 @@ struct {
 	 * the regular callback.
 	 */
 	void (*chunk_cb)(struct evhttp_request *, void *);
+	void *chunk_cb_arg;
 
 	/*
 	 * Callback added for forked-daapd so they can collect ICY
@@ -132,6 +133,18 @@ struct {
 	 */
 	void (*on_complete_cb)(struct evhttp_request *, void *);
 	void *on_complete_cb_arg;
+
+	/*
+	 * Body-start callback - invoked once on the server after the request
+	 * headers have been parsed (so URI, method, Content-Length and the
+	 * chunked flag are all known) but before any body bytes are read.
+	 * This is the place to install evhttp_request_set_body_read_cb() when
+	 * streaming a request body.
+	 *
+	 * @see evhttp_request_set_body_start_cb()
+	 */
+	void (*body_start_cb)(struct evhttp_request *, void *);
+	void *body_start_cb_arg;
 };
 
 #ifdef __cplusplus
