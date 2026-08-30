@@ -34,13 +34,12 @@ jobs:
           - DISABLE_MM_REPLACEMENT
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
-          - OPENSSL_1_1
 
     steps:
       - uses: actions/checkout@v2.0.0
 
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v4
         with:
           path: build
           key: macos-10.15-cmake-${{ matrix.EVENT_MATRIX }}-v2
@@ -49,9 +48,9 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
-            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1
+            export OPENSSL_ROOT_DIR=/opt/homebrew/Cellar/openssl@1.1
           else
-            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+            export OPENSSL_ROOT_DIR=/opt/homebrew
           fi
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -76,6 +75,8 @@ jobs:
             EVENT_CMAKE_OPTIONS=""
           fi
 
+          EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
           #run build and test
           JOBS=1
           export CTEST_PARALLEL_LEVEL=$JOBS
@@ -93,7 +94,7 @@ jobs:
             cmake --build . --target verify
           fi
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
@@ -112,13 +113,12 @@ jobs:
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
-          - OPENSSL_1_1
 
     steps:
       - uses: actions/checkout@v2.0.0
 
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v4
         with:
           path: build
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v2
@@ -161,7 +161,7 @@ jobs:
           make
           make -j $JOBS verify
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
