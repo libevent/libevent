@@ -2946,6 +2946,56 @@ end:
 		event_config_free(cfg);
 }
 
+
+static int ignore_env_cb_called = 0;
+static void ignore_env_log_cb(int severity, const char *msg) {
+	if (msg && strstr(msg, "libevent using:")) {
+		ignore_env_cb_called = 1;
+	}
+}
+
+static void
+test_base_ignore_env_show_method(void *arg)
+{
+	struct event_base *base = NULL;
+	struct event_config *cfg = NULL;
+
+#if defined(SETENV_OK) && defined(UNSETENV_OK)
+	/* Set EVENT_SHOW_METHOD so it prints the method */
+	setenv("EVENT_SHOW_METHOD", "1", 1);
+
+	/* 1. Without IGNORE_ENV, it SHOULD be evaluated */
+	ignore_env_cb_called = 0;
+	event_set_log_callback(ignore_env_log_cb);
+	cfg = event_config_new();
+	base = event_base_new_with_config(cfg);
+	tt_assert(base);
+	tt_int_op(ignore_env_cb_called, ==, 1);
+	event_base_free(base);
+	event_config_free(cfg);
+	base = NULL;
+	cfg = NULL;
+
+	/* 2. With IGNORE_ENV, it should NOT be evaluated */
+	ignore_env_cb_called = 0;
+	cfg = event_config_new();
+	event_config_set_flag(cfg, EVENT_BASE_FLAG_IGNORE_ENV);
+	base = event_base_new_with_config(cfg);
+	tt_assert(base);
+	tt_int_op(ignore_env_cb_called, ==, 0);
+
+#else
+	tt_skip();
+#endif
+
+end:
+	event_set_log_callback(NULL);
+	if (base)
+		event_base_free(base);
+	if (cfg)
+		event_config_free(cfg);
+}
+
 static void
 read_called_once_cb(evutil_socket_t fd, short event, void *arg)
 {
@@ -3667,6 +3717,7 @@ struct testcase_t main_testcases[] = {
 	{ "version", test_version, 0, NULL, NULL },
 	BASIC(base_features, TT_FORK|TT_NO_LOGS),
 	{ "base_environ", test_base_environ, TT_FORK, NULL, NULL },
+	{ "base_ignore_env_show_method", test_base_ignore_env_show_method, TT_FORK, NULL, NULL },
 
 	BASIC(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),
 	BASIC(free_active_base, TT_FORK|TT_NEED_SOCKETPAIR),
