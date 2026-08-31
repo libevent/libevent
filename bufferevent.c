@@ -754,6 +754,7 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 	struct bufferevent *bufev = arg_;
 	struct bufferevent *underlying;
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
+	int lock_outlives_bufferevent;
 
 	BEV_LOCK(bufev);
 	underlying = bufferevent_get_underlying(bufev);
@@ -762,9 +763,18 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 	if (bufev->be_ops->destruct)
 		bufev->be_ops->destruct(bufev);
 
-	/* XXX what happens if refcnt for these buffers is > 1?
-	 * The buffers can share a lock with this bufferevent object,
-	 * but the lock might be destroyed below. */
+	/* evbuffer_add_buffer_reference() can leave one of these buffers
+	 * alive after evbuffer_free() below only drops its refcount, since
+	 * something else still holds a reference to it. That surviving
+	 * evbuffer shares its lock with this bufferevent (see the
+	 * evbuffer_enable_locking() calls in bufferevent_init_common_()), so
+	 * freeing the lock further down would leave it with a dangling lock
+	 * pointer. Leave the lock allocated in that case; it is a small,
+	 * one-time leak, and far safer than the alternative of a
+	 * use-after-free the next time that evbuffer is locked. */
+	lock_outlives_bufferevent =
+	    bufev->input->refcnt > 1 || bufev->output->refcnt > 1;
+
 	/* evbuffer will free the callbacks */
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
@@ -779,7 +789,7 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 
 	BEV_UNLOCK(bufev);
 
-	if (bufev_private->own_lock)
+	if (bufev_private->own_lock && !lock_outlives_bufferevent)
 		EVTHREAD_FREE_LOCK(bufev_private->lock,
 		    EVTHREAD_LOCKTYPE_RECURSIVE);
 
