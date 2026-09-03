@@ -67,6 +67,8 @@ macro(export_install_target TYPE LIB_NAME)
             RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
             COMPONENT dev
         )
+
+        add_library("${PROJECT_NAME}::${PURE_NAME}" ALIAS "${LIB_NAME}")
     endif()
 endmacro()
 
@@ -94,6 +96,8 @@ macro(add_event_library LIB_NAME)
 
     set(ADD_EVENT_LIBRARY_INTERFACE)
     set(INNER_LIBRARIES)
+
+    add_library(${LIB_NAME} INTERFACE)
 
     if (${EVENT_LIBRARY_STATIC})
         add_library("${LIB_NAME}_static" STATIC ${LIB_SOURCES})
@@ -174,7 +178,6 @@ macro(add_event_library LIB_NAME)
         endif()
     endif()
 
-    add_library(${LIB_NAME} INTERFACE)
     target_link_libraries(${LIB_NAME} INTERFACE ${ADD_EVENT_LIBRARY_INTERFACE})
 
     generate_pkgconfig("${LIB_NAME}")
