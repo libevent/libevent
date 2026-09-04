@@ -1,6 +1,8 @@
 /* Obtained from: https://github.com/iSECPartners/ssl-conservatory */
 
 /*
+SPDX-License-Identifier: MIT
+
 Copyright (C) 2012, iSEC Partners.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of

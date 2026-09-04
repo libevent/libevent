@@ -1,6 +1,8 @@
 /*	$OpenBSD: kqueue.c,v 1.5 2002/07/10 14:41:31 art Exp $	*/
 
 /*
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright 2000-2007 Niels Provos <provos@citi.umich.edu>
  * Copyright 2007-2012 Niels Provos and Nick Mathewson
  *

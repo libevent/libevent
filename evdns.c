@@ -1,4 +1,6 @@
-/* Copyright 2006-2007 Niels Provos
+/* SPDX-License-Identifier: BSD-3-Clause AND CC-PDDC
+ *
+ * Copyright 2006-2007 Niels Provos
  * Copyright 2007-2012 Nick Mathewson and Niels Provos
  *
  * Redistribution and use in source and binary forms, with or without

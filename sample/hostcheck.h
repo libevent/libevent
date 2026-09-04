@@ -1,6 +1,7 @@
 #ifndef HEADER_CURL_HOSTCHECK_H
 #define HEADER_CURL_HOSTCHECK_H
 /***************************************************************************
+ * SPDX-License-Identifier: curl
  *                                  _   _ ____  _
  *  Project                     ___| | | |  _ \| |
  *                             / __| | | | |_) | |
