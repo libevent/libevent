@@ -869,38 +869,43 @@ const char *evutil_gai_strerror(int err);
 
 /** Generate n bytes of secure pseudorandom data, and store them in buf.
  *
- * Current versions of Libevent use an ARC4-based random number generator,
- * seeded using the platform's entropy source (/dev/urandom on Unix-like
- * systems; BCryptGenRandom on Windows). This is not actually as secure as it
- * should be: ARC4 is a pretty lousy cipher, and the current implementation
- * provides only rudimentary prediction- and backtracking-resistance.  Don't
- * use this for serious cryptographic applications.
+ * Libevent uses the operating system's random number generator, through
+ * arc4random(), a platform API, or a random device on Unix-like systems.
+ * Initialization is automatic on first use. If the operating system cannot
+ * supply randomness, this function terminates the process rather than
+ * returning an incomplete result. Use evutil_secure_rng_init() to check for
+ * initialization failure before requesting bytes.
+ *
+ * If n is zero, buf may be NULL and no initialization or I/O is performed.
  */
 EVENT2_EXPORT_SYMBOL
 void evutil_secure_rng_get_bytes(void *buf, size_t n);
 
 /**
- * Seed the secure random number generator if needed, and return 0 on
+ * Initialize access to the secure random number generator, and return 0 on
  * success or -1 on failure.
  *
  * It is okay to call this function more than once; it will still return
- * 0 if the RNG has been successfully seeded and -1 if it can't be
- * seeded.
+ * 0 if the RNG has been successfully initialized and -1 if initialization
+ * fails. Native arc4random implementations may terminate on failure instead.
  *
  * Ordinarily you don't need to call this function from your own code;
- * Libevent will seed the RNG itself the first time it needs good random
+ * Libevent will initialize the RNG the first time it needs good random
  * numbers.  You only need to call it if (a) you want to double-check
- * that one of the seeding methods did succeed, or (b) you plan to drop
- * the capability to seed (by chrooting, or dropping capabilities, or
- * whatever), and you want to make sure that seeding happens before your
- * program loses the ability to do it.
+ * that initialization succeeded, or (b) you plan to chroot and want the
+ * random-device backend to open and retain its descriptor beforehand.
+ * Subsequent calls still need access to the selected operating-system API
+ * or retained device descriptor; initialization does not cache random output.
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_secure_rng_init(void);
 
 /**
- * Set a filename to use in place of /dev/urandom for seeding the secure
- * PRNG. Return 0 on success, -1 on failure.
+ * Select a real random device to use instead of the default Unix RNG source.
+ * A successful call selects this device even if getrandom() is available.
+ * Return 0 on success, or -1 if the backend does not support a configurable
+ * device or initialization has already completed. Passing NULL before
+ * initialization restores the default source selection.
  *
  * Call this function BEFORE calling any other initialization or RNG
  * functions.
@@ -914,22 +919,14 @@ int evutil_secure_rng_init(void);
 EVENT2_EXPORT_SYMBOL
 int evutil_secure_rng_set_urandom_device_file(char *fname);
 
-/** Seed the random number generator with extra random bytes.
+/** Retained for API compatibility; the supplied bytes are ignored.
 
-    You should almost never need to call this function; it should be
-    sufficient to invoke evutil_secure_rng_init(), or let Libevent take
-    care of calling evutil_secure_rng_init() on its own.
+    Operating-system randomness is required and cannot be replaced by
+    application-provided entropy. Where available, the native arc4random
+    implementation may be asked to refresh its state from the operating system.
 
-    If you call this function as a _replacement_ for the regular
-    entropy sources, then you need to be sure that your input
-    contains a fairly large amount of strong entropy.  Doing so is
-    notoriously hard: most people who try get it wrong.  Watch out!
-
-    This function does nothing when the system provides arc4random()
-    function because it will provide proper entropy.
-
-    @param dat a buffer full of a strong source of random numbers
-    @param datlen the number of bytes to read from datlen
+    @param dat ignored
+    @param datlen ignored
  */
 EVENT2_EXPORT_SYMBOL
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
