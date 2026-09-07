@@ -934,6 +934,31 @@ end:
 }
 
 static void
+test_evutil_rand_lifecycle(void *arg)
+{
+	static const size_t lengths[] = { 0, 1, 3, 4, 7, 31, 32, 255, 256, 257, 1024 };
+	unsigned char buf[1030];
+	size_t i, j;
+	char device[] = "/dev/urandom";
+
+	evutil_secure_rng_get_bytes(NULL, 0);
+	tt_int_op(evutil_secure_rng_init(), ==, 0);
+	tt_int_op(evutil_secure_rng_init(), ==, 0);
+	tt_int_op(evutil_secure_rng_set_urandom_device_file(device), ==, -1);
+	evutil_secure_rng_add_bytes(NULL, 0);
+	for (i = 0; i < sizeof(lengths) / sizeof(lengths[0]); ++i) {
+		memset(buf, 0x5a, sizeof(buf));
+		evutil_secure_rng_get_bytes(buf + 3, lengths[i]);
+		for (j = 0; j < 3; ++j)
+			tt_int_op(buf[j], ==, 0x5a);
+		for (j = 3 + lengths[i]; j < sizeof(buf); ++j)
+			tt_int_op(buf[j], ==, 0x5a);
+	}
+end:
+	;
+}
+
+static void
 test_evutil_rand(void *arg)
 {
 	char buf1[32];
@@ -1866,6 +1891,7 @@ struct testcase_t util_testcases[] = {
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
+	{ "rand_lifecycle", test_evutil_rand_lifecycle, TT_FORK, NULL, NULL },
 	{ "EVUTIL_IS_", test_EVUTIL_IS_, 0, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	{ "getaddrinfo_live", test_evutil_getaddrinfo_live, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
