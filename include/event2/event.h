@@ -1499,6 +1499,11 @@ ev_uint32_t event_get_version_number(void);
 
   @param eb the event_base structure returned by event_base_new()
   @param npriorities the maximum number of priorities
+
+  Note: Priority levels are numbered starting from 0. 
+  A lower numerical value represents a higher priority 
+  (i.e., 0 is the highest priority). 
+
   @return 0 if successful, or -1 if an error occurred
   @see event_priority_set()
  */
