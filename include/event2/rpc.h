@@ -39,6 +39,9 @@ extern "C" {
  *
  * @brief This header files provides basic support for an RPC server and client.
  *
+ * See @ref Documentation/RPC.md for the `.rpc` specification file format
+ * used by event_rpcgen.py.
+ *
  * To support RPCs in a server, every supported RPC command needs to be
  * defined and registered.
  *
