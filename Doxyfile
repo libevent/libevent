@@ -64,6 +64,7 @@ STRIP_FROM_PATH        = $(SRCDIR)/include/
 # with spaces.
 
 INPUT                  = \
+        $(SRCDIR)/Documentation/RPC.md \
         $(SRCDIR)/include/event2/buffer.h \
         $(SRCDIR)/include/event2/buffer_compat.h \
         $(SRCDIR)/include/event2/bufferevent.h \

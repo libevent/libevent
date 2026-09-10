@@ -71,6 +71,9 @@ For the latest released version of Libevent, see the official website at
 There's a pretty good work-in-progress manual up at
    <http://www.wangafu.net/~nickm/libevent-book/> .
 
+For the `.rpc` format used by `event_rpcgen.py`, see
+[RPC specification files](/Documentation/RPC.md).
+
 For the latest development versions of Libevent, access our Git repository
 via
 

@@ -133,7 +133,8 @@ CMAKE_FILES = \
 	CMakeLists.txt
 
 DOCUMENTATION_FILES = \
-	Documentation/Building.md
+	Documentation/Building.md \
+	Documentation/RPC.md
 
 EXTRA_DIST = \
 	ChangeLog-1.4 \
