@@ -60,7 +60,9 @@ TESTS = \
 	test_runner_wepoll \
 	test_runner_timerfd \
 	test_runner_changelist \
-	test_runner_timerfd_changelist
+	test_runner_timerfd_changelist \
+	test_runner_signalfd
+
 LOG_COMPILER = true
 TESTS_COMPILER = true
 
@@ -86,7 +88,7 @@ test_runner_changelist: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -c
 test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -T
-test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
+test_runner_signalfd: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -S
 
 DISTCLEANFILES += test/regress.gen.c test/regress.gen.h

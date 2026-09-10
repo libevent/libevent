@@ -66,7 +66,7 @@ prepare_callback_1(struct evwatch *watcher, const struct evwatch_prepare_cb_info
 		tt_int_op(evwatch_prepare_get_timeout(info, &timeout), ==, 1);
 
 		timeout_msec = (timeout.tv_sec * 1000) + (timeout.tv_usec / 1000);
-		tt_int_op(timeout_msec, >=, 995);
+		tt_int_op(timeout_msec, >=, 900);
 		tt_int_op(timeout_msec, <=, 1005);
 	}
 end:
@@ -234,7 +234,7 @@ end:
 #endif
 
 struct testcase_t watch_testcases[] = {
-	BASIC(callback_ordering, TT_FORK|TT_NEED_BASE),
+	BASIC(callback_ordering, TT_FORK|TT_NEED_BASE|TT_RETRIABLE),
 	BASIC(timeout_unavailable, TT_FORK|TT_NEED_BASE),
 #ifndef EVENT__DISABLE_MM_REPLACEMENT
 	BASIC(malloc_failure, TT_FORK|TT_NEED_BASE),

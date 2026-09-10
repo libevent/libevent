@@ -127,7 +127,6 @@
 #ifndef NI_NUMERICSERV
 #define NI_NUMERICSERV 2
 #endif
-
 static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
@@ -167,6 +166,8 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 #endif
 
+static int evhttp_validate_len_and_encoding_(struct evhttp_request *req);
+
 #define REQ_VERSION_BEFORE(req, major_v, minor_v)			\
 	((req)->major < (major_v) ||					\
 	    ((req)->major == (major_v) && (req)->minor < (minor_v)))
@@ -194,6 +195,10 @@ static evutil_socket_t create_bind_socket_nonblock(struct evutil_addrinfo *, int
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
 static struct evhttp_uri *evhttp_uri_parse_authority(char *source_uri, unsigned flags);
+static enum message_read_status evhttp_parse_headers_impl_(
+	struct evhttp_request *req,
+	struct evbuffer *buffer,
+	struct evkeyvalq *headers);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
 static void evhttp_connection_start_detectclose(
@@ -1029,7 +1034,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 		if (req->ntoread < 0) {
 			/* Read chunk size */
 			ev_int64_t ntoread;
-			char *p = evbuffer_readln(buf, NULL, EVBUFFER_EOL_CRLF);
+			char *p = evbuffer_readln(buf, NULL, EVBUFFER_EOL_CRLF_STRICT);
 			char *endp;
 			int error;
 			size_t len_p;
@@ -1112,8 +1117,10 @@ static void
 evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
+	struct evkeyvalq tmp_headers;
+	TAILQ_INIT(&tmp_headers);
 
-	switch (evhttp_parse_headers_(req, buf)) {
+	switch (evhttp_parse_headers_impl_(req, buf, &tmp_headers)) {
 	case DATA_CORRUPTED:
 	case DATA_TOO_LONG:
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
@@ -1127,6 +1134,8 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 	default:
 		break;
 	}
+
+	evhttp_clear_headers(&tmp_headers);
 }
 
 static void
@@ -2074,6 +2083,32 @@ evhttp_find_header(const struct evkeyvalq *headers, const char *key)
 	return (NULL);
 }
 
+/* Like evhttp_find_header, but set *duplicate to 1 if the header appears
+ * more than once, and to 0 otherwise.
+ */
+static const char *
+evhttp_find_unique_header(const struct evkeyvalq *headers, const char *key,
+    int *duplicate)
+{
+	const char *result = NULL;
+	struct evkeyval *header;
+
+	*duplicate = 0;
+
+	TAILQ_FOREACH(header, headers, next) {
+		if (evutil_ascii_strcasecmp(header->key, key) == 0) {
+			if (result == NULL) {
+				result = header->value;
+			} else {
+				*duplicate = 1;
+				break;
+			}
+		}
+	}
+
+	return (result);
+}
+
 void
 evhttp_clear_headers(struct evkeyvalq *headers)
 {
@@ -2121,13 +2156,11 @@ evhttp_header_is_valid_value(const char *value)
 {
 	const char *p = value;
 
-	while ((p = strpbrk(p, "\r\n")) != NULL) {
-		/* we really expect only one new line */
-		p += strspn(p, "\r\n");
-		/* we expect a space or tab for continuation */
-		if (*p != ' ' && *p != '\t')
-			return (0);
+	if (strpbrk(p, "\r\n") != NULL) {
+		/* Reject any header containing CR or LF. */
+		return (0);
 	}
+
 	return (1);
 }
 
@@ -2263,14 +2296,17 @@ evhttp_append_to_last_header(struct evkeyvalq *headers, char *line)
 	return (0);
 }
 
-enum message_read_status
-evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
+/* As `evhttp_parse_headers_`, but put any headers we find into `headers`. */
+static enum message_read_status
+evhttp_parse_headers_impl_(
+	struct evhttp_request *req,
+	struct evbuffer *buffer,
+	struct evkeyvalq *headers)
 {
 	enum message_read_status errcode = DATA_CORRUPTED;
 	char *line;
 	enum message_read_status status = MORE_DATA_EXPECTED;
 
-	struct evkeyvalq* headers = req->input_headers;
 	size_t len;
 	while ((line = evbuffer_readln(buffer, &len, EVBUFFER_EOL_CRLF))
 	       != NULL) {
@@ -2326,6 +2362,132 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 	return (errcode);
 }
 
+/* Return true if 'ch' is a single linear WS character (per the HTTP spec).
+ * We reject CR and LF elsewhere. */
+#define IS_LWS(ch) \
+	(((ch) == ' ' ) || ((ch) == '\t'))
+
+/* Returns true when the string beginning at `value` and ending at `eos`
+ * (non-inclusive) is a `transfer-coding`  "chunked".  Case insensitive.
+ */
+int
+evhttp_str_is_chunked_(const char *value, const char *eos)
+{
+	/* the end of the encoding. */
+	const char *end;
+
+	if (eos == NULL) {
+		eos = value + strlen(value);
+	}
+
+	while (value < eos && IS_LWS(*value)) {
+		++value;
+	}
+	end = value;
+	/* A transfer-coding can end with OWS ; OWS to indicate a
+	 * transfer-parameter.  (See RFC 9110)
+	 */
+	while (end < eos && !IS_LWS(*end) && *end != ';') {
+		++end;
+	}
+
+	return (end - value) == strlen("chunked")
+	    && evutil_ascii_strncasecmp(value, "chunked", strlen("chunked")) == 0;
+}
+
+/* Check a single Transfer-Encoding header value.
+ *
+ * Returns an evhttp_transfer_encoding_header_status value depending
+ * on its contents.
+ */
+enum evhttp_transfer_encoding_header_status
+evhttp_check_transfer_encoding_(const char *value)
+{
+	const char *comma;
+
+	while ((comma = strchr(value, ',')) != NULL) {
+		if (evhttp_str_is_chunked_(value, comma)) {
+			/* If we find that an encoding is chunked
+			 * and it is followed by a comma, it is not the final
+			 * encoding
+			 */
+			return TE_INVALID;
+		}
+		value = comma + 1;
+	}
+
+	if (evhttp_str_is_chunked_(value, NULL)) {
+		return TE_ENDS_IN_CHUNKED;
+	} else {
+		return TE_NO_CHUNKED;
+	}
+}
+
+
+/* Return 0 if the Transfer-Encoding and Content-Length heeaders appear to be consistent,
+ * and -1 otherwise.
+ *
+ * Sets "req->chunked" if appropriate.
+ *
+ * Used to prevent request smuggling.
+ */
+static int
+evhttp_validate_len_and_encoding_(struct evhttp_request *req)
+{
+	struct evkeyvalq *headers = req->input_headers;
+	struct evkeyval *h = NULL;
+	int is_chunked = 0;
+	int dup_cl = 0;
+
+	if (evhttp_find_header(headers, "Transfer-Encoding") != NULL &&
+	    evhttp_find_unique_header(headers, "Content-Length", &dup_cl) != NULL) {
+		/* Both TE and CL were present: Not allowed. */
+		return -1;
+	}
+	if (dup_cl) {
+		/* CL was present twice: Not allowed.
+		 * (Technically we can permit this if the values are the same,
+		 * but we don't.) */
+		return -1;
+	}
+
+	/* Now walk through the Transfer-Encoding headers. */
+	TAILQ_FOREACH(h, headers, next) {
+		if (evutil_ascii_strcasecmp(h->key, "Transfer-Encoding") == 0) {
+			if (is_chunked) {
+				/* We already encountered a chunked
+				   encoding; no further encodings are allowed */
+				return -1;
+			}
+
+			switch (evhttp_check_transfer_encoding_(h->value))
+			{
+			case TE_INVALID:
+				/* We found "chunked" somewhere not at the end. */
+				return -1;
+			case TE_ENDS_IN_CHUNKED:
+				/* We found chunked at the end. */
+				is_chunked = 1;
+				break;
+			case TE_NO_CHUNKED:
+				/* "chunked" didn't appear; this is fine. */
+				break;
+			}
+		}
+	}
+
+	req->chunked = is_chunked;
+
+	return 0;
+}
+
+
+enum message_read_status
+evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer *buffer)
+{
+	return evhttp_parse_headers_impl_(req, buffer, req->input_headers);
+}
+
 static int
 evhttp_get_body_length(struct evhttp_request *req)
 {
@@ -2373,8 +2535,6 @@ evhttp_method_may_have_body_(struct evhttp_connection *evcon, enum evhttp_cmd_ty
 static void
 evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
-	const char *xfer_enc;
-
 	/* If this is a request without a body, then we are done */
 	if (req->kind == EVHTTP_REQUEST &&
 	    !evhttp_method_may_have_body_(evcon, req->type)) {
@@ -2382,9 +2542,8 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		return;
 	}
 	evcon->state = EVCON_READING_BODY;
-	xfer_enc = evhttp_find_header(req->input_headers, "Transfer-Encoding");
-	if (xfer_enc != NULL && evutil_ascii_strcasecmp(xfer_enc, "chunked") == 0) {
-		req->chunked = 1;
+
+	if (req->chunked) {
 		req->ntoread = -1;
 	} else {
 		if (evhttp_get_body_length(req) == -1) {
@@ -2467,6 +2626,13 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		return;
 	} else if (res == MORE_DATA_EXPECTED) {
 		/* Need more header lines */
+		return;
+	}
+
+	if (evhttp_validate_len_and_encoding_(req) < 0) {
+		event_debug(("%s: bad combination of headers on "EV_SOCK_FMT"\n",
+			__func__, EV_SOCK_ARG(fd)));
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_INVALID_HEADER);
 		return;
 	}
 
@@ -3480,10 +3646,6 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 
 		if (slen >= EV_SSIZE_MAX) {
 			/* we don't want to mix signed and unsigned */
-			goto out;
-		}
-
-		if (slen > (size_t)(UINTPTR_MAX - (uintptr_t)uri)) {
 			goto out;
 		}
 
@@ -4683,7 +4845,9 @@ evhttp_get_request_connection(
 		goto err;
 	if (bufferevent_disable(evcon->bufev, EV_WRITE))
 		goto err;
-	bufferevent_socket_set_conn_address_(evcon->bufev, sa, salen);
+	if (bufferevent_socket_set_conn_address_(evcon->bufev, sa, salen)) {
+		goto err;
+	}
 
 	return (evcon);
 

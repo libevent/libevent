@@ -33,6 +33,8 @@ A million repetitions of "a"
 
 #include "sha1.h"
 
+#include "util-internal.h"
+
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
 /* blk0() and blk() perform the initial expand. */
@@ -199,7 +201,7 @@ static void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]) {
     state[3] += d;
     state[4] += e;
 #ifdef SHA1HANDSOFF
-    memset(block, '\0', sizeof(block));
+    evutil_memclear_(block, sizeof(block));
 #endif
 }
 
@@ -284,8 +286,8 @@ static void SHA1Final(unsigned char digest[20], SHA1_CTX *context) {
                             255);
     }
     /* Wipe variables */
-    memset(context, '\0', sizeof(*context));
-    memset(&finalcount, '\0', sizeof(finalcount));
+    evutil_memclear_(context, sizeof(*context));
+    evutil_memclear_(&finalcount, sizeof(finalcount));
 }
 
 void builtin_SHA1(char *hash_out, const char *str, int len) {
