@@ -593,7 +593,7 @@ int main(int argc, char **argv)
 		ss_len = make_address(&ss, o.dst.address, o.dst.port);
 		if (!ss_len) {
 			error("Cannot make address from %s:%d\n",
-				o.src.address, o.src.port);
+				o.dst.address, o.dst.port);
 			goto err;
 		}
 		info("Connecting to %s\n",
