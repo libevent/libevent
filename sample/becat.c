@@ -298,7 +298,7 @@ static struct options parse_opts(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "p:s:b:t:T:K:" "lkSvh")) != -1) {
 		switch (opt) {
 			case 'p': o.src.port    = atoi(optarg); break;
-			case 's': o.src.address = strdup("127.1"); break;
+			case 's': o.src.address = strdup(optarg); break;
 			case 'b': o.max_read    = atoi(optarg); break;
 
 			case 't': o.timeout.read  = atoi(optarg); break;
