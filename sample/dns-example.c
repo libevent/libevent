@@ -184,7 +184,7 @@ main(int c, char **v) {
 			case 'T': o.servertest = 1; break;
 			case 'c': o.resolv_conf = optarg; break;
 			case 's': o.ns = optarg; break;
-			default : fprintf(stderr, "Unknown option %c\n", opt); break;
+			default : fprintf(stderr, "Unknown option %c\n", opt); return 1;
 		}
 	}
 
