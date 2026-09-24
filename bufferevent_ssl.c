@@ -927,6 +927,11 @@ be_ssl_destruct(struct bufferevent *bev)
 {
 	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bev);
 
+	/* init_common_ can fail before ssl_ops is assigned; free paths still
+	 * run be_ssl_destruct via bufferevent_free(). */
+	if (!bev_ssl->ssl_ops)
+		return;
+
 	if (bev_ssl->bev.options & BEV_OPT_CLOSE_ON_FREE) {
 		if (! bev_ssl->underlying) {
 			evutil_socket_t fd = bev_ssl->ssl_ops->get_fd(bev_ssl);
@@ -938,7 +943,8 @@ be_ssl_destruct(struct bufferevent *bev)
 				evutil_closesocket(fd);
 		}
 	}
-	bev_ssl->ssl_ops->free(bev_ssl->ssl, bev_ssl->bev.options);
+	if (bev_ssl->ssl)
+		bev_ssl->ssl_ops->free(bev_ssl->ssl, bev_ssl->bev.options);
 }
 
 static int
@@ -1042,11 +1048,12 @@ bufferevent_ssl_new_impl(struct event_base *base,
 
 	bev_p = &bev_ssl->bev;
 
+	/* Assign before init_common_: its failure path frees via be_ssl_destruct. */
+	bev_ssl->ssl_ops = ssl_ops;
+
 	if (bufferevent_init_common_(bev_p, base,
 		&bufferevent_ops_ssl, tmp_options) < 0)
 		goto err;
-
-	bev_ssl->ssl_ops = ssl_ops;
 
 	bev_ssl->ssl = bev_ssl->ssl_ops->init(ssl);
 
@@ -1086,7 +1093,15 @@ err:
 		if (bev_ssl->ssl && bev_ssl->ssl_ops && options & BEV_OPT_CLOSE_ON_FREE)
 			bev_ssl->ssl_ops->free(bev_ssl->ssl, options);
 		bev_ssl->ssl = NULL;
-		bufferevent_free(&bev_ssl->bev.bev);
+		/*
+		 * bufferevent_init_common_() failure frees input/output then
+		 * returns -1.  bufferevent_free() would then crash walking
+		 * those NULL buffers (#1774). Drop the partial object.
+		 */
+		if (bev_ssl->bev.bev.input == NULL && bev_ssl->bev.bev.output == NULL)
+			mm_free(bev_ssl);
+		else
+			bufferevent_free(&bev_ssl->bev.bev);
 	} else {
 		if (ssl && options & BEV_OPT_CLOSE_ON_FREE)
 			ssl_ops->free_raw(ssl);

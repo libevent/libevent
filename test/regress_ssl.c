@@ -767,8 +767,34 @@ end:
 		event_base_loop(base, EVLOOP_ONCE);
 }
 
+
+/* Regression for #1774: UNLOCK_CALLBACKS without DEFER must return NULL,
+ * not segfault in be_ssl_destruct while ssl_ops is still unset. */
+static void
+regress_bufferevent_openssl_bad_unlock(void *arg)
+{
+	struct basic_test_data *data = arg;
+	SSL *ssl = NULL;
+	struct bufferevent *bev;
+	evutil_socket_t fd = -1;
+
+	ssl = SSL_new(get_ssl_ctx(SSL_IS_CLIENT));
+	tt_assert(ssl);
+
+	bev = bufferevent_ssl_socket_new(
+		data->base, fd, ssl, BUFFEREVENT_SSL_CONNECTING,
+		BEV_OPT_UNLOCK_CALLBACKS);
+	tt_want(bev == NULL);
+
+end:
+	if (ssl)
+		SSL_free(ssl);
+}
+
 struct testcase_t TESTCASES_NAME[] = {
 #define T(a) ((void *)(a))
+	{ "bufferevent_bad_unlock", regress_bufferevent_openssl_bad_unlock,
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, NULL },
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
 	{ "bufferevent_socketpair_batch_write", regress_bufferevent_openssl,
