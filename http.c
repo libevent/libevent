@@ -2312,6 +2312,12 @@ evhttp_parse_headers_impl_(
 	       != NULL) {
 		char *skey, *svalue;
 
+		/* Reject embedded NUL bytes in HTTP header lines. */
+		if (strlen(line) != len) {
+			errcode = DATA_CORRUPTED;
+			goto error;
+		}
+
 		req->headers_size += len;
 
 		if (req->evcon != NULL &&

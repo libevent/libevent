@@ -2899,6 +2899,33 @@ http_bad_header_test(void *ptr)
 	evhttp_clear_headers(&headers);
 }
 
+static void
+http_null_header_test(void *ptr)
+{
+	struct evhttp_request *req = NULL;
+	struct evbuffer *buf = NULL;
+	enum message_read_status done;
+	const char header[] = "Test: i-am-evil\0this-gets-ignored\r\n\r\n";
+
+	req = evhttp_request_new(NULL,NULL);
+	tt_assert(req);
+
+	buf = evbuffer_new();
+	tt_assert(buf);
+
+	tt_int_op(evbuffer_add(buf, header,sizeof(header)-1), ==,0);
+
+	done = evhttp_parse_headers_(req,buf);
+	tt_int_op(done, ==,DATA_CORRUPTED);
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+	if (req)
+		evhttp_request_free(req);
+
+}
+
 static int validate_header(
 	const struct evkeyvalq* headers,
 	const char *key, const char *value)
@@ -6160,6 +6187,7 @@ struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },
 	{ "base", http_base_test, TT_FORK, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
+	{ "null_header", http_null_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
 	{ "parse_query_str", http_parse_query_str_test, 0, NULL, NULL },
 	{ "parse_query_str_flags", http_parse_query_str_flags_test, 0, NULL, NULL },
