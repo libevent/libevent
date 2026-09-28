@@ -32,6 +32,7 @@
    accessing the struct fields directly. */
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include "mbedtls-compat.h"
+#include <limits.h>
 #include <mbedtls/version.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/error.h>
