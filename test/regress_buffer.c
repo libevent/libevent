@@ -2944,6 +2944,65 @@ end:
 		evbuffer_free(buf);
 }
 
+static void
+test_evbuffer_null_and_bounds_guards(void *dummy)
+{
+	struct evbuffer *buf = NULL;
+	struct evbuffer_iovec vec[2];
+
+	(void)dummy;
+
+	/* 1. evbuffer_free on NULL should safely no-op without crashing */
+	evbuffer_free(NULL);
+
+	/* 2. evbuffer_add / evbuffer_prepend NULL and length guards */
+	buf = evbuffer_new();
+	tt_assert(buf != NULL);
+
+	tt_int_op(evbuffer_add(NULL, "data", 4), ==, -1);
+	tt_int_op(evbuffer_add(buf, NULL, 4), ==, -1);
+	tt_int_op(evbuffer_add(buf, NULL, 0), ==, 0);
+	tt_int_op(evbuffer_get_length(buf), ==, 0);
+
+	tt_int_op(evbuffer_prepend(NULL, "data", 4), ==, -1);
+	tt_int_op(evbuffer_prepend(buf, NULL, 4), ==, -1);
+	tt_int_op(evbuffer_prepend(buf, NULL, 0), ==, 0);
+	tt_int_op(evbuffer_get_length(buf), ==, 0);
+
+	/* 3. evbuffer_add_iovec guards */
+	tt_int_op(evbuffer_add_iovec(NULL, vec, 1), ==, 0);
+	tt_int_op(evbuffer_add_iovec(buf, NULL, 1), ==, 0);
+	tt_int_op(evbuffer_add_iovec(buf, vec, -1), ==, 0);
+
+	/* 4. evbuffer_reserve_space guards */
+	tt_int_op(evbuffer_reserve_space(NULL, 10, vec, 1), ==, -1);
+	tt_int_op(evbuffer_reserve_space(buf, 10, NULL, 1), ==, -1);
+	tt_int_op(evbuffer_reserve_space(buf, 10, vec, 0), ==, -1);
+	tt_int_op(evbuffer_reserve_space(buf, 10, vec, -1), ==, -1);
+
+	/* 5. evbuffer_commit_space guards */
+	tt_int_op(evbuffer_commit_space(NULL, vec, 1), ==, -1);
+	tt_int_op(evbuffer_commit_space(buf, NULL, 1), ==, -1);
+	tt_int_op(evbuffer_commit_space(buf, vec, -1), ==, -1);
+	tt_int_op(evbuffer_commit_space(buf, NULL, 0), ==, 0);
+
+	/* 6. evbuffer_add_buffer and prepend_buffer NULL checks */
+	tt_int_op(evbuffer_add_buffer(NULL, buf), ==, -1);
+	tt_int_op(evbuffer_add_buffer(buf, NULL), ==, -1);
+	tt_int_op(evbuffer_add_buffer_reference(NULL, buf), ==, -1);
+	tt_int_op(evbuffer_add_buffer_reference(buf, NULL), ==, -1);
+	tt_int_op(evbuffer_prepend_buffer(NULL, buf), ==, -1);
+	tt_int_op(evbuffer_prepend_buffer(buf, NULL), ==, -1);
+
+	/* 7. evbuffer_find guards */
+	tt_ptr_op(evbuffer_find(NULL, (const unsigned char *)"a", 1), ==, NULL);
+	tt_ptr_op(evbuffer_find(buf, NULL, 1), ==, NULL);
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+}
+
 static void *
 setup_passthrough(const struct testcase_t *testcase)
 {
@@ -3004,6 +3063,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "freeze_end", test_evbuffer_freeze, TT_NEED_SOCKETPAIR, &basic_setup, (void*)"end" },
 	{ "add_iovec", test_evbuffer_add_iovec, 0, NULL, NULL},
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
+	{ "null_and_bounds_guards", test_evbuffer_null_and_bounds_guards, 0, NULL, NULL },
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
 	{ "pullup_with_empty", test_evbuffer_pullup_with_empty, 0, NULL, NULL },
 #ifndef EVENT__DISABLE_MM_REPLACEMENT

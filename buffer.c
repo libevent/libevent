@@ -597,6 +597,8 @@ evbuffer_decref_and_unlock_(struct evbuffer *buffer)
 void
 evbuffer_free(struct evbuffer *buffer)
 {
+	if (buffer == NULL)
+		return;
 	EVBUFFER_LOCK(buffer);
 	evbuffer_decref_and_unlock_(buffer);
 }
@@ -663,11 +665,16 @@ evbuffer_add_iovec(struct evbuffer * buf, struct evbuffer_iovec * vec, int n_vec
 	size_t res;
 	size_t to_alloc;
 
+	if (!buf || n_vec < 0 || (n_vec > 0 && !vec))
+		return 0;
+
 	EVBUFFER_LOCK(buf);
 
 	res = to_alloc = 0;
 
 	for (n = 0; n < n_vec; n++) {
+		if (EV_SIZE_MAX - to_alloc < vec[n].iov_len)
+			goto done;
 		to_alloc += vec[n].iov_len;
 	}
 
@@ -700,10 +707,11 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 	struct evbuffer_chain *chain, **chainp;
 	int n = -1;
 
+	if (!buf || !vec || n_vecs < 1)
+		return -1;
+
 	EVBUFFER_LOCK(buf);
 	if (buf->freeze_end)
-		goto done;
-	if (n_vecs < 1)
 		goto done;
 	if (n_vecs == 1) {
 		if ((chain = evbuffer_expand_singlechain(buf, size)) == NULL)
@@ -754,6 +762,9 @@ evbuffer_commit_space(struct evbuffer *buf,
 	int result = -1;
 	size_t added = 0;
 	int i;
+
+	if (!buf || n_vecs < 0 || (n_vecs > 0 && !vec))
+		return -1;
 
 	EVBUFFER_LOCK(buf);
 
@@ -995,6 +1006,9 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	size_t in_total_len, out_total_len;
 	int result = 0;
 
+	if (!outbuf || !inbuf)
+		return -1;
+
 	EVBUFFER_LOCK2(inbuf, outbuf);
 	in_total_len = inbuf->total_len;
 	out_total_len = outbuf->total_len;
@@ -1003,6 +1017,11 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		goto done;
 
 	if (outbuf->freeze_end || inbuf->freeze_start) {
+		result = -1;
+		goto done;
+	}
+
+	if (EV_SIZE_MAX - out_total_len < in_total_len) {
 		result = -1;
 		goto done;
 	}
@@ -1041,6 +1060,9 @@ evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	struct evbuffer_chain *chain;
 	int result = 0;
 
+	if (!outbuf || !inbuf)
+		return -1;
+
 	EVBUFFER_LOCK2(inbuf, outbuf);
 	in_total_len = inbuf->total_len;
 	out_total_len = outbuf->total_len;
@@ -1050,6 +1072,11 @@ evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		goto done;
 
 	if (outbuf->freeze_end || outbuf == inbuf) {
+		result = -1;
+		goto done;
+	}
+
+	if (EV_SIZE_MAX - out_total_len < in_total_len) {
 		result = -1;
 		goto done;
 	}
@@ -1089,6 +1116,9 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	size_t in_total_len, out_total_len;
 	int result = 0;
 
+	if (!outbuf || !inbuf)
+		return -1;
+
 	EVBUFFER_LOCK2(inbuf, outbuf);
 
 	in_total_len = inbuf->total_len;
@@ -1098,6 +1128,11 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		goto done;
 
 	if (outbuf->freeze_start || inbuf->freeze_start) {
+		result = -1;
+		goto done;
+	}
+
+	if (EV_SIZE_MAX - out_total_len < in_total_len) {
 		result = -1;
 		goto done;
 	}
@@ -1765,6 +1800,11 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	size_t remain, to_alloc;
 	int result = -1;
 
+	if (!buf || (!data_in && datlen > 0))
+		return -1;
+	if (datlen == 0)
+		return 0;
+
 	EVBUFFER_LOCK(buf);
 
 	if (buf->freeze_end) {
@@ -1859,12 +1899,13 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	struct evbuffer_chain *chain, *tmp;
 	int result = -1;
 
+	if (!buf || (!data && datlen > 0))
+		return -1;
+	if (datlen == 0)
+		return 0;
+
 	EVBUFFER_LOCK(buf);
 
-	if (datlen == 0) {
-		result = 0;
-		goto done;
-	}
 	if (buf->freeze_start) {
 		goto done;
 	}
@@ -2613,10 +2654,13 @@ evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len)
 	unsigned char *search;
 	struct evbuffer_ptr ptr;
 
+	if (!buffer || !what)
+		return NULL;
+
 	EVBUFFER_LOCK(buffer);
 
 	ptr = evbuffer_search(buffer, (const char *)what, len, NULL);
-	if (ptr.pos < 0) {
+	if (ptr.pos < 0 || (size_t)ptr.pos > EV_SSIZE_MAX - len) {
 		search = NULL;
 	} else {
 		search = evbuffer_pullup(buffer, ptr.pos + len);
