@@ -215,6 +215,58 @@ regress_ipv6_parse(void *ptr)
 #endif
 }
 
+static void
+regress_inet_ntop(void *ptr)
+{
+	static const struct {
+		int family;
+		const char *addr;
+	} entries[] = {
+		{ AF_INET, "192.0.2.1" },
+		{ AF_INET, "255.255.255.255" },
+#ifdef AF_INET6
+		{ AF_INET6, "::" },
+		{ AF_INET6, "::1" },
+		{ AF_INET6, "2001:db8::1" },
+		{ AF_INET6, "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff" },
+		{ AF_INET6, "::192.0.2.1" },
+		{ AF_INET6, "::ffff:192.0.2.1" },
+#endif
+		{ 0, NULL }
+	};
+	union {
+		struct in_addr v4;
+#ifdef AF_INET6
+		struct in6_addr v6;
+#endif
+	} address;
+	char written[128];
+	const char *result;
+	size_t len, addrlen;
+	int i;
+
+	for (i = 0; entries[i].addr; ++i) {
+		addrlen = strlen(entries[i].addr);
+		tt_int_op(evutil_inet_pton(entries[i].family, entries[i].addr,
+		    &address), ==, 1);
+		for (len = 0; len <= addrlen + 1; ++len) {
+			memset(written, 0xff, sizeof(written));
+			result = evutil_inet_ntop(entries[i].family, &address,
+			    written, len);
+			tt_int_op((unsigned char)written[len], ==, 0xff);
+			if (len <= addrlen) {
+				tt_ptr_op(result, ==, NULL);
+			} else {
+				tt_ptr_op(result, ==, written);
+				tt_str_op(written, ==, entries[i].addr);
+			}
+		}
+	}
+
+end:
+	;
+}
+
 static struct ipv6_entry_scope {
 	const char *addr;
 	ev_uint32_t res[4];
@@ -1853,6 +1905,7 @@ end:
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
+	{ "inet_ntop", regress_inet_ntop, 0, NULL, NULL },
 	{ "ipv6_parse_scope", regress_ipv6_parse_scope, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
 	{ "sockaddr_port_format", regress_sockaddr_port_format, 0, NULL, NULL },

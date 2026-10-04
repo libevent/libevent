@@ -2169,7 +2169,7 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 				    addr->s6_addr[12], addr->s6_addr[13],
 				    addr->s6_addr[14], addr->s6_addr[15]);
 			}
-			if (strlen(buf) > len)
+			if (strlen(buf) >= len)
 				return NULL;
 			strlcpy(dst, buf, len);
 			return dst;
@@ -2211,7 +2211,7 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 			}
 		}
 		*cp = '\0';
-		if (strlen(buf) > len)
+		if (strlen(buf) >= len)
 			return NULL;
 		strlcpy(dst, buf, len);
 		return dst;
