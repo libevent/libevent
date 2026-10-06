@@ -394,6 +394,48 @@ static void test_bufferevent_pair_release_lock(void *arg)
 end:
 	;
 }
+
+/* Regression test for issue #1842: if evbuffer_add_buffer_reference()
+ * keeps a reference to a bufferevent's input/output evbuffer, that
+ * evbuffer survives bufferevent_free(), still sharing the (now freed)
+ * bufferevent lock. Locking such a surviving evbuffer must not touch a
+ * lock whose status is FREE (the trace_lock profiler flags that as
+ * "lock: lock error"). */
+static void test_bufferevent_output_survives_reference(void *arg)
+{
+	struct basic_test_data *data = arg;
+	use_lock_unlock_profiler();
+	{
+		struct bufferevent *bev;
+		struct evbuffer *out, *holder;
+
+		bev = bufferevent_socket_new(NULL, -1, BEV_OPT_THREADSAFE);
+		tt_assert(bev);
+		out = bufferevent_get_output(bev);
+		holder = evbuffer_new();
+		tt_assert(holder);
+
+		/* A non-empty chain is required so that
+		 * evbuffer_add_buffer_reference() increfs `out` (see
+		 * APPEND_CHAIN_MULTICAST). */
+		tt_int_op(evbuffer_add(out, "x", 1), ==, 0);
+		tt_int_op(evbuffer_add_buffer_reference(holder, out), ==, 0);
+
+		bufferevent_free(bev);
+		/* Finalization is deferred; run it. */
+		event_loop(EVLOOP_NONBLOCK | EVLOOP_ONCE);
+
+		/* `out` is still alive and shares its lock with the freed
+		 * bufferevent; locking it used to hit a freed lock. */
+		evbuffer_lock(out);
+		evbuffer_unlock(out);
+
+		evbuffer_free(holder);
+	}
+	free_lock_unlock_profiler(data);
+end:
+	;
+}
 #endif
 
 /*
@@ -1457,6 +1499,10 @@ struct testcase_t bufferevent_testcases[] = {
 	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
+	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
+	  &basic_setup, NULL },
+	{ "bufferevent_output_survives_reference",
+	  test_bufferevent_output_survives_reference,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
 #endif
