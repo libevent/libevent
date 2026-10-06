@@ -762,9 +762,21 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 	if (bufev->be_ops->destruct)
 		bufev->be_ops->destruct(bufev);
 
-	/* XXX what happens if refcnt for these buffers is > 1?
-	 * The buffers can share a lock with this bufferevent object,
-	 * but the lock might be destroyed below. */
+	/* The input/output evbuffers share this bufferevent's lock (see
+	 * evbuffer_enable_locking() in bufferevent_init_common_()). If a
+	 * reference to one of them is still held elsewhere (e.g. by
+	 * evbuffer_add_buffer_reference()), evbuffer_free() below only
+	 * drops that reference and the evbuffer survives this
+	 * finalization. Freeing the shared lock would then leave the
+	 * surviving evbuffer with a dangling lock pointer, so keep the
+	 * lock alive in that case. It is a small one-time leak, which is
+	 * preferable to a use-after-free on the next lock operation of
+	 * the surviving evbuffer. */
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	int evbuffer_outlives_lock =
+	    bufev->input->refcnt > 1 || bufev->output->refcnt > 1;
+#endif
+
 	/* evbuffer will free the callbacks */
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
@@ -779,9 +791,11 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 
 	BEV_UNLOCK(bufev);
 
-	if (bufev_private->own_lock)
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	if (bufev_private->own_lock && !evbuffer_outlives_lock)
 		EVTHREAD_FREE_LOCK(bufev_private->lock,
 		    EVTHREAD_LOCKTYPE_RECURSIVE);
+#endif
 
 	/* Free the actual allocated memory. */
 	mm_free(((char*)bufev) - bufev->be_ops->mem_offset);
