@@ -1398,6 +1398,73 @@ end:
 		bufferevent_free(filter);
 }
 
+struct filter_flush_result {
+	enum bufferevent_filter_result result;
+	int calls;
+};
+
+static enum bufferevent_filter_result
+filter_flush_result_cb(struct evbuffer *src, struct evbuffer *dst,
+    ev_ssize_t limit, enum bufferevent_flush_mode mode, void *arg)
+{
+	struct filter_flush_result *ctx = arg;
+	++ctx->calls;
+	if (ctx->result == BEV_OK && evbuffer_add(dst, "x", 1) < 0)
+		return BEV_ERROR;
+	return ctx->result;
+}
+
+static void
+test_bufferevent_filter_flush_result(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL, *filter;
+	struct filter_flush_result ctx, outer_ctx = { BEV_NEED_MORE, 0 };
+	const char *setup = data->setup_data;
+	short direction = 0;
+	int mode, result, nested = strstr(setup, "nested") != NULL;
+
+	if (strstr(setup, "read"))
+		direction |= EV_READ;
+	if (strstr(setup, "write"))
+		direction |= EV_WRITE;
+
+	for (mode = BEV_FLUSH; mode <= BEV_FINISHED; ++mode) {
+		for (result = BEV_OK; result <= BEV_ERROR; ++result) {
+			ctx.result = result;
+			ctx.calls = 0;
+			bev = bufferevent_socket_new(data->base, -1, 0);
+			tt_assert(bev);
+			filter = bufferevent_filter_new(bev,
+			    filter_flush_result_cb, filter_flush_result_cb,
+			    BEV_OPT_CLOSE_ON_FREE, NULL, &ctx);
+			tt_assert(filter);
+			bev = filter;
+			if (nested) {
+				filter = bufferevent_filter_new(bev,
+				    filter_flush_result_cb, filter_flush_result_cb,
+				    BEV_OPT_CLOSE_ON_FREE, NULL, &outer_ctx);
+				tt_assert(filter);
+				bev = filter;
+			}
+			if (ctx.result == BEV_ERROR)
+				tt_int_op(bufferevent_flush(bev, direction, mode), ==, -1);
+			else if (ctx.result == BEV_NEED_MORE)
+				tt_int_op(bufferevent_flush(bev, direction, mode), ==, 0);
+			else if (nested)
+				tt_int_op(bufferevent_flush(bev, direction, mode), >=, 0);
+			else
+				tt_int_op(bufferevent_flush(bev, direction, mode), ==, 1);
+			tt_int_op(ctx.calls, >, 0);
+			bufferevent_free(bev);
+			bev = NULL;
+		}
+	}
+end:
+	if (bev)
+		bufferevent_free(bev);
+}
+
 static void
 read_failed_readcb(struct bufferevent *bev, void *arg)
 {
@@ -1517,6 +1584,18 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_pair_flush",
 	  test_bufferevent_pair_flush,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_filter_flush_read", test_bufferevent_filter_flush_result,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"read" },
+	{ "bufferevent_filter_flush_write", test_bufferevent_filter_flush_result,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"write" },
+	{ "bufferevent_filter_flush_both", test_bufferevent_filter_flush_result,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"read write" },
+	{ "bufferevent_filter_flush_nested_read", test_bufferevent_filter_flush_result,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"nested read" },
+	{ "bufferevent_filter_flush_nested_write", test_bufferevent_filter_flush_result,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"nested write" },
+	{ "bufferevent_filter_flush_nested_both", test_bufferevent_filter_flush_result,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"nested read write" },
 	{ "bufferevent_filter_data_stuck",
 	  test_bufferevent_filter_data_stuck,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },

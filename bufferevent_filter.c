@@ -571,22 +571,26 @@ be_filter_flush(struct bufferevent *bufev,
 {
 	struct bufferevent_filtered *bevf = upcast(bufev);
 	int processed_any = 0;
+	int result = -1;
 
 	bufferevent_incref_and_lock_(bufev);
 
 	if (iotype & EV_READ) {
-		be_filter_process_input(bevf, mode, &processed_any);
+		if (be_filter_process_input(bevf, mode, &processed_any) == BEV_ERROR)
+			goto done;
 	}
 	if (iotype & EV_WRITE) {
-		be_filter_process_output(bevf, mode, &processed_any);
+		if (be_filter_process_output(bevf, mode, &processed_any) == BEV_ERROR)
+			goto done;
 	}
-	/* XXX check the return value? */
-	/* XXX does this want to recursively call lower-level flushes? */
-	bufferevent_flush(bevf->underlying, iotype, mode);
+	if (bufferevent_flush(bevf->underlying, iotype, mode) < 0)
+		goto done;
+	result = processed_any;
 
+done:
 	bufferevent_decref_and_unlock_(bufev);
 
-	return processed_any;
+	return result;
 }
 
 static int
