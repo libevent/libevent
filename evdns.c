@@ -5237,6 +5237,12 @@ struct evdns_getaddrinfo_request {
 	struct evutil_addrinfo hints;
 	/* The original requested nodename */
 	char *nodename;
+	/* Private snapshot of the paired-family search sequence. */
+	char **search_names;
+	int search_count;
+	int search_current;
+	/* Families still participating in the current search sequence. */
+	unsigned search_families;
 	/* The callback to invoke when we're done */
 	evdns_getaddrinfo_cb user_cb;
 	/* User-supplied data to give to the callback. */
@@ -5295,6 +5301,7 @@ getaddrinfo_merge_err(int e1, int e2)
 static void
 free_getaddrinfo_request(struct evdns_getaddrinfo_request *data)
 {
+	int i;
 	/* DO NOT CALL this if either of the requests is pending.  Only once
 	 * both callbacks have been invoked is it safe to free the request */
 	if (data->pending_result)
@@ -5302,6 +5309,9 @@ free_getaddrinfo_request(struct evdns_getaddrinfo_request *data)
 	if (data->cname_result)
 		mm_free(data->cname_result);
 	event_del(&data->timeout);
+	for (i = 0; i < data->search_count; ++i)
+		mm_free(data->search_names[i]);
+	mm_free(data->search_names);
 	mm_free(data->nodename);
 	mm_free(data);
 	return;
@@ -5482,6 +5492,9 @@ out:
 	}
 }
 
+static int evdns_getaddrinfo_launch(
+	struct evdns_getaddrinfo_request *, const char *, int);
+
 static void
 evdns_getaddrinfo_gotresolve(int result, char type, int count,
     int ttl, void *addresses, void *arg)
@@ -5550,6 +5563,8 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			err = EVUTIL_EAI_NODATA;
 		else
 			err = 0;
+	} else if (data->search_count && result == DNS_ERR_NODATA) {
+		err = EVUTIL_EAI_NODATA;
 	} else {
 		err = evdns_err_to_getaddrinfo_err(result);
 	}
@@ -5582,6 +5597,31 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			if (data->pending_error)
 				err = getaddrinfo_merge_err(err,
 				    data->pending_error);
+			/* Advance the name only after both families returned negative
+			 * answers. Transport failures and cancellation are terminal. */
+			if ((err == EVUTIL_EAI_NONAME || err == EVUTIL_EAI_NODATA) &&
+				(data->search_families != 3 ||
+					data->pending_error == EVUTIL_EAI_NONAME ||
+					data->pending_error == EVUTIL_EAI_NODATA) &&
+				data->evdns_base &&
+				data->search_current + 1 < data->search_count) {
+				int started;
+				EVDNS_LOCK(data->evdns_base);
+				event_del(&data->timeout);
+				data->pending_error = 0;
+				data->request_done = 0;
+				mm_free(data->cname_result);
+				data->cname_result = NULL;
+				++data->search_current;
+				started = evdns_getaddrinfo_launch(data,
+					data->search_names[data->search_current],
+					DNS_QUERY_NO_SEARCH);
+				EVDNS_UNLOCK(data->evdns_base);
+				if (started)
+					return;
+				/* Launch can fail for invalid names as well as allocation. */
+				err = EVUTIL_EAI_FAIL;
+			}
 			data->user_cb(err, NULL, data->user_data);
 		}
 		free_getaddrinfo_request(data);
@@ -5741,6 +5781,40 @@ out:
 	}
 }
 
+/* Launch the requested families for one name while holding the base lock. */
+static int
+evdns_getaddrinfo_launch(
+	struct evdns_getaddrinfo_request *data, const char *nodename, int flags)
+{
+	struct evdns_base *dns_base = data->evdns_base;
+	int want_cname = data->hints.ai_flags & EVUTIL_AI_CANONNAME;
+
+	ASSERT_LOCKED(dns_base);
+	if (data->hints.ai_family != PF_INET6 &&
+		(!data->search_current || (data->search_families & 1))) {
+		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv4 as %p", nodename,
+			(void *)&data->ipv4_request);
+		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base, nodename,
+			flags, evdns_getaddrinfo_gotresolve, &data->ipv4_request);
+		if (want_cname && data->ipv4_request.r)
+			data->ipv4_request.r->current_req->put_cname_in_ptr =
+				&data->cname_result;
+	}
+	if (data->hints.ai_family != PF_INET &&
+		(!data->search_current || (data->search_families & 2))) {
+		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv6 as %p", nodename,
+			(void *)&data->ipv6_request);
+		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base, nodename,
+			flags, evdns_getaddrinfo_gotresolve, &data->ipv6_request);
+		if (want_cname && data->ipv6_request.r)
+			data->ipv6_request.r->current_req->put_cname_in_ptr =
+				&data->cname_result;
+	}
+	data->search_families =
+		(data->ipv4_request.r ? 1 : 0) | (data->ipv6_request.r ? 2 : 0);
+	return data->search_families != 0;
+}
+
 struct evdns_getaddrinfo_request *
 evdns_getaddrinfo(struct evdns_base *dns_base,
     const char *nodename, const char *servname,
@@ -5752,7 +5826,6 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	struct evutil_addrinfo *res = NULL;
 	int err;
 	int port = 0;
-	int want_cname = 0;
 	int started = 0;
 
 	if (!dns_base) {
@@ -5827,8 +5900,11 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	data->user_data = arg;
 	data->evdns_base = dns_base;
 	data->nodename = mm_strdup(nodename);
-
-	want_cname = (hints.ai_flags & EVUTIL_AI_CANONNAME);
+	if (!data->nodename) {
+		mm_free(data);
+		cb(EVUTIL_EAI_MEMORY, NULL, arg);
+		return NULL;
+	}
 
 	/* If we are asked for a PF_UNSPEC address, we launch two requests in
 	 * parallel: one for an A address and one for an AAAA address.  We
@@ -5845,33 +5921,36 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 
 	EVDNS_LOCK(dns_base);
 
-	if (hints.ai_family != PF_INET6) {
-		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv4 as %p",
-		    nodename, (void *)&data->ipv4_request);
-
-		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base,
-		    nodename, 0, evdns_getaddrinfo_gotresolve,
-		    &data->ipv4_request);
-		if (want_cname && data->ipv4_request.r)
-			data->ipv4_request.r->current_req->put_cname_in_ptr =
-			    &data->cname_result;
-	}
-	if (hints.ai_family != PF_INET) {
-		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv6 as %p",
-		    nodename, (void *)&data->ipv6_request);
-
-		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base,
-		    nodename, 0, evdns_getaddrinfo_gotresolve,
-		    &data->ipv6_request);
-		if (want_cname && data->ipv6_request.r)
-			data->ipv6_request.r->current_req->put_cname_in_ptr =
-			    &data->cname_result;
-	}
-
 	evtimer_assign(&data->timeout, dns_base->event_base,
 	    evdns_getaddrinfo_timeout_cb, data);
-
-	started = (data->ipv4_request.r || data->ipv6_request.r);
+	if (hints.ai_family == PF_UNSPEC && nodename[0] &&
+		dns_base->global_search_state &&
+		dns_base->global_search_state->num_domains) {
+		struct search_state *state = dns_base->global_search_state;
+		int raw_first = string_num_dots(nodename) >= state->ndots;
+		int i, n = state->num_domains + 1;
+		data->search_names = mm_calloc(n, sizeof(char *));
+		if (data->search_names) {
+			for (i = 0; i < n; ++i) {
+				int raw = raw_first ? i == 0 : i == n - 1;
+				char *name = raw ? mm_strdup(nodename)
+								 : search_make_new(state,
+									   i - (raw_first ? 1 : 0), nodename);
+				if (!name)
+					break;
+				data->search_names[data->search_count++] = name;
+			}
+		}
+		if (data->search_count != n) {
+			EVDNS_UNLOCK(dns_base);
+			free_getaddrinfo_request(data);
+			cb(EVUTIL_EAI_MEMORY, NULL, arg);
+			return NULL;
+		}
+	}
+	started = evdns_getaddrinfo_launch(data,
+		data->search_count ? data->search_names[0] : nodename,
+		data->search_count ? DNS_QUERY_NO_SEARCH : 0);
 
 	EVDNS_UNLOCK(dns_base);
 

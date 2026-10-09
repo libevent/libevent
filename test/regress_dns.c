@@ -611,7 +611,7 @@ dns_search_test_impl(void *arg, int lower)
 	tt_assert(regress_dnsserver(base, &portnum, table, NULL));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
-	dns = evdns_base_new(base, 0);
+	dns = evdns_base_new(base, EVDNS_BASE_NO_CACHE);
 	tt_assert(dns);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
@@ -1795,6 +1795,129 @@ cancel_gai_cb(evutil_socket_t fd, short what, void *ptr)
 }
 
 static void
+search_dualstack_server_cb(struct evdns_server_request *req, void *arg)
+{
+	int i;
+	int same = arg && strstr(arg, "same");
+	int reverse = arg && strstr(arg, "reverse");
+	int later = arg && strstr(arg, "later");
+	int nxdomain = arg && strstr(arg, "nxdomain");
+	int canonical = arg && strstr(arg, "canonical");
+	int answered = 0;
+	for (i = 0; i < req->nquestions; ++i) {
+		struct evdns_server_question *q = req->questions[i];
+		if (canonical)
+			evdns_server_request_add_cname_reply(req, q->name,
+				!evutil_ascii_strcasecmp(q->name, "probe.first.test")
+					? "first-canonical.test"
+					: "second-canonical.test",
+				60);
+		if (q->type == EVDNS_TYPE_AAAA &&
+			!evutil_ascii_strcasecmp(q->name,
+				reverse || later ? "probe.second.test" : "probe.first.test")) {
+			struct in6_addr addr;
+			evutil_inet_pton(AF_INET6, "2001:db8::1", &addr);
+			evdns_server_request_add_aaaa_reply(req, q->name, 1, &addr, 60);
+			answered = 1;
+		} else if (q->type == EVDNS_TYPE_A &&
+				   !evutil_ascii_strcasecmp(q->name,
+					   (same || reverse) && !later ? "probe.first.test"
+												   : "probe.second.test")) {
+			struct in_addr addr;
+			evutil_inet_pton(AF_INET, "192.0.2.2", &addr);
+			evdns_server_request_add_a_reply(req, q->name, 1, &addr, 60);
+			answered = 1;
+		}
+	}
+	/* Exercise both NXDOMAIN and empty successful (NODATA) replies. */
+	evdns_server_request_respond(
+		req, nxdomain && !answered ? DNS_ERR_NOTEXIST : 0);
+}
+
+static void
+test_getaddrinfo_search_dualstack(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evdns_base *dns = NULL;
+	struct evdns_server_port *port = NULL;
+	struct evutil_addrinfo hints;
+	struct gai_outcome outcome = {0, NULL};
+	struct timeval limit = {2, 0};
+	int same = data->setup_data && strstr(data->setup_data, "same");
+	int reverse = data->setup_data && strstr(data->setup_data, "reverse");
+	int warm = data->setup_data && strstr(data->setup_data, "warm");
+	int canonical = data->setup_data && strstr(data->setup_data, "canonical");
+	int count4 = 0, count6 = 0;
+	struct evutil_addrinfo *ai;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+
+	port = regress_get_udp_dnsserver(data->base, &portnum, NULL,
+		search_dualstack_server_cb, data->setup_data);
+	tt_assert(port);
+	dns = evdns_base_new(data->base, 0);
+	tt_assert(dns);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+	tt_int_op(evdns_base_nameserver_ip_add(dns, buf), ==, 0);
+	evdns_base_search_add(dns, "second.test");
+	evdns_base_search_add(dns, "first.test");
+	evdns_base_search_ndots_set(dns, 1);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	if (canonical)
+		hints.ai_flags = EVUTIL_AI_CANONNAME;
+	n_gai_results_pending = 1;
+	exit_base_on_no_pending_results = data->base;
+	tt_assert(evdns_getaddrinfo(dns, "probe", NULL, &hints, gai_cb, &outcome));
+	event_base_loopexit(data->base, &limit);
+	event_base_dispatch(data->base);
+	tt_int_op(n_gai_results_pending, ==, 0);
+	tt_int_op(outcome.err, ==, 0);
+	tt_assert(outcome.ai);
+	if (canonical) {
+		tt_assert(outcome.ai->ai_canonname);
+		tt_str_op(outcome.ai->ai_canonname, ==, "first-canonical.test");
+		/* Check the cold result before replacing it with a cached lookup. */
+		for (ai = outcome.ai; ai; ai = ai->ai_next)
+			tt_int_op(ai->ai_family, ==, reverse ? AF_INET : AF_INET6);
+	}
+	if (warm) {
+		evutil_freeaddrinfo(outcome.ai);
+		outcome.ai = NULL;
+		n_gai_results_pending = 1;
+		/* A cached lookup completes synchronously without dispatching I/O. */
+		tt_ptr_op(
+			evdns_getaddrinfo(dns, "probe", NULL, &hints, gai_cb, &outcome), ==,
+			NULL);
+		tt_int_op(n_gai_results_pending, ==, 0);
+		tt_int_op(outcome.err, ==, 0);
+		tt_assert(outcome.ai);
+		if (canonical) {
+			tt_assert(outcome.ai->ai_canonname);
+			tt_str_op(outcome.ai->ai_canonname, ==, "first-canonical.test");
+		}
+	}
+	for (ai = outcome.ai; ai; ai = ai->ai_next) {
+		if (ai->ai_family == AF_INET)
+			++count4;
+		else if (ai->ai_family == AF_INET6)
+			++count6;
+	}
+	/* Both families must belong to the first successful search candidate. */
+	tt_int_op(count6, ==, reverse ? 0 : 1);
+	tt_int_op(count4, ==, same || reverse ? 1 : 0);
+end:
+	if (dns)
+		evdns_base_free(dns, 1);
+	if (outcome.ai)
+		evutil_freeaddrinfo(outcome.ai);
+	if (port)
+		evdns_close_server_port(port);
+	exit_base_on_no_pending_results = NULL;
+}
+
+static void
 test_getaddrinfo_async(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -2431,6 +2554,280 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 	    status);
 	event_add(&status->cancel_event, &tv);
 	++gaic_pending;
+}
+
+#ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
+static int gai_alloc_armed, gai_alloc_failed, gai_alloc_skip;
+static int gai_alloc_callbacks, gai_alloc_error;
+static int gai_alloc_count;
+static int gai_alloc_second_family_size, gai_alloc_second_family_seen;
+static int gai_alloc_second_family_probe;
+static size_t gai_alloc_last_size;
+static int gai_alloc_a_queries, gai_alloc_aaaa_queries;
+static int gai_alloc_first_queries, gai_alloc_second_queries;
+static size_t gai_alloc_size;
+
+static void
+gai_alloc_server_cb(struct evdns_server_request *req, void *arg)
+{
+	int i;
+	for (i = 0; i < req->nquestions; ++i) {
+		struct evdns_server_question *q = req->questions[i];
+		if (q->type == EVDNS_TYPE_A)
+			++gai_alloc_a_queries;
+		else if (q->type == EVDNS_TYPE_AAAA)
+			++gai_alloc_aaaa_queries;
+		if (!evutil_ascii_strcasecmp(q->name, "probe.first.test"))
+			++gai_alloc_first_queries;
+		else if (!evutil_ascii_strcasecmp(q->name, "probe.second.test"))
+			++gai_alloc_second_queries;
+	}
+	search_dualstack_server_cb(req, arg);
+}
+
+static void *
+gai_fail_malloc(size_t size)
+{
+	if (gai_alloc_armed) {
+		++gai_alloc_count;
+		gai_alloc_last_size = size;
+	}
+	if (gai_alloc_armed && gai_alloc_second_family_size &&
+		size == (size_t)gai_alloc_second_family_size) {
+		++gai_alloc_second_family_seen;
+		if (gai_alloc_second_family_seen == 2 &&
+			!gai_alloc_second_family_probe) {
+			gai_alloc_failed = 1;
+			return NULL;
+		}
+	}
+	if (gai_alloc_armed && !gai_alloc_failed && size == gai_alloc_size) {
+		if (gai_alloc_skip) {
+			--gai_alloc_skip;
+		} else {
+			gai_alloc_failed = 1;
+			return NULL;
+		}
+	}
+	return malloc(size);
+}
+
+static void
+gai_alloc_cb(int err, struct evutil_addrinfo *ai, void *arg)
+{
+	++gai_alloc_callbacks;
+	gai_alloc_error = err;
+	if (ai)
+		evutil_freeaddrinfo(ai);
+}
+
+static void
+test_getaddrinfo_search_alloc(void *arg)
+{
+	const char *name = "allocation-probe.example";
+	struct event_base *base = NULL;
+	struct evdns_base *dns = NULL;
+	struct evdns_getaddrinfo_request *request = NULL;
+	struct evutil_addrinfo hints;
+	int which;
+
+	libevent_global_shutdown();
+	event_set_mem_functions(gai_fail_malloc, realloc, free);
+	base = event_base_new();
+	tt_assert(base);
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+	tt_int_op(evdns_base_nameserver_ip_add(dns, "127.0.0.1:9"), ==, 0);
+	evdns_base_search_add(dns, "test");
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	/* Original name, raw candidate, suffixed candidate, candidate array. */
+	for (which = 0; which < 4; ++which) {
+		gai_alloc_size =
+			which == 3 ? 2 * sizeof(char *)
+					   : strlen(name) + 1 + (which == 2 ? strlen(".test") : 0);
+		gai_alloc_skip = which == 1;
+		gai_alloc_failed = gai_alloc_callbacks = gai_alloc_error = 0;
+		gai_alloc_armed = 1;
+		request =
+			evdns_getaddrinfo(dns, name, NULL, &hints, gai_alloc_cb, NULL);
+		gai_alloc_armed = 0;
+		tt_int_op(gai_alloc_failed, ==, 1);
+		tt_ptr_op(request, ==, NULL);
+		tt_int_op(gai_alloc_callbacks, ==, 1);
+		tt_int_op(gai_alloc_error, ==, EVUTIL_EAI_MEMORY);
+	}
+end:
+	gai_alloc_armed = 0;
+	if (request) {
+		evdns_getaddrinfo_cancel(request);
+		event_base_loop(base, EVLOOP_NONBLOCK);
+	}
+	if (dns)
+		evdns_base_free(dns, 1);
+	if (base)
+		event_base_free(base);
+	libevent_global_shutdown();
+	event_set_mem_functions(NULL, NULL, NULL);
+}
+
+static void
+test_getaddrinfo_search_partial_alloc(void *arg)
+{
+	struct event_base *base = NULL;
+	struct evdns_base *dns = NULL;
+	struct evdns_server_port *port = NULL;
+	struct evdns_getaddrinfo_request *request = NULL;
+	struct evutil_addrinfo hints, *ai;
+	struct gai_outcome outcome = {0, NULL};
+	struct timeval limit = {2, 0};
+	ev_uint16_t portnum = 0;
+	char buf[64];
+	int allocation_count, family;
+
+	libevent_global_shutdown();
+	event_set_mem_functions(gai_fail_malloc, realloc, free);
+	base = event_base_new();
+	tt_assert(base);
+	port = regress_get_udp_dnsserver(
+		base, &portnum, NULL, gai_alloc_server_cb, NULL);
+	tt_assert(port);
+	dns = evdns_base_new(base, EVDNS_BASE_NO_CACHE);
+	tt_assert(dns);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+	tt_int_op(evdns_base_nameserver_ip_add(dns, buf), ==, 0);
+	evdns_base_search_add(dns, "second.test");
+	evdns_base_search_add(dns, "first.test");
+	evdns_base_search_ndots_set(dns, 1);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	/* Discover the second-family request size on this build. Both family
+	 * requests use the same name, so their request allocations match. */
+	gai_alloc_size = 0;
+	gai_alloc_count = gai_alloc_failed = 0;
+	gai_alloc_last_size = 0;
+	memset(&outcome, 0, sizeof(outcome));
+	n_gai_results_pending = 1;
+	exit_base_on_no_pending_results = base;
+	gai_alloc_armed = 1;
+	request = evdns_getaddrinfo(dns, "probe", NULL, &hints, gai_cb, &outcome);
+	gai_alloc_armed = 0;
+	allocation_count = gai_alloc_count;
+	tt_assert(request);
+	tt_int_op(allocation_count, >, 1);
+	tt_assert(gai_alloc_last_size);
+	if (n_gai_results_pending) {
+		event_base_loopexit(base, &limit);
+		event_base_dispatch(base);
+	}
+	request = NULL;
+	tt_int_op(outcome.err, ==, 0);
+	tt_assert(outcome.ai);
+	evutil_freeaddrinfo(outcome.ai);
+	memset(&outcome, 0, sizeof(outcome));
+
+	gai_alloc_second_family_size = (int)gai_alloc_last_size;
+	gai_alloc_second_family_seen = 0;
+	gai_alloc_failed = 0;
+	gai_alloc_a_queries = gai_alloc_aaaa_queries = 0;
+	gai_alloc_first_queries = gai_alloc_second_queries = 0;
+	n_gai_results_pending = 1;
+	gai_alloc_armed = 1;
+	request = evdns_getaddrinfo(dns, "probe", NULL, &hints, gai_cb, &outcome);
+	gai_alloc_armed = 0;
+	tt_assert(request);
+	tt_int_op(gai_alloc_failed, ==, 1);
+	tt_int_op(gai_alloc_second_family_seen, ==, 2);
+	if (n_gai_results_pending) {
+		event_base_loopexit(base, &limit);
+		event_base_dispatch(base);
+	}
+	request = NULL;
+	tt_int_op(n_gai_results_pending, ==, 0);
+	tt_int_op(gai_alloc_a_queries, ==, 2);
+	tt_int_op(gai_alloc_aaaa_queries, ==, 0);
+	tt_int_op(gai_alloc_first_queries, ==, 1);
+	tt_int_op(gai_alloc_second_queries, ==, 1);
+	tt_int_op(outcome.err, ==, 0);
+	tt_assert(outcome.ai);
+	family = outcome.ai->ai_family;
+	tt_int_op(family, ==, AF_INET);
+	for (ai = outcome.ai; ai; ai = ai->ai_next)
+		tt_int_op(ai->ai_family, ==, family);
+end:
+	gai_alloc_armed = gai_alloc_second_family_size = 0;
+	exit_base_on_no_pending_results = NULL;
+	if (dns)
+		evdns_base_free(dns, 1);
+	if (outcome.ai)
+		evutil_freeaddrinfo(outcome.ai);
+	if (port)
+		evdns_close_server_port(port);
+	if (base)
+		event_base_free(base);
+	libevent_global_shutdown();
+	event_set_mem_functions(NULL, NULL, NULL);
+}
+
+#endif
+
+static int gai_empty_callbacks, gai_empty_error;
+
+static void
+gai_empty_cb(int err, struct evutil_addrinfo *ai, void *arg)
+{
+	++gai_empty_callbacks;
+	gai_empty_error = err;
+	if (ai)
+		evutil_freeaddrinfo(ai);
+}
+
+static void
+test_getaddrinfo_search_empty_name(void *arg)
+{
+	struct event_base *base = NULL;
+	struct evdns_base *dns = NULL;
+	struct evdns_getaddrinfo_request *request = NULL;
+	struct evutil_addrinfo hints;
+	int ndots;
+	base = event_base_new();
+	tt_assert(base);
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+	tt_int_op(evdns_base_nameserver_ip_add(dns, "127.0.0.1:9"), ==, 0);
+	evdns_base_search_add(dns, "example.test");
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	for (ndots = 1; ndots >= 0; --ndots) {
+		evdns_base_search_ndots_set(dns, ndots);
+		gai_empty_callbacks = gai_empty_error = 0;
+		request = evdns_getaddrinfo(dns, "", NULL, &hints, gai_empty_cb, NULL);
+		if (ndots) {
+			tt_ptr_op(request, ==, NULL);
+			tt_int_op(gai_empty_error, ==, EVUTIL_EAI_FAIL);
+		} else {
+			tt_assert(request);
+			tt_int_op(gai_empty_callbacks, ==, 0);
+			evdns_getaddrinfo_cancel(request);
+			request = NULL;
+			event_base_loop(base, EVLOOP_NONBLOCK);
+			tt_int_op(gai_empty_error, ==, EVUTIL_EAI_CANCEL);
+		}
+		tt_int_op(gai_empty_callbacks, ==, 1);
+	}
+end:
+	if (request) {
+		evdns_getaddrinfo_cancel(request);
+		event_base_loop(base, EVLOOP_NONBLOCK);
+	}
+	if (dns)
+		evdns_base_free(dns, 1);
+	if (base)
+		event_base_free(base);
 }
 
 #ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
@@ -3405,10 +3802,54 @@ struct testcase_t dns_testcases[] = {
 
 	{ "getaddrinfo_async", test_getaddrinfo_async,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
+	{"getaddrinfo_search_dualstack", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, NULL},
+	{"getaddrinfo_search_dualstack_same", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, (char *)"same"},
+	{"getaddrinfo_search_dualstack_reverse", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, (char *)"reverse"},
+	{"getaddrinfo_search_dualstack_warm", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, (char *)"warm"},
+	{"getaddrinfo_search_dualstack_same_warm",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"same-warm"},
+	{"getaddrinfo_search_dualstack_reverse_warm",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"reverse-warm"},
+	{"getaddrinfo_search_dualstack_later", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, (char *)"same-later"},
+	{"getaddrinfo_search_dualstack_nxdomain", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, (char *)"nxdomain"},
+	{"getaddrinfo_search_dualstack_nxdomain_reverse",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"nxdomain-reverse"},
+	{"getaddrinfo_search_dualstack_nxdomain_later",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"nxdomain-same-later"},
+	{"getaddrinfo_search_dualstack_nxdomain_warm",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"nxdomain-warm"},
+	{"getaddrinfo_search_canonical_warm", test_getaddrinfo_search_dualstack,
+		TT_FORK | TT_NEED_BASE, &basic_setup, (char *)"canonical-warm"},
+	{"getaddrinfo_search_canonical_reverse_warm",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"canonical-reverse-warm"},
+	{"getaddrinfo_search_canonical_nxdomain_warm",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"canonical-nxdomain-warm"},
+	{"getaddrinfo_search_canonical_nxdomain_reverse_warm",
+		test_getaddrinfo_search_dualstack, TT_FORK | TT_NEED_BASE, &basic_setup,
+		(char *)"canonical-nxdomain-reverse-warm"},
 	{ "getaddrinfo_cancel_stress", test_getaddrinfo_async_cancel_stress,
 	  TT_FORK, NULL, NULL },
 
+	{"getaddrinfo_search_empty_name", test_getaddrinfo_search_empty_name,
+		TT_FORK, NULL, NULL},
 #ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
+	{"getaddrinfo_search_alloc", test_getaddrinfo_search_alloc, TT_FORK, NULL,
+		NULL},
+	{"getaddrinfo_search_partial_alloc", test_getaddrinfo_search_partial_alloc,
+		TT_FORK, NULL, NULL},
 	{ "leak_shutdown", test_dbg_leak_shutdown, TT_FORK, &testleak_funcs, NULL },
 	{ "leak_cancel", test_dbg_leak_cancel, TT_FORK, &testleak_funcs, NULL },
 
@@ -3455,4 +3896,3 @@ struct testcase_t dns_testcases[] = {
 
 	END_OF_TESTCASES
 };
-
