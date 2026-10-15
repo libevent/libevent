@@ -24,21 +24,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* This file has our secure PRNG code.  On platforms that have arc4random(),
- * we just use that.  Otherwise, we include arc4random.c as a bunch of static
- * functions, and wrap it lightly.  We don't expose the arc4random*() APIs
- * because A) they aren't in our namespace, and B) it's not nice to name your
- * APIs after their implementations.  We keep them in a separate file
- * so that other people can rip it out and use it for whatever.
- */
+/* Use the platform RNG without maintaining a separate userspace generator. */
 
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
 #include <limits.h>
+#include <errno.h>
 
 #include "util-internal.h"
 #include "evthread-internal.h"
+#include "log-internal.h"
 
 #ifdef EVENT__HAVE_ARC4RANDOM
 #include <stdlib.h>
@@ -119,25 +115,129 @@ ev_arc4random_buf(void *buf, size_t n)
 #ifdef EVENT__ssize_t
 #define ssize_t EVENT__ssize_t
 #endif
-#define ARC4RANDOM_EXPORT static
-#define ARC4_LOCK_() EVLOCK_LOCK(arc4rand_lock, 0)
-#define ARC4_UNLOCK_() EVLOCK_UNLOCK(arc4rand_lock, 0)
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-static void *arc4rand_lock;
+static void *rng_lock;
 #endif
 
-#define ARC4RANDOM_UINT32 ev_uint32_t
-#define ARC4RANDOM_NOSTIR
-#define ARC4RANDOM_NORANDOM
-#define ARC4RANDOM_NOUNIFORM
+#ifdef _WIN32
+#ifdef EVENT__HAVE_BCRYPTGENRANDOM
+#include <bcrypt.h>
+#else
+#include <wincrypt.h>
+static HCRYPTPROV rng_provider;
+#endif
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#ifdef EVENT__HAVE_SYS_RANDOM_H
+#include <sys/random.h>
+#endif
+static int rng_fd = -1;
+static char *rng_filename;
+#ifdef EVENT__HAVE_GETRANDOM
+static int rng_use_getrandom;
+#endif
+#endif
 
-#include "./arc4random.c"
+static int rng_initialized;
+
+static int
+evutil_secure_rng_read_(unsigned char *buf, size_t n)
+{
+	while (n) {
+#ifdef _WIN32
+		ULONG len = n > (size_t)ULONG_MAX ? ULONG_MAX : (ULONG)n;
+#ifdef EVENT__HAVE_BCRYPTGENRANDOM
+		if (BCryptGenRandom(NULL, buf, len,
+		    BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0)
+			return -1;
+#else
+		if (!CryptGenRandom(rng_provider, len, buf))
+			return -1;
+#endif
+#else
+		size_t count = n > 256 ? 256 : n;
+		ssize_t len;
+#ifdef EVENT__HAVE_GETRANDOM
+		if (rng_use_getrandom)
+			len = getrandom(buf, count, 0);
+		else
+#endif
+			len = read(rng_fd, buf, count);
+		if (len < 0 && errno == EINTR)
+			continue;
+		if (len <= 0)
+			return -1;
+#endif
+		buf += len;
+		n -= len;
+	}
+	return 0;
+}
+
+static int
+evutil_secure_rng_init_(void)
+{
+	unsigned char probe;
+
+	if (rng_initialized)
+		return 0;
+#ifdef _WIN32
+#ifndef EVENT__HAVE_BCRYPTGENRANDOM
+	if (!rng_provider && !CryptAcquireContext(&rng_provider, NULL, NULL,
+	    PROV_RSA_FULL, CRYPT_VERIFYCONTEXT))
+		return -1;
+#endif
+	if (evutil_secure_rng_read_(&probe, 1) < 0)
+		return -1;
+#else
+	{
+		static const char *filenames[] = {
+			"/dev/srandom", "/dev/urandom", "/dev/random", NULL
+		};
+		const char *filename;
+		int i;
+#ifdef EVENT__HAVE_GETRANDOM
+		if (rng_filename == NULL) {
+			ssize_t len;
+			do {
+				len = getrandom(&probe, 1, 0);
+			} while (len < 0 && errno == EINTR);
+			if (len == 1) {
+				rng_use_getrandom = 1;
+				rng_initialized = 1;
+				return 0;
+			}
+			if (len == 0 || (errno != ENOSYS && errno != EPERM))
+				return -1;
+		}
+#endif
+		/* Retain the opened device so explicit init also works before chroot. */
+		for (i = 0; (filename = rng_filename ? rng_filename : filenames[i]);
+		    ++i) {
+			rng_fd = evutil_open_closeonexec_(filename, O_RDONLY, 0);
+			if (rng_fd >= 0) {
+				if (evutil_secure_rng_read_(&probe, 1) == 0)
+					break;
+				close(rng_fd);
+				rng_fd = -1;
+			}
+			if (rng_filename)
+				break;
+		}
+		if (rng_fd < 0)
+			return -1;
+	}
+#endif
+	rng_initialized = 1;
+	return 0;
+}
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 int
 evutil_secure_rng_global_setup_locks_(const int enable_locks)
 {
-	EVTHREAD_SETUP_GLOBAL_LOCK(arc4rand_lock, 0);
+	EVTHREAD_SETUP_GLOBAL_LOCK(rng_lock, 0);
 	return 0;
 }
 #endif
@@ -145,10 +245,30 @@ evutil_secure_rng_global_setup_locks_(const int enable_locks)
 static void
 evutil_free_secure_rng_globals_locks(void)
 {
+	EVLOCK_LOCK(rng_lock, 0);
+#ifdef _WIN32
+#ifndef EVENT__HAVE_BCRYPTGENRANDOM
+	if (rng_provider) {
+		CryptReleaseContext(rng_provider, 0);
+		rng_provider = 0;
+	}
+#endif
+#else
+	if (rng_fd >= 0) {
+		close(rng_fd);
+		rng_fd = -1;
+	}
+	rng_filename = NULL;
+#ifdef EVENT__HAVE_GETRANDOM
+	rng_use_getrandom = 0;
+#endif
+#endif
+	rng_initialized = 0;
+	EVLOCK_UNLOCK(rng_lock, 0);
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-	if (arc4rand_lock != NULL) {
-		EVTHREAD_FREE_LOCK(arc4rand_lock, 0);
-		arc4rand_lock = NULL;
+	if (rng_lock != NULL) {
+		EVTHREAD_FREE_LOCK(rng_lock, 0);
+		rng_lock = NULL;
 	}
 #endif
 	return;
@@ -157,12 +277,19 @@ evutil_free_secure_rng_globals_locks(void)
 int
 evutil_secure_rng_set_urandom_device_file(char *fname)
 {
-#ifdef TRY_SEED_URANDOM
-	ARC4_LOCK_();
-	arc4random_urandom_filename = fname;
-	ARC4_UNLOCK_();
+#ifdef _WIN32
+	(void) fname;
+	return -1;
+#else
+	int result = -1;
+	EVLOCK_LOCK(rng_lock, 0);
+	if (!rng_initialized) {
+		rng_filename = fname;
+		result = 0;
+	}
+	EVLOCK_UNLOCK(rng_lock, 0);
+	return result;
 #endif
-	return 0;
 }
 
 int
@@ -170,16 +297,26 @@ evutil_secure_rng_init(void)
 {
 	int val;
 
-	ARC4_LOCK_();
-	val = (!arc4_stir()) ? 0 : -1;
-	ARC4_UNLOCK_();
+	EVLOCK_LOCK(rng_lock, 0);
+	val = evutil_secure_rng_init_();
+	EVLOCK_UNLOCK(rng_lock, 0);
 	return val;
 }
 
 static void
 ev_arc4random_buf(void *buf, size_t n)
 {
-	arc4random_buf(buf, n);
+	int result;
+	EVLOCK_LOCK(rng_lock, 0);
+	result = evutil_secure_rng_init_();
+	if (result == 0)
+		result = evutil_secure_rng_read_(buf, n);
+	if (result < 0)
+		evutil_memclear_(buf, n);
+	EVLOCK_UNLOCK(rng_lock, 0);
+	if (result < 0)
+		event_errx(1, "%s: unable to obtain operating-system randomness",
+		    __func__);
 }
 
 #endif /* } !EVENT__HAVE_ARC4RANDOM */
@@ -187,18 +324,18 @@ ev_arc4random_buf(void *buf, size_t n)
 void
 evutil_secure_rng_get_bytes(void *buf, size_t n)
 {
-	ev_arc4random_buf(buf, n);
+	if (n)
+		ev_arc4random_buf(buf, n);
 }
 
 void
 evutil_secure_rng_add_bytes(const char *buf, size_t n)
 {
-#if !defined(EVENT__HAVE_ARC4RANDOM)
-	arc4random_addrandom((unsigned char*)buf,
-	    n>(size_t)INT_MAX ? INT_MAX : (int)n);
-#elif defined(EVENT__HAVE_ARC4RANDOM_STIR)
+#if defined(EVENT__HAVE_ARC4RANDOM) && defined(EVENT__HAVE_ARC4RANDOM_STIR)
     arc4random_stir();
 #endif
+	(void) buf;
+	(void) n;
 }
 
 void

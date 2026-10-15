@@ -101,7 +101,6 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 # These sources are conditionally added by configure.ac or conditionally
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
-	arc4random.c \
 	bufferevent_ssl.c \
 	epoll_sub.c \
 	PrivacyInfo.xcprivacy \
