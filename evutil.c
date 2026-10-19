@@ -372,6 +372,11 @@ evutil_win_socketpair_afunix(int family, int type, int protocol,
 		goto abort_tidy_up_and_fail;
 
 	evutil_closesocket(listener);
+	/* Windows does not remove the socket file that bind() created when the
+	 * listener is closed, and the connected pair no longer needs it. Remove
+	 * it so every socketpair does not leave a 0-byte .tmp file in the temp
+	 * directory. */
+	DeleteFileW(tmp_file);
 	fd[0] = connector;
 	fd[1] = acceptor;
 
