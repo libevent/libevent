@@ -1847,6 +1847,40 @@ test_evutil_check_working_afunix(void *arg)
 end:
 	;
 }
+
+/* The AF_UNIX socketpair emulation binds its listener to a path from
+ * GetTempFileNameW(). Windows does not remove that socket file when the
+ * listener is closed, so evutil_win_socketpair_afunix() has to delete it
+ * itself once the pair is connected, or every socketpair leaves a 0-byte
+ * file behind in the temp directory. */
+static void
+test_evutil_win_socketpair_afunix_tmpfile(void *arg)
+{
+	evutil_socket_t fd[2] = {EVUTIL_INVALID_SOCKET, EVUTIL_INVALID_SOCKET};
+	struct sockaddr_un a;
+	ev_socklen_t socklen = sizeof(a);
+	WCHAR path[MAX_PATH] = {0};
+
+	if (!evutil_check_working_afunix_())
+		tt_skip();
+
+	tt_int_op(evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, fd), ==, 0);
+
+	/* The acceptor's local name is the path the listener was bound to. */
+	memset(&a, 0, sizeof(a));
+	tt_assert(getsockname(fd[1], (struct sockaddr *)&a, &socklen) == 0);
+	tt_int_op(a.sun_family, ==, AF_UNIX);
+	tt_assert(strlen(a.sun_path) > 0);
+
+	/* sun_path is UTF-8 on Windows; the temp directory may not be ASCII. */
+	tt_assert(
+		MultiByteToWideChar(CP_UTF8, 0, a.sun_path, -1, path, MAX_PATH) > 0);
+	tt_assert(GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES);
+	tt_int_op(GetLastError(), ==, ERROR_FILE_NOT_FOUND);
+
+end:
+	socketpair_close(fd);
+}
 #endif // EVENT__HAVE_AFUNIX_H
 #endif // _WIN32
 
@@ -1893,6 +1927,7 @@ struct testcase_t util_testcases[] = {
 	{ "socketpair_unix", test_evutil_win_socketpair, 0, &basic_setup, (void*)"unix" },
 #ifdef EVENT__HAVE_AFUNIX_H
 	{ "check_working_afunix", test_evutil_check_working_afunix, 0, NULL, NULL },
+	{ "socketpair_unix_tmpfile", test_evutil_win_socketpair_afunix_tmpfile, 0, NULL, NULL },
 #endif
 #endif
 	END_OF_TESTCASES,
