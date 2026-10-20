@@ -31,6 +31,8 @@
    appropriate getter function in bufferevent_mbedtls_socket_new rather than
    accessing the struct fields directly. */
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
+#include <limits.h>
+
 #include "mbedtls-compat.h"
 #include <mbedtls/version.h>
 #include <mbedtls/ssl.h>
