@@ -398,7 +398,7 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 						return OP_ERR | result;
 				bev_ssl->last_write = space[i].iov_len;
 			} else if (bev_ssl->ssl_ops->err_is_want_read(err)) {
-				/* This read operation requires a write, and the
+				/* This write operation requires a read, and the
 				 * underlying is full */
 				if (!bev_ssl->write_blocked_on_read)
 					if (set_wbor(bev_ssl) < 0)
