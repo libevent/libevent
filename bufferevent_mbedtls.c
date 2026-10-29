@@ -281,10 +281,11 @@ bufferevent_mbedtls_set_allow_dirty_shutdown(
 mbedtls_ssl_context *
 bufferevent_mbedtls_get_ssl(struct bufferevent *bufev)
 {
-	struct mbedtls_context *ctx = NULL;
-	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bufev);
-	if (!bev_ssl)
+	struct mbedtls_context *ctx;
+	struct bufferevent_ssl *bev_ssl;
+	if (!BEV_IS_SSL(bufev))
 		return NULL;
+	bev_ssl = bufferevent_ssl_upcast(bufev);
 	ctx = bev_ssl->ssl;
 	return ctx->ssl;
 }

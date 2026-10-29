@@ -767,6 +767,21 @@ end:
 		event_base_loop(base, EVLOOP_ONCE);
 }
 
+static void
+regress_bufferevent_get_ssl_non_ssl(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+
+	bev = bufferevent_socket_new(data->base, -1, 0);
+	tt_assert(bev);
+	tt_ptr_op(bufferevent_ssl_get_ssl(bev), ==, NULL);
+
+end:
+	if (bev)
+		bufferevent_free(bev);
+}
+
 struct testcase_t TESTCASES_NAME[] = {
 #define T(a) ((void *)(a))
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
@@ -854,6 +869,8 @@ struct testcase_t TESTCASES_NAME[] = {
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_DEFERRED_CALLBACKS) },
 	{ "bufferevent_wm_filter_defer", regress_bufferevent_openssl_wm,
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_OPENSSL_FILTER|REGRESS_DEFERRED_CALLBACKS) },
+	{ "bufferevent_get_ssl_non_ssl", regress_bufferevent_get_ssl_non_ssl,
+	  TT_ISOLATED, &ssl_setup, NULL },
 
 #undef T
 

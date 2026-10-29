@@ -515,9 +515,10 @@ bufferevent_ssl_renegotiate(struct bufferevent *bev)
 SSL *
 bufferevent_openssl_get_ssl(struct bufferevent *bufev)
 {
-	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bufev);
-	if (!bev_ssl)
+	struct bufferevent_ssl *bev_ssl;
+	if (!BEV_IS_SSL(bufev))
 		return NULL;
+	bev_ssl = bufferevent_ssl_upcast(bufev);
 	return bev_ssl->ssl;
 }
 
