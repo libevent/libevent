@@ -537,8 +537,7 @@ bufferevent_openssl_set_allow_dirty_shutdown(
 unsigned long
 bufferevent_get_openssl_error(struct bufferevent *bufev)
 {
-	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bufev);
-	if (!bev_ssl)
+	if (!BEV_IS_SSL(bufev))
 		return 0;
 	return bufferevent_get_ssl_error(bufev);
 }

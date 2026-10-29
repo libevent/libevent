@@ -298,8 +298,7 @@ bufferevent_mbedtls_renegotiate(struct bufferevent *bufev)
 unsigned long
 bufferevent_get_mbedtls_error(struct bufferevent *bufev)
 {
-	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bufev);
-	if (!bev_ssl)
+	if (!BEV_IS_SSL(bufev))
 		return 0;
 	return bufferevent_get_ssl_error(bufev);
 }

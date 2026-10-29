@@ -767,6 +767,65 @@ end:
 		event_base_loop(base, EVLOOP_ONCE);
 }
 
+#ifdef EVENT__HAVE_OPENSSL
+static int ssl_error_count;
+
+static void
+get_error_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	(void)ctx;
+	if (!(what & BEV_EVENT_ERROR))
+		return;
+	while (bufferevent_get_openssl_error(bev))
+		++ssl_error_count;
+	event_base_loopbreak(bufferevent_get_base(bev));
+}
+
+static void
+regress_bufferevent_get_error_non_ssl(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+
+	bev = bufferevent_socket_new(data->base, -1, 0);
+	tt_assert(bev);
+	tt_int_op(bufferevent_get_openssl_error(bev), ==, 0);
+
+end:
+	if (bev)
+		bufferevent_free(bev);
+}
+
+static void
+regress_bufferevent_get_error_failed_handshake(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	SSL *ssl = NULL;
+	const char reply[] = "HTTP/1.0 400 Bad Request\r\n\r\n";
+
+	ssl = SSL_new(get_ssl_ctx(SSL_IS_CLIENT));
+	tt_assert(ssl);
+
+	bev = bufferevent_ssl_socket_new(data->base, data->pair[0], ssl,
+		BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+
+	bufferevent_setcb(bev, NULL, NULL, get_error_eventcb, NULL);
+	bufferevent_enable(bev, EV_READ | EV_WRITE);
+
+	tt_int_op(send(data->pair[1], reply, sizeof(reply) - 1, 0), >, 0);
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(ssl_error_count, >, 0);
+
+end:
+	if (bev)
+		bufferevent_free(bev);
+}
+#endif /* EVENT__HAVE_OPENSSL */
+
 struct testcase_t TESTCASES_NAME[] = {
 #define T(a) ((void *)(a))
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
@@ -854,6 +913,13 @@ struct testcase_t TESTCASES_NAME[] = {
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_DEFERRED_CALLBACKS) },
 	{ "bufferevent_wm_filter_defer", regress_bufferevent_openssl_wm,
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_OPENSSL_FILTER|REGRESS_DEFERRED_CALLBACKS) },
+#ifdef EVENT__HAVE_OPENSSL
+	{ "bufferevent_get_error_non_ssl", regress_bufferevent_get_error_non_ssl,
+	  TT_ISOLATED, &ssl_setup, NULL },
+	{ "bufferevent_get_error_failed_handshake",
+	  regress_bufferevent_get_error_failed_handshake,
+	  TT_ISOLATED, &ssl_setup, NULL },
+#endif
 
 #undef T
 
