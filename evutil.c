@@ -1050,11 +1050,11 @@ evutil_addrinfo_append_(struct evutil_addrinfo *first,
 static int
 parse_numeric_servname(const char *servname)
 {
-	int n;
+	long n;
 	char *endptr=NULL;
-	n = (int) strtol(servname, &endptr, 10);
+	n = strtol(servname, &endptr, 10);
 	if (n>=0 && n <= 65535 && servname[0] && endptr && !endptr[0])
-		return n;
+		return (int)n;
 	else
 		return -1;
 }
