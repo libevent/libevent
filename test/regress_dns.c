@@ -1966,6 +1966,36 @@ test_getaddrinfo_async(void *arg)
 	evutil_freeaddrinfo(local_outcome.ai);
 	local_outcome.ai = NULL;
 
+	/* 1h. Numeric service names are range-checked: the ones that do not
+	 * fit in a port number must be rejected, not truncated to one. */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_NUMERICSERV;
+	r = evdns_getaddrinfo(dns_base, "1.2.3.4", "65535",
+	    &hints, gai_cb, &local_outcome);
+	tt_assert(!r);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	test_ai_eq(local_outcome.ai, "1.2.3.4:65535", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 65536 is out of range; 4294967296 is 2^32, which a truncation to a
+	 * 32-bit int would turn into port 0; 4294967377 is 2^32+81. */
+	for (i = 0; i < 3; ++i) {
+		static const char *const bad_ports[] = {
+			"65536", "4294967296", "4294967377"
+		};
+		memset(&local_outcome, 0, sizeof(local_outcome));
+		r = evdns_getaddrinfo(dns_base, "1.2.3.4", bad_ports[i],
+		    &hints, gai_cb, &local_outcome);
+		tt_assert(!r);
+		tt_int_op(local_outcome.err,==,EVUTIL_EAI_NONAME);
+		tt_ptr_op(local_outcome.ai,==,NULL);
+	}
+
 	/* 2. Okay, now we can actually test the asynchronous resolver. */
 	/* Start a dummy local dns server... */
 	port = regress_get_udp_dnsserver(data->base, &dns_port, NULL,
