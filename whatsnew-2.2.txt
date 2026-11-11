@@ -276,6 +276,15 @@
   Also there is new flag BUFFEREVENT_SSL_BATCH_WRITE, that allows to avoid
   Nagle effect in SSL.
 
+3.2. SSL bufferevent buffer protection
+
+  SSL bufferevents now freeze the input buffer's end and the output buffer's
+  start, like socket bufferevents. Applications can still drain input and
+  append output, but attempts to append input, or prepend or drain output,
+  fail. The TLS transport temporarily unfreezes these ends for its own I/O.
+  HTTP connection reset explicitly unfreezes output when discarding queued
+  data, so a failed HTTPS connection can still be reset safely.
+
 4. DNS layer
 
 4.1. TCP support
