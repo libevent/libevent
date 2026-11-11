@@ -1479,7 +1479,9 @@ evhttp_connection_reset_hard_(struct evhttp_connection *evcon)
 
 	/* we need to clean up any buffered data */
 	tmp = bufferevent_get_output(evcon->bufev);
+	evbuffer_unfreeze(tmp, 1);
 	err = evbuffer_drain(tmp, -1);
+	evbuffer_freeze(tmp, 1);
 	EVUTIL_ASSERT(!err && "drain output");
 	tmp = bufferevent_get_input(evcon->bufev);
 	err = evbuffer_drain(tmp, -1);
