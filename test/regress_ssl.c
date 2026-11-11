@@ -137,6 +137,9 @@ enum regress_openssl_type
 	REGRESS_DEFERRED_CALLBACKS = 4096,
 
 	REGRESS_OPENSSL_BATCH_WRITE = 8192,
+
+	REGRESS_SSL_FROZEN_BUFFERS = 16384,
+	REGRESS_SSL_NODEFER = 32768,
 };
 
 static void
@@ -170,16 +173,28 @@ free_on_cb(struct bufferevent *bev, void *ctx)
 	bufferevent_free(bev);
 }
 
+/* The application may drain input and append output, but not the reverse. */
+static int
+ssl_buffers_are_frozen(struct bufferevent *bev)
+{
+	if (evbuffer_add(bufferevent_get_input(bev), "x", 1) != -1)
+		return 0;
+	if (evbuffer_prepend(bufferevent_get_output(bev), "x", 1) != -1)
+		return 0;
+	return 1;
+}
+
 static void
 respond_to_number(struct bufferevent *bev, void *ctx)
 {
 	struct evbuffer *b = bufferevent_get_input(bev);
 	char *line;
 	int n;
-#ifdef SSL_renegotiate
 	enum regress_openssl_type type;
 	type = (enum regress_openssl_type)(size_t)ctx;
-#endif
+
+	if (type & REGRESS_SSL_FROZEN_BUFFERS)
+		tt_assert(ssl_buffers_are_frozen(bev));
 
 	line = evbuffer_readln(b, NULL, EVBUFFER_EOL_LF);
 	if (! line)
@@ -206,6 +221,8 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 	bufferevent_enable(bev, EV_WRITE);
 	// we shouldn't disable EV_READ here, otherwise we wouldn't got close cb
 	// bufferevent_disable(bev, EV_READ);
+end:
+	;
 }
 
 static void
@@ -321,7 +338,7 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 	bufferevent_ssl_set_allow_dirty_shutdown(*bev1_out, dirty_shutdown);
 	bufferevent_ssl_set_allow_dirty_shutdown(*bev2_out, dirty_shutdown);
 
-	if (REGRESS_OPENSSL_BATCH_WRITE) {
+	if (type & REGRESS_OPENSSL_BATCH_WRITE) {
 		bufferevent_ssl_set_flags(*bev1_out, BUFFEREVENT_SSL_BATCH_WRITE);
 		bufferevent_ssl_set_flags(*bev2_out, BUFFEREVENT_SSL_BATCH_WRITE);
 	}
@@ -379,6 +396,9 @@ regress_bufferevent_openssl(void *arg)
 		    BEV_OPT_CLOSE_ON_FREE);
 	}
 
+	if (type & REGRESS_SSL_NODEFER)
+		flags &= ~BEV_OPT_DEFER_CALLBACKS;
+
 	open_ssl_bufevs(&bev1, &bev2, data->base, 0, flags, ssl1, ssl2,
 	    fd_pair, bev_ll, type);
 
@@ -409,6 +429,15 @@ regress_bufferevent_openssl(void *arg)
 
 		if (!(type & REGRESS_OPENSSL_CLIENT_WRITE))
 			evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
+
+		if (type & REGRESS_SSL_FROZEN_BUFFERS) {
+			tt_assert(ssl_buffers_are_frozen(bev1));
+			tt_assert(ssl_buffers_are_frozen(bev2));
+			tt_int_op(evbuffer_drain(bufferevent_get_output(bev1), 1),
+			    ==, -1);
+			tt_int_op(evbuffer_get_length(bufferevent_get_output(bev1)),
+			    ==, 2);
+		}
 
 		event_base_dispatch(data->base);
 
@@ -778,6 +807,20 @@ struct testcase_t TESTCASES_NAME[] = {
 	  T(REGRESS_OPENSSL_SOCKETPAIR|REGRESS_OPENSSL_CLIENT_WRITE) },
 	{ "bufferevent_filter", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_FILTER) },
+#define FROZEN_TEST(name, type) \
+	{ name, regress_bufferevent_openssl, TT_ISOLATED, &ssl_setup, \
+	  T((type) | REGRESS_SSL_FROZEN_BUFFERS) }
+	FROZEN_TEST("frozen_socketpair", REGRESS_OPENSSL_SOCKETPAIR),
+	FROZEN_TEST("frozen_filter", REGRESS_OPENSSL_FILTER),
+	FROZEN_TEST("frozen_socketpair_nodefer",
+	    REGRESS_OPENSSL_SOCKETPAIR | REGRESS_SSL_NODEFER),
+	FROZEN_TEST("frozen_filter_nodefer",
+	    REGRESS_OPENSSL_FILTER | REGRESS_SSL_NODEFER),
+	FROZEN_TEST("frozen_socketpair_batch",
+	    REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_BATCH_WRITE),
+	FROZEN_TEST("frozen_filter_batch",
+	    REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_BATCH_WRITE),
+#undef FROZEN_TEST
 	{ "bufferevent_filter_write_after_connect", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER|REGRESS_OPENSSL_CLIENT_WRITE) },
