@@ -459,6 +459,14 @@ test_evutil_snprintf(void *ptr)
 	tt_str_op(buf, ==, "50 100");
 	tt_int_op(r, ==, 6);
 
+	r = evutil_snprintf(NULL, 0, "%d %d", 50, 100);
+	tt_int_op(r, ==, 6);
+	r = evutil_snprintf(buf, 0, "%s", "longer output");
+	tt_int_op(r, ==, 13);
+	tt_str_op(buf, ==, "50 100");
+	r = evutil_snprintf(NULL, 0, "%s", "");
+	tt_int_op(r, ==, 0);
+
 	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
 	tt_str_op(buf, ==, "longish 1234567");
 	tt_int_op(r, ==, 18);

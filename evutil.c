@@ -2100,8 +2100,6 @@ int
 evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 {
 	int r;
-	if (!buflen)
-		return 0;
 #if defined(_MSC_VER) || defined(_WIN32)
 	r = _vsnprintf(buf, buflen, format, ap);
 	if (r < 0)
@@ -2116,8 +2114,8 @@ evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 #else
 	r = vsnprintf(buf, buflen, format, ap);
 #endif
-	// If r >= buflen, the output is truncated, and it is manually guaranteed to end with '\0'
-	if (r >= 0 && (size_t)r >= buflen) {
+	/* NUL-terminate truncated output when a buffer is provided. */
+	if (buflen && r >= 0 && (size_t)r >= buflen) {
 		buf[buflen - 1] = '\0';
 	}
 	return r;
