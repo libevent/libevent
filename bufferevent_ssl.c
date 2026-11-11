@@ -264,7 +264,9 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 	if (n_to_read > atmost)
 		n_to_read = atmost;
 
+	evbuffer_unfreeze(input, 0);
 	n = evbuffer_reserve_space(input, n_to_read, space, 2);
+	evbuffer_freeze(input, 0);
 	if (n < 0)
 		return OP_ERR;
 
@@ -326,7 +328,9 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 	}
 
 	if (i) {
+		evbuffer_unfreeze(input, 0);
 		evbuffer_commit_space(input, space, i);
+		evbuffer_freeze(input, 0);
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_READ_TIMEOUT(bev);
 	}
@@ -413,7 +417,10 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 		}
 	}
 	if (n_written) {
-		if (evbuffer_drain(output, n_written))
+		evbuffer_unfreeze(output, 1);
+		r = evbuffer_drain(output, n_written);
+		evbuffer_freeze(output, 1);
+		if (r)
 			return OP_ERR | result;
 
 		if (bev_ssl->underlying)
@@ -1079,6 +1086,9 @@ bufferevent_ssl_new_impl(struct event_base *base,
 			bufferevent_suspend_read_(underlying,
 			    BEV_SUSPEND_FILT_READ);
 	}
+
+	evbuffer_freeze(bev_p->bev.input, 0);
+	evbuffer_freeze(bev_p->bev.output, 1);
 
 	return &bev_ssl->bev.bev;
 err:
