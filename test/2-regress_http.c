@@ -6060,6 +6060,46 @@ end:
 }
 
 
+/* Connecting and canceling must discard any queued TLS output safely. */
+static void
+http_ssl_reset_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp *http = NULL;
+	struct evhttp_request *req = NULL;
+	ev_uint16_t port = 0;
+	int ssl_mask = (int)(intptr_t)data->setup_data;
+
+	http = http_setup(&port, data->base, ssl_mask);
+	tt_assert(http);
+	bev = create_bev(data->base, -1, ssl_mask, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
+	evcon = evhttp_connection_base_bufferevent_new(data->base, NULL,
+	    bev, "127.0.0.1", port);
+	tt_assert(evcon);
+	tt_int_op(bufferevent_write(bev, "unsent", 6), ==, 0);
+	tt_int_op(evbuffer_get_length(bufferevent_get_output(bev)), ==, 6);
+	req = evhttp_request_new(NULL, NULL);
+	tt_assert(req);
+	/* No loop has run, so the queued output has not been sent. */
+	tt_int_op(evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test"), ==, 0);
+	/* Canceling hard-resets the connection and discards queued data. */
+	evhttp_cancel_request(req);
+	req = NULL;
+	tt_int_op(evbuffer_get_length(bufferevent_get_output(bev)), ==, 0);
+
+end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	else if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+}
+
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -6157,6 +6197,14 @@ static void https_mbedtls_per_socket_bevcb_test(void *arg)
 #endif
 
 struct testcase_t http_testcases[] = {
+#ifdef EVENT__HAVE_OPENSSL
+	{ "https_openssl_reset", http_ssl_reset_test, TT_ISOLATED,
+	  &basic_setup, HTTP_CAST_ARG(HTTP_OPENSSL) },
+#endif
+#ifdef EVENT__HAVE_MBEDTLS
+	{ "https_mbedtls_reset", http_ssl_reset_test, TT_ISOLATED,
+	  &mbedtls_setup, HTTP_CAST_ARG(HTTP_MBEDTLS) },
+#endif
 	{ "primitives", http_primitives, 0, NULL, NULL },
 	{ "base", http_base_test, TT_FORK, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
