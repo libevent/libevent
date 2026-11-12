@@ -76,6 +76,7 @@
 	bufferevent_mbedtls_set_allow_dirty_shutdown
 #define bufferevent_ssl_socket_new bufferevent_mbedtls_socket_new
 #define bufferevent_ssl_filter_new bufferevent_mbedtls_filter_new
+#define bufferevent_ssl_get_error bufferevent_get_mbedtls_error
 
 struct rwcount;
 static void BIO_setup(SSL *ssl, struct rwcount *rw);
