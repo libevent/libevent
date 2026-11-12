@@ -1100,7 +1100,7 @@ bufferevent_get_ssl_error(struct bufferevent *bev)
 	unsigned long err = 0;
 	struct bufferevent_ssl *bev_ssl;
 
-	if (BEV_IS_SSL(bev))
+	if (!BEV_IS_SSL(bev))
 		return err;
 
 	BEV_LOCK(bev);

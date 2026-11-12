@@ -767,6 +767,84 @@ end:
 		event_base_loop(base, EVLOOP_ONCE);
 }
 
+
+static void
+regress_bufferevent_get_ssl_error_plain(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *plain = NULL;
+
+	plain = bufferevent_socket_new(data->base, -1, 0);
+	tt_assert(plain);
+	/* Must not upcast a non-SSL bufferevent (OOB since 2f27523e). */
+	tt_int_op(bufferevent_ssl_get_error(plain), ==, 0);
+end:
+	if (plain)
+		bufferevent_free(plain);
+}
+
+#if OPENSSL_VERSION_NUMBER
+static int ssl_error_count;
+
+static void
+get_ssl_error_eventcb(struct bufferevent *bev, short what, void *arg)
+{
+	if (!(what & BEV_EVENT_ERROR))
+		return;
+	while (bufferevent_ssl_get_error(bev))
+		++ssl_error_count;
+	event_base_loopbreak(bufferevent_get_base(bev));
+	(void)arg;
+}
+
+static void
+regress_bufferevent_get_ssl_error_handshake(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *tls = NULL;
+	SSL_CTX *ctx = NULL;
+	SSL *ssl = NULL;
+	evutil_socket_t sv[2] = {-1, -1};
+	const char reply[] = "HTTP/1.0 400 Bad Request\r\n\r\n";
+
+	ssl_error_count = 0;
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == -1)
+		tt_abort_perror("socketpair");
+
+	ctx = SSL_CTX_new(TLS_client_method());
+	tt_assert(ctx);
+	ssl = SSL_new(ctx);
+	tt_assert(ssl);
+
+	tls = bufferevent_openssl_socket_new(data->base, sv[0], ssl,
+	    BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(tls);
+	ssl = NULL; /* owned by tls */
+	sv[0] = -1;
+	bufferevent_setcb(tls, NULL, NULL, get_ssl_error_eventcb, NULL);
+	bufferevent_enable(tls, EV_READ | EV_WRITE);
+
+	tt_int_op(write(sv[1], reply, sizeof(reply) - 1), ==, (int)(sizeof(reply) - 1));
+	{
+		struct timeval tv = { 2, 0 };
+		event_base_loopexit(data->base, &tv);
+	}
+	event_base_dispatch(data->base);
+	tt_int_op(ssl_error_count, >, 0);
+end:
+	if (tls)
+		bufferevent_free(tls);
+	if (ssl)
+		SSL_free(ssl);
+	if (ctx)
+		SSL_CTX_free(ctx);
+	if (sv[0] >= 0)
+		evutil_closesocket(sv[0]);
+	if (sv[1] >= 0)
+		evutil_closesocket(sv[1]);
+}
+#endif
+
 struct testcase_t TESTCASES_NAME[] = {
 #define T(a) ((void *)(a))
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
@@ -842,6 +920,14 @@ struct testcase_t TESTCASES_NAME[] = {
 	{ "bufferevent_socketpair_timeout_freed_fd", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_TIMEOUT | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
+	{ "bufferevent_get_ssl_error_plain",
+	  regress_bufferevent_get_ssl_error_plain,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#if OPENSSL_VERSION_NUMBER
+	{ "bufferevent_get_ssl_error_handshake",
+	  regress_bufferevent_get_ssl_error_handshake,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#endif
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, NULL },
 	{ "bufferevent_connect_sleep", regress_bufferevent_openssl_connect,
