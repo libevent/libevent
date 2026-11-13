@@ -305,6 +305,14 @@ struct event_config
  * failure.  Note that this method MUST be called before any events or
  * event_bases have been created.
  *
+ * If events will be used concurrently from multiple threads, initialize
+ * Libevent's threading support before creating any events or event_bases, for
+ * example with evthread_use_pthreads() or evthread_use_windows_threads(). Debug
+ * mode tracks events globally, so this is required even when each thread uses
+ * its own event_base and events are never shared between threads.
+ * Bases confined to one thread can still use EVENT_BASE_FLAG_NOLOCK to avoid
+ * per-base locking; the global debug tracking still needs threading support.
+ *
  * Debug mode can currently catch the following errors:
  *    An event is re-assigned while it is added
  *    Any function is called on a non-assigned event

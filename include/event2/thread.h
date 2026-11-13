@@ -34,6 +34,10 @@
   add and delete events from a single event base, Libevent needs to
   lock its data structures.
 
+  When event_enable_debug_mode() is enabled, threading support is also
+  required if multiple threads use separate event bases: debug mode tracks
+  all events in a global data structure.
+
   Like the memory-management function hooks, all of the threading functions
   _must_ be set up before an event_base is created if you want the base to
   use them.
