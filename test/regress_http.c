@@ -56,6 +56,7 @@
 
 #include "event2/event.h"
 #include "event2/http.h"
+#include "event2/http_struct.h"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 #include "event2/bufferevent_ssl.h"
@@ -2741,6 +2742,102 @@ http_failure_test(void *arg)
  end:
 	if (fd >= 0)
 		evutil_closesocket(fd);
+}
+
+static void
+http_nul_uri_readcb(struct bufferevent *bev, void *arg)
+{
+	const char *what = "400 Bad Request";
+	if (evbuffer_contains(bufferevent_get_input(bev), what)) {
+		test_ok = 2;
+		bufferevent_disable(bev, EV_READ);
+		event_base_loopexit(arg, NULL);
+	}
+}
+
+/* CVE-2026-63385: a request-target with %00 must not be accepted. */
+static void
+http_nul_uri_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evhttp_request *req = NULL;
+	struct evbuffer *buf = NULL;
+	struct bufferevent *bev = NULL;
+	enum message_read_status done;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
+	const char *http_request;
+	ev_uint16_t port = 0;
+	struct evhttp *http = NULL;
+
+	req = evhttp_request_new(NULL, NULL);
+	tt_assert(req);
+	req->kind = EVHTTP_REQUEST;
+	buf = evbuffer_new();
+	tt_assert(buf);
+
+	evbuffer_add_printf(buf, "GET /test%%00.jpg HTTP/1.1\r\n");
+	done = evhttp_parse_firstline_(req, buf);
+	tt_int_op(done, ==, DATA_CORRUPTED);
+
+	evhttp_request_free(req);
+	req = evhttp_request_new(NULL, NULL);
+	tt_assert(req);
+	req->kind = EVHTTP_REQUEST;
+	evbuffer_drain(buf, evbuffer_get_length(buf));
+	evbuffer_add_printf(buf, "GET /test?file=secret%%00.jpg HTTP/1.1\r\n");
+	done = evhttp_parse_firstline_(req, buf);
+	tt_int_op(done, ==, DATA_CORRUPTED);
+
+	evhttp_request_free(req);
+	req = evhttp_request_new(NULL, NULL);
+	tt_assert(req);
+	req->kind = EVHTTP_REQUEST;
+	evbuffer_drain(buf, evbuffer_get_length(buf));
+	evbuffer_add_printf(buf, "GET /foo%%2Fbar HTTP/1.1\r\n");
+	done = evhttp_parse_firstline_(req, buf);
+	tt_int_op(done, ==, ALL_DATA_READ);
+
+	evhttp_request_free(req);
+	req = NULL;
+	evbuffer_free(buf);
+	buf = NULL;
+
+	/* The same request must also get 400 from a live server, and
+	 * must not match the /test callback via C-string truncation. */
+	test_ok = 0;
+	http = http_setup(&port, data->base, 0);
+
+	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
+
+	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_assert(bev);
+
+	bufferevent_setcb(bev, http_nul_uri_readcb, http_writecb,
+	    http_errorcb, data->base);
+
+	http_request =
+	    "GET /test%00.jpg HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(test_ok, ==, 2);
+ end:
+	if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+	if (fd >= 0)
+		evutil_closesocket(fd);
+	if (req)
+		evhttp_request_free(req);
+	if (buf)
+		evbuffer_free(buf);
 }
 
 static void
@@ -6206,6 +6303,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(custom),
 	HTTP(allowed_methods),
 	HTTP(failure),
+	HTTP(nul_uri),
 	HTTP(connection),
 	HTTP(persist_connection),
 	HTTP(autofree_connection),
