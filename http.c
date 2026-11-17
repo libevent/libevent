@@ -1846,6 +1846,10 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	*version = '\0';
 	version++;
 
+	/* %00 becomes a NUL and truncates later C-string path checks. */
+	if (strstr(uri, "%00") != NULL)
+		return -1;
+
 	method_len = (uri - method) - 1;
 
 	/* First line */
