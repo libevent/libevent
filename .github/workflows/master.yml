@@ -141,8 +141,10 @@ jobs:
           persist-credentials: false
       - name: Install Depends
         run: |
-          wget -q https://www.doxygen.nl/files/doxygen-1.16.1.linux.bin.tar.gz
-          tar xzf doxygen-1.16.1.linux.bin.tar.gz
+          doxygen_archive=doxygen-1.16.1.linux.bin.tar.gz
+          wget -q -O "$doxygen_archive" "https://github.com/doxygen/doxygen/releases/download/Release_1_16_1/$doxygen_archive"
+          printf '%s  %s\n' 'a56f885d37e3aae08a99f638d17bbb381224c03a878d9e2dda4f9fa4baf1d8bd' "$doxygen_archive" | sha256sum -c -
+          tar xzf "$doxygen_archive"
           sudo cp doxygen-1.16.1/bin/doxygen /usr/local/bin/
           sudo apt install libmbedtls-dev
 
