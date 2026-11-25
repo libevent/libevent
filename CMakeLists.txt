@@ -45,6 +45,7 @@ project(libevent C)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
 string(REGEX MATCH "SunOS" SOLARIS "${CMAKE_SYSTEM_NAME}")
+string(REGEX MATCH "QNX" QNX "${CMAKE_SYSTEM_NAME}")
 
 
 include(CheckTypeSize)
@@ -385,6 +386,10 @@ if (SOLARIS)
         nsl
     )
 endif()
+if (QNX)
+    # The socket functions live in libsocket, not libc.
+    list(APPEND CMAKE_REQUIRED_LIBRARIES socket)
+endif()
 
 # Check if _GNU_SOURCE is available.
 if (NOT DEFINED _GNU_SOURCE)
@@ -595,6 +600,10 @@ list(APPEND CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES} stdio.h)
 CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${CMAKE_EXTRA_INCLUDE_FILES}" "EVENT")
 unset(SYMBOLS_TO_CHECK)
 set(EVENT__HAVE_EPOLL ${EVENT__HAVE_EPOLL_CREATE})
+if (QNX)
+    # Don't use signalfd() on QNX
+    set(EVENT__HAVE_SYS_SIGNALFD_H FALSE)
+endif()
 set(EVENT__HAVE_SIGNALFD ${EVENT__HAVE_SYS_SIGNALFD_H})
 if(WIN32 AND NOT CYGWIN)
     set(EVENT__HAVE_WEPOLL 1)
@@ -1046,6 +1055,10 @@ endif()
 
 if (SOLARIS)
     list(APPEND LIB_PLATFORM socket nsl)
+endif()
+
+if (QNX)
+    list(APPEND LIB_PLATFORM socket)
 endif()
 
 source_group("Headers Private"  FILES ${HDR_PRIVATE})
@@ -1501,7 +1514,9 @@ if (NOT EVENT__DISABLE_TESTS)
         else()
             add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
         endif()
-        add_backend_test(signalfd_${BACKEND} "${BACKEND_ENV_VARS};EVENT_USE_SIGNALFD=1")
+        if (NOT QNX)
+            add_backend_test(signalfd_${BACKEND} "${BACKEND_ENV_VARS};EVENT_USE_SIGNALFD=1")
+        endif()
     endforeach()
 
     #
