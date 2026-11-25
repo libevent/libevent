@@ -2328,7 +2328,14 @@ evutil_inet_pton(int af, const char *src, void *dst)
 				words[i++] = (ev_uint16_t)r;
 				setWords++;
 				src = next;
-				if (*src != ':' && src != eow)
+				if (src == eow) {
+					if (dot)
+						return 0;
+					break;
+				}
+				if (*src != ':')
+					return 0;
+				if (!dot && src + 1 == eow)
 					return 0;
 				++src;
 			} else if (*src == ':' && i > 0 && gapPos==-1) {

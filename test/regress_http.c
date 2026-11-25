@@ -3147,6 +3147,7 @@ http_parse_uri_test(void *arg)
 	BAD("http://[hello-there]/");
 	BAD("http://[::1]]/");
 	BAD("http://[::1/");
+	BAD("http://[::1:]/");
 	BAD("http://[foob/");
 	BAD("http://[/");
 	BAD("http://[ffff:ffff:ffff:ffff:Ffff:ffff:ffff:"
