@@ -2917,6 +2917,17 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 		}
 	}
 #endif
+#if defined(SOCK_NONBLOCK) && defined(__QNX__)
+	/* On QNX socketpair() applies SOCK_NONBLOCK to the first descriptor
+	 * of the pair only, so make the second one nonblocking here. */
+	if (sock_type & EVUTIL_SOCK_NONBLOCK) {
+		if ((ret = evutil_fast_socket_nonblocking(fd[1]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+	}
+#endif
 #ifndef SOCK_CLOEXEC
 	if (sock_type & EVUTIL_SOCK_CLOEXEC) {
 		if ((ret = evutil_fast_socket_closeonexec(fd[0]))) {
