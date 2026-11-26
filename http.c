@@ -2151,6 +2151,31 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 	return (0);
 }
 
+/* RFC 9110 section 5.6.2 defines a field-name as one or more "tchar"s, and
+ * RFC 9112 section 5.1 requires a server to reject a received message whose
+ * field name is followed by whitespace before the colon: peers that disagree
+ * about whether to strip that whitespace also disagree about which
+ * Content-Length or Transfer-Encoding header applies.  Checking the whole
+ * name against the tchar set covers that and any other separator a peer
+ * might normalize away.
+ */
+static int
+evhttp_header_is_valid_name(const char *name)
+{
+	const char *p;
+
+	if (*name == '\0')
+		return (0);
+
+	for (p = name; *p != '\0'; ++p) {
+		if (!EVUTIL_ISALNUM_(*p) &&
+		    strchr("!#$%&'*+-.^_`|~", *p) == NULL)
+			return (0);
+	}
+
+	return (1);
+}
+
 static int
 evhttp_header_is_valid_value(const char *value)
 {
@@ -2338,6 +2363,9 @@ evhttp_parse_headers_impl_(
 		svalue = line;
 		skey = strsep(&svalue, ":");
 		if (svalue == NULL)
+			goto error;
+
+		if (!evhttp_header_is_valid_name(skey))
 			goto error;
 
 		svalue += strspn(svalue, " ");
