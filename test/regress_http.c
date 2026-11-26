@@ -4862,6 +4862,51 @@ http_multi_line_header_test(void *arg)
 		evhttp_free(http);
 }
 
+static enum message_read_status
+http_parse_header_lines(const char *lines)
+{
+	struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+	struct evbuffer *buf = evbuffer_new();
+	enum message_read_status status;
+
+	evbuffer_add(buf, lines, strlen(lines));
+	status = evhttp_parse_headers_(req, buf);
+	evbuffer_free(buf);
+	evhttp_request_free(req);
+	return status;
+}
+
+static void
+http_header_name_test(void *arg)
+{
+	static const char *const good[] = {
+		"Content-Type: text/plain\r\n\r\n",
+		"X-Odd-!#$%&'*+.^_`|~09aZ: ok\r\n\r\n",
+		NULL,
+	};
+	/* A field name followed by whitespace, or holding any other
+	 * non-tchar, must be rejected: a peer that strips the whitespace
+	 * would read a different Content-Length or Transfer-Encoding than
+	 * we do. */
+	static const char *const bad[] = {
+		"Transfer-Encoding : chunked\r\n\r\n",
+		"Content-Length\t: 6\r\n\r\n",
+		"Content Length: 6\r\n\r\n",
+		"Content(Length): 6\r\n\r\n",
+		"Content-Length\x80: 6\r\n\r\n",
+		NULL,
+	};
+	int i;
+	(void) arg;
+
+	for (i = 0; good[i] != NULL; ++i)
+		tt_int_op(http_parse_header_lines(good[i]), ==, ALL_DATA_READ);
+	for (i = 0; bad[i] != NULL; ++i)
+		tt_int_op(http_parse_header_lines(bad[i]), ==, DATA_CORRUPTED);
+end:
+	;
+}
+
 static void
 http_is_chunked_test(void *arg)
 {
@@ -6225,6 +6270,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(highport),
 	HTTP(dispatcher),
 	HTTP(multi_line_header),
+	HTTP(header_name),
 	HTTP(is_chunked),
 	HTTP(check_transfer_encoding),
 	HTTP(negative_content_length),
